@@ -2,6 +2,17 @@ import type { ModoCupon, SeleccionCupon } from "./tipos";
 
 export const fmt = (n: number) => "$" + n.toFixed(2);
 
+// Dos selecciones del mismo partido no se pueden combinar: la combinada exige
+// que TODAS acierten, y dos resultados del mismo evento se excluyen entre sí.
+// Devuelve los ids de evento que aparecen más de una vez.
+export function eventosEnConflicto(sel: SeleccionCupon[]): Set<string> {
+  const veces = new Map<string, number>();
+  for (const s of sel) veces.set(s.eventoId, (veces.get(s.eventoId) ?? 0) + 1);
+  return new Set(
+    [...veces.entries()].filter(([, n]) => n > 1).map(([id]) => id)
+  );
+}
+
 // Cálculo del cupón (palpito_guia.md §5):
 // - Simples: cada selección es una apuesta independiente.
 //   Apuesta total = monto × N. Ganancia = suma de (monto × cuota).

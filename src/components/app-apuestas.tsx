@@ -10,7 +10,7 @@ import { Icono, IconosDefs } from "./iconos";
 import { MisApuestas } from "./mis-apuestas";
 import { PanelCuenta } from "./panel-cuenta";
 import { ProveedorFormatoCuota } from "./formato-cuota";
-import { calcular, fmt } from "@/lib/cupon";
+import { calcular, eventosEnConflicto, fmt } from "@/lib/cupon";
 import { crearClienteNavegador } from "@/lib/supabase/client";
 import { DEPORTES } from "@/lib/datos-ejemplo";
 import type { Evento, Mercado, ModoCupon, Seleccion, SeleccionCupon, Vista } from "@/lib/tipos";
@@ -107,9 +107,12 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
         ...prev,
         {
           key: seleccion.id,
+          eventoId: evento.id,
           mercado: mercado.nombre,
           pick: nombrePick(evento, seleccion),
           evento: `${evento.equipoA} v ${evento.equipoB}`,
+          liga: evento.liga,
+          hora: evento.hora,
           cuota: seleccion.cuota,
         },
       ];
@@ -128,12 +131,16 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
     if (enviando) return;
     setEnviando(true);
     try {
-      const c = calcular(sel, modo, monto);
+      // El mismo criterio que muestra el cupón: sin 2+ selecciones de partidos
+      // distintos no hay combinada posible, así que se envía como simples.
+      const puedeCombinar = sel.length >= 2 && eventosEnConflicto(sel).size === 0;
+      const tipo = modo === "combinada" && puedeCombinar ? "combinada" : "simple";
+      const c = calcular(sel, tipo, monto);
       const res = await fetch("/api/apostar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          tipo: modo === "combinada" ? "combinada" : "simple",
+          tipo,
           monto,
           idempotency_key: idempotencia.current,
           selecciones: sel.map((s) => ({ seleccion_id: s.key, cuota_vista: s.cuota })),
@@ -161,6 +168,8 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
         aviso("Las cuotas cambiaron — revisa y confirma de nuevo");
       } else if (r.motivo === "saldo") {
         aviso("Saldo insuficiente para esta apuesta");
+      } else if (r.motivo === "mismo_partido") {
+        aviso("No puedes combinar dos picks del mismo partido");
       } else if (r.motivo === "evento_cerrado") {
         aviso("Ese partido ya no acepta apuestas");
         idempotencia.current = crypto.randomUUID();

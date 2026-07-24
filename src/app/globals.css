@@ -265,15 +265,23 @@ button {
 .slip { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .shd { display: flex; align-items: center; gap: 10px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
 .shd b { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+.shd-ic { width: 16px; height: 16px; color: var(--lima-txt); flex: 0 0 auto; }
 .shd .n { font-family: var(--font-jetbrains), monospace; font-size: 11px; font-weight: 700; background: var(--lima);
   color: var(--lima-ink); border-radius: 100px; padding: 2px 8px; }
 .shd .clr { margin-left: auto; font-size: 12px; color: var(--mist); font-weight: 500; border: none; background: none; }
 .shd .clr:hover { color: var(--baja); }
+.shd .cerrar { width: 26px; height: 26px; border-radius: 8px; border: none; background: var(--panel2);
+  color: var(--mist); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; transition: 0.18s; }
+.shd .cerrar:hover { color: var(--ink); }
+.shd .cerrar svg { width: 11px; height: 11px; }
+.shd .clr + .cerrar { margin-left: 0; }
+.shd .cerrar:only-of-type { margin-left: auto; }
 .smode { display: flex; gap: 2px; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--panel2); }
 .smode button { flex: 1; font-size: 12.5px; font-weight: 600; padding: 7px; border-radius: 8px; color: var(--mist);
   transition: 0.2s; border: none; background: none; }
 .smode button.on { background: var(--panel); color: var(--ink); box-shadow: var(--sh); }
 :root[data-theme="dark"] .smode button.on { background: var(--panel3); }
+.smode button:disabled { opacity: 0.4; cursor: not-allowed; }
 .sbody { max-height: 330px; overflow-y: auto; padding: 10px 12px; }
 .selc { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; margin-bottom: 7px;
   position: relative; }
@@ -281,11 +289,26 @@ button {
   display: flex; align-items: center; justify-content: center; transition: 0.18s; border: none; background: none; }
 .selc .x:hover { background: var(--panel3); color: var(--baja); }
 .selc .x svg { width: 11px; height: 11px; }
-.selc .mk { font-size: 10.5px; color: var(--mist); letter-spacing: 0.04em; padding-right: 20px; }
-.selc .pk { font-weight: 700; font-size: 13.5px; margin-top: 2px; padding-right: 20px; }
-.selc .bt { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
-.selc .eq2 { font-size: 11.5px; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.selc .cu { font-family: var(--font-jetbrains), monospace; font-weight: 700; font-size: 14px; color: var(--lima-txt); }
+.selc .mk { font-size: 10.5px; color: var(--mist); letter-spacing: 0.04em; padding-right: 20px;
+  text-transform: uppercase; font-weight: 600; }
+.selc .pk { font-weight: 700; font-size: 14px; margin-top: 3px; padding-right: 20px; }
+.selc .ev { font-size: 12px; color: var(--ink2); margin-top: 2px; padding-right: 20px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selc .bt { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px;
+  padding-top: 7px; border-top: 1px solid var(--line); }
+.selc .eq2 { font-size: 11px; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selc .cu { font-family: var(--font-jetbrains), monospace; font-weight: 700; font-size: 14px; color: var(--lima-txt);
+  flex: 0 0 auto; }
+/* Dos picks del mismo partido en una combinada */
+.selc.choca { border-color: var(--baja); }
+
+.s-alerta { background: rgba(255, 90, 90, 0.09); border: 1px solid rgba(255, 90, 90, 0.35);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 9px; }
+.s-alerta b { display: block; color: var(--baja); font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
+.s-alerta p { font-size: 11.5px; color: var(--ink2); line-height: 1.45; }
+
+.s-restante { text-align: center; font-size: 11.5px; color: var(--mist); margin: -4px 0 10px; }
+.s-restante b { color: var(--ink2); }
 .svacio { text-align: center; padding: 38px 16px; color: var(--mist); }
 .svacio svg { width: 38px; height: 38px; margin: 0 auto 12px; opacity: 0.35; }
 .svacio b { display: block; color: var(--ink); font-weight: 700; font-size: 14.5px; margin-bottom: 4px; }

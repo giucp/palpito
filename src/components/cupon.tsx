@@ -2,7 +2,7 @@
 
 import { Icono } from "./iconos";
 import { useFormatoCuota } from "./formato-cuota";
-import { calcular, fmt } from "@/lib/cupon";
+import { calcular, eventosEnConflicto, fmt } from "@/lib/cupon";
 import type { ModoCupon, SeleccionCupon } from "@/lib/tipos";
 
 type Props = {
@@ -37,36 +37,59 @@ export function CuponPanel({
   onCerrar,
 }: Props) {
   const { fc } = useFormatoCuota();
-  const c = calcular(sel, modo, monto);
+
+  const conflictos = eventosEnConflicto(sel);
+  const hayConflicto = conflictos.size > 0;
+  const combinadaPosible = sel.length >= 2 && !hayConflicto;
+  // Con una sola selección, o con dos picks del mismo partido, la combinada
+  // no aplica: se cae a simples para no ofrecer una apuesta imposible.
+  const modoReal: ModoCupon = combinadaPosible ? modo : "simple";
+
+  const c = calcular(sel, modoReal, monto);
   const sinMonto = monto < 1;
   const sinSaldo = saldo !== null && c.apuesta > saldo;
   const bloqueado = enviando || sinMonto || sinSaldo;
+  const restante = saldo !== null ? saldo - c.apuesta : null;
 
   return (
     <>
       <div className="shd">
-        <Icono id="i-slip" className="w-4 h-4 text-lima-txt" />
+        <Icono id="i-slip" className="shd-ic" />
         <b>Cupón</b>
         <span className="n">{sel.length}</span>
-        {onCerrar ? (
-          <button className="clr" onClick={onCerrar}>
-            Cerrar
-          </button>
-        ) : (
+        {sel.length > 0 && (
           <button className="clr" onClick={onLimpiar}>
             Limpiar
           </button>
         )}
+        {onCerrar && (
+          <button className="cerrar" onClick={onCerrar} aria-label="Cerrar cupón">
+            <Icono id="i-x" />
+          </button>
+        )}
       </div>
 
-      <div className="smode">
-        <button className={modo === "simple" ? "on" : ""} onClick={() => onModo("simple")}>
-          Simples
-        </button>
-        <button className={modo === "combinada" ? "on" : ""} onClick={() => onModo("combinada")}>
-          Combinada
-        </button>
-      </div>
+      {sel.length > 0 && (
+        <div className="smode">
+          <button className={modoReal === "simple" ? "on" : ""} onClick={() => onModo("simple")}>
+            {sel.length > 1 ? `${sel.length} simples` : "Simple"}
+          </button>
+          <button
+            className={modoReal === "combinada" ? "on" : ""}
+            onClick={() => combinadaPosible && onModo("combinada")}
+            disabled={!combinadaPosible}
+            title={
+              sel.length < 2
+                ? "Agrega otra selección para combinar"
+                : hayConflicto
+                  ? "No se pueden combinar dos picks del mismo partido"
+                  : undefined
+            }
+          >
+            Combinada
+          </button>
+        </div>
+      )}
 
       <div className="sbody">
         {sel.length === 0 ? (
@@ -76,19 +99,36 @@ export function CuponPanel({
             <p>Toca una cuota para empezar a armar tu apuesta.</p>
           </div>
         ) : (
-          sel.map((s) => (
-            <div key={s.key} className="selc">
-              <button className="x" onClick={() => onQuitar(s.key)} aria-label="Quitar selección">
-                <Icono id="i-x" />
-              </button>
-              <div className="mk">{s.mercado}</div>
-              <div className="pk">{s.pick}</div>
-              <div className="bt">
-                <span className="eq2">{s.evento}</span>
-                <span className="cu mono">{fc(s.cuota)}</span>
+          <>
+            {hayConflicto && modo === "combinada" && (
+              <div className="s-alerta">
+                <b>No se puede combinar</b>
+                <p>
+                  Tienes dos picks del mismo partido y una combinada exige que todos acierten.
+                  Se calculará como apuestas simples.
+                </p>
               </div>
-            </div>
-          ))
+            )}
+            {sel.map((s) => (
+              <div
+                key={s.key}
+                className={`selc ${conflictos.has(s.eventoId) && modo === "combinada" ? "choca" : ""}`}
+              >
+                <button className="x" onClick={() => onQuitar(s.key)} aria-label="Quitar selección">
+                  <Icono id="i-x" />
+                </button>
+                <div className="mk">{s.mercado}</div>
+                <div className="pk">{s.pick}</div>
+                <div className="ev">{s.evento}</div>
+                <div className="bt">
+                  <span className="eq2">
+                    {s.liga} · {s.hora}
+                  </span>
+                  <span className="cu mono">{fc(s.cuota)}</span>
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </div>
 
@@ -126,23 +166,45 @@ export function CuponPanel({
               </button>
             ))}
           </div>
+
           <div className="srow">
             <span className="k">
-              {modo === "combinada" ? "Apuesta" : `Apuesta (${sel.length} × ${fmt(monto)})`}
+              {modoReal === "combinada"
+                ? "Apuesta"
+                : sel.length > 1
+                  ? `${sel.length} × ${fmt(monto)}`
+                  : "Apuesta"}
             </span>
             <span className="v mono">{fmt(c.apuesta)}</span>
           </div>
           <div className="srow">
-            <span className="k">Cuota total</span>
+            <span className="k">
+              {modoReal === "combinada" ? "Cuota combinada" : "Cuota media"}
+            </span>
             <span className="v mono">{c.cuota ? fc(c.cuota) : "—"}</span>
           </div>
           <div className="srow gan">
             <span className="k">Ganancia posible</span>
             <span className="v mono">{fmt(c.ganancia)}</span>
           </div>
+
+          {restante !== null && !sinSaldo && c.apuesta > 0 && (
+            <div className="s-restante">
+              Te quedarían <b className="mono">{fmt(restante)}</b>
+            </div>
+          )}
           {sinSaldo && <p className="saviso">No te alcanzan las fichas para esta apuesta.</p>}
+
           <button className="bapostar" onClick={onApostar} disabled={bloqueado}>
-            {enviando ? "Colocando…" : sinMonto ? "Escribe un monto" : "Apostar"}
+            {enviando
+              ? "Colocando…"
+              : sinMonto
+                ? "Escribe un monto"
+                : modoReal === "combinada"
+                  ? "Apostar combinada"
+                  : sel.length > 1
+                    ? `Apostar ${sel.length} simples`
+                    : "Apostar"}
           </button>
         </div>
       )}
