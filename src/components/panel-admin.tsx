@@ -262,13 +262,18 @@ export function PanelAdmin({ correo }: { correo: string }) {
             <div className="adm-orden">
               {(
                 [
-                  ["jugado", "Más jugado"],
-                  ["balance", "Mejor balance"],
-                  ["saldo", "Más saldo"],
-                  ["reciente", "Recientes"],
+                  ["jugado", "Más apostado", "Quién ha puesto más fichas en juego"],
+                  ["balance", "Mejor balance", "Quién va ganando más (cobrado menos apostado)"],
+                  ["saldo", "Más saldo", "Quién tiene más fichas ahora mismo"],
+                  ["reciente", "Más nuevos", "Los últimos en registrarse"],
                 ] as const
-              ).map(([k, t]) => (
-                <button key={k} className={orden === k ? "on" : ""} onClick={() => setOrden(k)}>
+              ).map(([k, t, ayuda]) => (
+                <button
+                  key={k}
+                  className={orden === k ? "on" : ""}
+                  onClick={() => setOrden(k)}
+                  title={ayuda}
+                >
                   {t}
                 </button>
               ))}
@@ -298,10 +303,18 @@ export function PanelAdmin({ correo }: { correo: string }) {
             <div className="adm-tabla">
               <div className="adm-fila adm-cabecera">
                 <span>Usuario</span>
-                <span className="num">Saldo</span>
-                <span className="num">Jugado</span>
-                <span className="num">Cobrado</span>
-                <span className="num">Balance</span>
+                <span className="num" title="Fichas que tiene ahora mismo">
+                  Saldo
+                </span>
+                <span className="num" title="Todo lo que ha puesto en juego, sumando apuestas y partidas">
+                  Apostado
+                </span>
+                <span className="num" title="Todo lo que ha cobrado por ganar o por devoluciones">
+                  Cobrado
+                </span>
+                <span className="num" title="Cobrado menos apostado: si va ganando o perdiendo">
+                  Balance
+                </span>
                 <span />
               </div>
               {ordenadas.map((u) => {
@@ -325,7 +338,7 @@ export function PanelAdmin({ correo }: { correo: string }) {
                       <span className="num mono" data-t="Saldo">
                         {fmt(u.saldo)}
                       </span>
-                      <span className="num mono suave" data-t="Jugado">
+                      <span className="num mono suave" data-t="Apostado">
                         {fmt(u.apostado)}
                       </span>
                       <span className="num mono suave" data-t="Cobrado">
