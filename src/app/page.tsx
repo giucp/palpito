@@ -1,5 +1,6 @@
 import { AppApuestas } from "@/components/app-apuestas";
 import { cargarEventos } from "@/lib/eventos";
+import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
 // Dinámica por sesión: catálogo + usuario + saldo se leen en cada petición.
@@ -20,8 +21,18 @@ export default async function Home() {
         .select("saldo")
         .eq("usuario_id", user.id)
         .maybeSingle();
+
+      // ¿Es administrador? Solo para mostrarle el acceso al panel; el permiso
+      // de verdad lo comprueba /admin por su cuenta.
+      const admin = crearClienteAdmin();
+      const { data: esAdmin } = await admin
+        .from("administradores")
+        .select("usuario_id")
+        .eq("usuario_id", user.id)
+        .maybeSingle();
+
       return {
-        usuario: { email: user.email ?? "" },
+        usuario: { email: user.email ?? "", admin: !!esAdmin },
         saldo: data?.saldo !== undefined && data?.saldo !== null ? Number(data.saldo) : 0,
       };
     })(),

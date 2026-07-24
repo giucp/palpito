@@ -7,7 +7,7 @@ import { fmt } from "@/lib/cupon";
 import { calcularEstadisticas, cargarTickets, type Estadisticas } from "@/lib/apuestas";
 
 type Props = {
-  usuario: { email: string } | null;
+  usuario: { email: string; admin?: boolean } | null;
   saldo: number | null;
   onEntrar: () => void;
   onSalir: () => void;
@@ -186,6 +186,16 @@ export function PanelCuenta({ usuario, saldo, onEntrar, onSalir }: Props) {
         <span>Correo</span>
         <b>{usuario.email}</b>
       </div>
+
+      {/* Solo lo ve quien es administrador; el permiso real lo comprueba /admin. */}
+      {usuario.admin && (
+        <a className="pf-admin" href="/admin">
+          <Icono id="i-panel" />
+          <span>Panel de administración</span>
+          <Icono id="i-arr" className="ir" />
+        </a>
+      )}
+
       <button className="pf-salir" onClick={onSalir}>
         Cerrar sesión
       </button>

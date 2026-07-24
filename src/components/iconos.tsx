@@ -45,6 +45,11 @@ export function IconosDefs() {
           <circle cx="12" cy="8" r="4" />
           <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
         </symbol>
+        <symbol id="i-panel" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="3" />
+          <path d="M3 9h18" />
+          <path d="M7.5 13v3.5M12 12v4.5M16.5 14.5v2" />
+        </symbol>
         <symbol id="i-sonido" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5z" />
           <path d="M15.5 9.2a4 4 0 0 1 0 5.6" />

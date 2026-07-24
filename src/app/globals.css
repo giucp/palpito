@@ -795,6 +795,13 @@ button {
   border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
 .pf-row span { color: var(--mist); font-size: 13px; flex: 0 0 auto; }
 .pf-row b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-admin { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--lima);
+  border-radius: 12px; padding: 13px 15px; margin-bottom: 12px; color: var(--ink); font-weight: 600;
+  font-size: 14px; transition: 0.18s; }
+.pf-admin:hover { background: var(--panel2); }
+.pf-admin svg { width: 17px; height: 17px; color: var(--lima-txt); flex: 0 0 auto; }
+.pf-admin .ir { margin-left: auto; width: 14px; height: 14px; color: var(--mist); }
+
 .pf-salir { width: 100%; background: none; border: 1px solid var(--line2); color: var(--ink2); font-weight: 700;
   font-size: 14px; padding: 13px; border-radius: 10px; transition: 0.2s; }
 .pf-salir:hover { border-color: var(--baja); color: var(--baja); }

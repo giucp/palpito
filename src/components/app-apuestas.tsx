@@ -30,7 +30,7 @@ function nombrePick(evento: Evento, seleccion: Seleccion): string {
 type Props = {
   eventos: Evento[];
   origen: "supabase" | "ejemplo";
-  usuario: { email: string } | null;
+  usuario: { email: string; admin?: boolean } | null;
   saldo: number | null;
 };
 
