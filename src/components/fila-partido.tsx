@@ -1,6 +1,7 @@
 "use client";
 
 import { Icono } from "./iconos";
+import { useFormatoCuota } from "./formato-cuota";
 import type { Evento, Mercado, Seleccion } from "@/lib/tipos";
 
 type Props = {
@@ -18,6 +19,7 @@ function etiquetaPick(evento: Evento, seleccion: Seleccion): string {
 }
 
 export function FilaPartido({ evento, seleccionadas, onCuota, onDetalle }: Props) {
+  const { fc } = useFormatoCuota();
   const principal = evento.mercados[0];
   const extra = evento.mercados.length - 1;
   const n = principal?.selecciones.length ?? 3;
@@ -47,7 +49,7 @@ export function FilaPartido({ evento, seleccionadas, onCuota, onDetalle }: Props
               onClick={() => onCuota(evento, principal, s)}
             >
               <span className="lbl">{etiquetaPick(evento, s)}</span>
-              <span className="v">{s.cuota.toFixed(2)}</span>
+              <span className="v">{fc(s.cuota)}</span>
             </button>
           ))}
         </div>

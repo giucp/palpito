@@ -389,8 +389,121 @@ button {
   transition: transform 0.34s cubic-bezier(0.3, 1.2, 0.4, 1), opacity 0.22s; box-shadow: var(--sh); }
 .toast.on { transform: translate(-50%, 0); opacity: 1; }
 
+/* ---- Filtros de Mis apuestas ---- */
+.filtros { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; }
+.filtros::-webkit-scrollbar { display: none; }
+.filtros button { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink2); border-radius: 100px; padding: 8px 13px; font-size: 13px;
+  font-weight: 600; transition: 0.18s; }
+.filtros button:hover { border-color: var(--line2); color: var(--ink); }
+.filtros button.on { background: var(--lima); border-color: var(--lima); color: var(--lima-ink); }
+.filtros .fc { font-size: 11px; color: var(--mist); }
+.filtros button.on .fc { color: rgba(11, 14, 12, 0.55); }
+
+/* ---- Ticket de apuesta ---- */
+.tk { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; margin-bottom: 9px;
+  overflow: hidden; border-left: 3px solid var(--line2); }
+.tk.ganada { border-left-color: var(--sube); }
+.tk.perdida { border-left-color: var(--baja); }
+.tk.abierta { border-left-color: var(--lima); }
+.tk-head { width: 100%; display: flex; align-items: center; gap: 9px; padding: 12px 14px 4px;
+  background: none; border: none; color: inherit; text-align: left; }
+.tk-tipo { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mist);
+  font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk .st { font-family: var(--font-jetbrains), monospace; font-size: 10.5px; padding: 3px 9px;
+  border-radius: 100px; font-weight: 700; flex: 0 0 auto; }
+.tk .st.abierta { background: rgba(182, 255, 61, 0.14); color: var(--lima-txt); }
+.tk .st.ganada { background: rgba(61, 220, 132, 0.16); color: var(--sube); }
+.tk .st.perdida { background: rgba(255, 90, 90, 0.14); color: var(--baja); }
+.tk .st.anulada { background: var(--panel3); color: var(--mist); }
+.tk-chev { width: 15px; height: 15px; color: var(--mist); flex: 0 0 auto; transition: transform 0.25s; }
+.tk-head[aria-expanded="true"] .tk-chev { transform: rotate(180deg); }
+.tk-fecha { font-family: var(--font-jetbrains), monospace; font-size: 10.5px; color: var(--mist);
+  padding: 0 14px 10px; }
+
+.tk-linea { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px;
+  border-top: 1px solid var(--line); }
+.tk-linea .marca { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 10px; font-weight: 700; flex: 0 0 auto; margin-top: 1px;
+  background: var(--panel3); color: var(--mist); }
+.tk-linea .marca.ganada { background: rgba(61, 220, 132, 0.18); color: var(--sube); }
+.tk-linea .marca.perdida { background: rgba(255, 90, 90, 0.16); color: var(--baja); }
+.tk-info { flex: 1; min-width: 0; }
+.tk-partido { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-partido i { color: var(--mist); font-style: normal; font-weight: 500; font-size: 11.5px; }
+.tk-pick { font-size: 12.5px; color: var(--ink2); margin-top: 2px; }
+.tk-pick .mk { color: var(--mist); }
+.tk-extra { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.tk-extra .lg { font-size: 11px; color: var(--mist); }
+.tk-extra .ev { font-family: var(--font-jetbrains), monospace; font-size: 10.5px; color: var(--mist);
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 100px; padding: 2px 8px; }
+.tk-extra .ev.fin { color: var(--ink); border-color: var(--line2); }
+.tk-extra .ev.vivo { color: var(--vivo); border-color: rgba(255, 59, 87, 0.3); }
+.tk-cuota { font-weight: 700; font-size: 14px; flex: 0 0 auto; }
+.tk-linea.perdida .tk-partido, .tk-linea.perdida .tk-cuota { color: var(--mist); }
+
+.tk-pie { display: flex; align-items: center; gap: 16px; padding: 11px 14px; border-top: 1px solid var(--line);
+  background: var(--panel2); }
+.tk-pie .mi { font-size: 10.5px; color: var(--mist); }
+.tk-pie .mi b { display: block; font-size: 14px; color: var(--ink); font-weight: 700; margin-top: 1px; }
+.tk-pie .mi.gan b { color: var(--sube); }
+.tk-pie .mi:last-child { margin-left: auto; text-align: right; }
+
 /* ---- Perfil / Mi cuenta ---- */
 .perfil { max-width: 460px; }
+.pf-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px;
+  margin-bottom: 12px; }
+.pf-titulo { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mist);
+  font-weight: 700; margin-bottom: 14px; }
+
+/* Anillo de aciertos */
+.pf-anillo-fila { display: flex; align-items: center; gap: 18px; }
+.anillo { position: relative; width: 120px; height: 120px; flex: 0 0 auto; }
+.anillo svg { width: 100%; height: 100%; }
+.anillo circle { fill: none; stroke-width: 11; }
+.anillo .a-base { stroke: var(--baja); opacity: 0.28; }
+.anillo .a-ganadas { stroke: var(--lima); stroke-linecap: round; transition: stroke-dasharray 0.5s; }
+.a-centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 0 18px; }
+.a-centro b { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.a-centro small { font-size: 10.5px; color: var(--mist); line-height: 1.3; }
+.pf-leyenda { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.pf-leyenda .ly { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink2); }
+.pf-leyenda .ly i { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 auto; }
+.pf-leyenda .ly span { flex: 1; }
+.pf-leyenda .ly b { font-weight: 700; color: var(--ink); }
+.p-ganada { background: var(--lima); }
+.p-perdida { background: var(--baja); opacity: 0.55; }
+.p-abierta { background: var(--mist); }
+.p-anulada { background: var(--line2); }
+
+/* Cuadrícula de cifras */
+.pf-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+.pf-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; }
+.pf-stat span { display: block; font-size: 11px; color: var(--mist); margin-bottom: 3px; }
+.pf-stat b { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+.pf-stat.pos b { color: var(--sube); }
+.pf-stat.neg b { color: var(--baja); }
+
+/* Desglose por día */
+.pf-dia { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line);
+  font-size: 13px; }
+.pf-dia:first-of-type { border-top: none; padding-top: 0; }
+.pf-dia .dl { font-weight: 600; min-width: 62px; }
+.pf-dia .dn { flex: 1; font-size: 11.5px; color: var(--mist); }
+.pf-dia .db { font-weight: 700; color: var(--ink2); }
+.pf-dia .db.pos { color: var(--sube); }
+.pf-dia .db.neg { color: var(--baja); }
+
+/* Selector de formato de cuota */
+.pf-formato { display: flex; gap: 8px; }
+.pf-formato button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 11px;
+  color: var(--ink2); font-size: 13px; font-weight: 600; transition: 0.18s; }
+.pf-formato button:hover { border-color: var(--line2); }
+.pf-formato button.on { border-color: var(--lima); color: var(--ink); background: var(--panel3); }
+.pf-formato button small { font-size: 11px; color: var(--mist); }
+.pf-formato button.on small { color: var(--lima-txt); }
 .pf-saldo { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px;
   margin-bottom: 12px; text-align: center; }
 .pf-saldo .k { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;

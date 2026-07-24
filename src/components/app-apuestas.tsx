@@ -8,6 +8,8 @@ import { DetallePartido } from "./detalle-partido";
 import { FilaPartido } from "./fila-partido";
 import { Icono, IconosDefs } from "./iconos";
 import { MisApuestas } from "./mis-apuestas";
+import { PanelCuenta } from "./panel-cuenta";
+import { ProveedorFormatoCuota } from "./formato-cuota";
 import { calcular, fmt } from "@/lib/cupon";
 import { crearClienteNavegador } from "@/lib/supabase/client";
 import { DEPORTES } from "@/lib/datos-ejemplo";
@@ -243,7 +245,7 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   );
 
   return (
-    <>
+    <ProveedorFormatoCuota>
       <IconosDefs />
       <Cabecera vista={vista} onVista={irVista} usuario={usuario} saldo={saldo} onAviso={aviso} />
 
@@ -362,35 +364,12 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
               <div className="vhead">
                 <h2>Mi cuenta</h2>
               </div>
-              {usuario ? (
-                <div className="perfil">
-                  <div className="pf-saldo">
-                    <span className="k">Saldo disponible</span>
-                    <b className="mono">{saldo !== null ? fmt(saldo) : "—"}</b>
-                    <small>Fichas de prueba</small>
-                  </div>
-                  <div className="pf-row">
-                    <span>Correo</span>
-                    <b>{usuario.email}</b>
-                  </div>
-                  <button className="pf-salir" onClick={cerrarSesion}>
-                    Cerrar sesión
-                  </button>
-                </div>
-              ) : (
-                <div className="svacio" style={{ padding: "60px 20px" }}>
-                  <Icono id="i-user" />
-                  <b>No has entrado</b>
-                  <p>Crea tu cuenta y recibe 1000 fichas de prueba de regalo.</p>
-                  <button
-                    className="bapostar"
-                    style={{ maxWidth: 240, margin: "16px auto 0" }}
-                    onClick={() => router.push("/entrar")}
-                  >
-                    Entrar
-                  </button>
-                </div>
-              )}
+              <PanelCuenta
+                usuario={usuario}
+                saldo={saldo}
+                onEntrar={() => router.push("/entrar")}
+                onSalir={cerrarSesion}
+              />
             </div>
           )}
 
@@ -445,6 +424,6 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
       <div className={`toast ${toast ? "on" : ""}`} role="status" aria-live="polite">
         {toast?.msg ?? ""}
       </div>
-    </>
+    </ProveedorFormatoCuota>
   );
 }

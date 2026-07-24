@@ -1,6 +1,7 @@
 "use client";
 
 import { Icono } from "./iconos";
+import { useFormatoCuota } from "./formato-cuota";
 import { calcular, fmt } from "@/lib/cupon";
 import type { ModoCupon, SeleccionCupon } from "@/lib/tipos";
 
@@ -35,6 +36,7 @@ export function CuponPanel({
   onApostar,
   onCerrar,
 }: Props) {
+  const { fc } = useFormatoCuota();
   const c = calcular(sel, modo, monto);
   const sinMonto = monto < 1;
   const sinSaldo = saldo !== null && c.apuesta > saldo;
@@ -83,7 +85,7 @@ export function CuponPanel({
               <div className="pk">{s.pick}</div>
               <div className="bt">
                 <span className="eq2">{s.evento}</span>
-                <span className="cu mono">{s.cuota.toFixed(2)}</span>
+                <span className="cu mono">{fc(s.cuota)}</span>
               </div>
             </div>
           ))
@@ -132,7 +134,7 @@ export function CuponPanel({
           </div>
           <div className="srow">
             <span className="k">Cuota total</span>
-            <span className="v mono">{c.cuota ? c.cuota.toFixed(2) : "—"}</span>
+            <span className="v mono">{c.cuota ? fc(c.cuota) : "—"}</span>
           </div>
           <div className="srow gan">
             <span className="k">Ganancia posible</span>

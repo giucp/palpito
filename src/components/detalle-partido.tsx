@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icono } from "./iconos";
+import { useFormatoCuota } from "./formato-cuota";
 import type { Evento, Mercado, Seleccion } from "@/lib/tipos";
 
 // Nombre del equipo en vez de "Local"/"Visitante" (más claro, como en el lobby).
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export function DetallePartido({ evento, seleccionadas, onCuota, onVolver }: Props) {
+  const { fc } = useFormatoCuota();
   // Todos los grupos abiertos al entrar; cada uno se puede plegar.
   const [cerrados, setCerrados] = useState<Set<string>>(new Set());
 
@@ -68,7 +70,7 @@ export function DetallePartido({ evento, seleccionadas, onCuota, onVolver }: Pro
                 onClick={() => onCuota(evento, m, s)}
               >
                 <div className="k">{etiquetaPick(evento, s)}</div>
-                <div className="v">{s.cuota.toFixed(2)}</div>
+                <div className="v">{fc(s.cuota)}</div>
               </button>
             ))}
           </div>

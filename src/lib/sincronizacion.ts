@@ -73,14 +73,11 @@ export async function sincronizarCartelera(): Promise<ResumenSincronizacion> {
       for (const e of insertados ?? []) idPorExterno.set(e.externo_id, e.id);
     }
 
-    // 3) Refrescar hora de los existentes sin apuestas y limpiar sus mercados
+    // 3) Refrescar los existentes sin apuestas
     const refrescables = utiles.filter(
       (ev) => idPorExterno.has(ev.id) && !conApuestas.has(idPorExterno.get(ev.id)!)
     );
     const idsRefrescables = refrescables.map((ev) => idPorExterno.get(ev.id)!);
-    if (idsRefrescables.length > 0) {
-      await supabase.from("mercados").delete().in("evento_id", idsRefrescables);
-    }
     for (const ev of refrescables) {
       const idEvento = idPorExterno.get(ev.id)!;
       await supabase
@@ -90,52 +87,79 @@ export async function sincronizarCartelera(): Promise<ResumenSincronizacion> {
         .neq("comienza_at", ev.commence_time);
     }
 
-    // 4) Mercados y selecciones de todos los refrescables, en dos lotes
-    //    (generamos los UUID nosotros para poder enlazar sin ida y vuelta)
-    const filasMercados: Array<{
-      id: string;
-      evento_id: string;
-      tipo: string;
-      nombre: string;
-      orden: number;
+    // 4) Actualizar cuotas EN SITIO. Antes se borraban los mercados y se
+    //    reinsertaban, y durante ese hueco la cartelera se veía sin cuotas.
+    //    Ahora: lo que existe se actualiza, lo nuevo se inserta y lo que
+    //    desapareció del mercado se desactiva (nunca se borra: hay apuestas
+    //    que apuntan a esas selecciones).
+    const { data: yaEnBase } = await supabase
+      .from("mercados")
+      .select("id, evento_id, tipo, selecciones(id, nombre, cuota)")
+      .in("evento_id", idsRefrescables.length > 0 ? idsRefrescables : ["-"]);
+
+    // evento_id + tipo → mercado ; mercado_id + nombre → selección
+    const mercadoPorClave = new Map<string, string>();
+    const selPorClave = new Map<string, { id: string; cuota: number }>();
+    const selVistas = new Set<string>();
+    for (const m of yaEnBase ?? []) {
+      mercadoPorClave.set(`${m.evento_id}|${m.tipo}`, m.id);
+      const sels = (m.selecciones ?? []) as Array<{ id: string; nombre: string; cuota: number }>;
+      for (const s of sels) selPorClave.set(`${m.id}|${s.nombre}`, { id: s.id, cuota: Number(s.cuota) });
+    }
+
+    const mercadosNuevos: Array<{ id: string; evento_id: string; tipo: string; nombre: string; orden: number }> = [];
+    const seleccionesNuevas: Array<{
+      mercado_id: string; nombre: string; cuota: number; orden: number; lado: string; punto: number | null;
     }> = [];
-    const filasSelecciones: Array<{
-      mercado_id: string;
-      nombre: string;
-      cuota: number;
-      orden: number;
-      lado: string;
-      punto: number | null;
-    }> = [];
+    const cambiosCuota: Array<{ id: string; cuota: number }> = [];
 
     for (const ev of refrescables) {
       const idEvento = idPorExterno.get(ev.id)!;
       const mercados = mapearMercados(ev, fuente.nombres);
       mercados.forEach((m, i) => {
-        const idMercado = randomUUID();
-        filasMercados.push({
-          id: idMercado,
-          evento_id: idEvento,
-          tipo: m.tipo,
-          nombre: m.nombre,
-          orden: i,
-        });
+        let idMercado = mercadoPorClave.get(`${idEvento}|${m.tipo}`);
+        if (!idMercado) {
+          idMercado = randomUUID();
+          mercadoPorClave.set(`${idEvento}|${m.tipo}`, idMercado);
+          mercadosNuevos.push({ id: idMercado, evento_id: idEvento, tipo: m.tipo, nombre: m.nombre, orden: i });
+        }
         for (const s of m.selecciones) {
-          filasSelecciones.push({
-            mercado_id: idMercado,
-            nombre: s.nombre,
-            cuota: s.cuota,
-            orden: s.orden,
-            lado: s.lado,
-            punto: s.punto,
-          });
+          const clave = `${idMercado}|${s.nombre}`;
+          const existente = selPorClave.get(clave);
+          if (existente) {
+            selVistas.add(existente.id);
+            if (Math.abs(existente.cuota - s.cuota) > 0.001) {
+              cambiosCuota.push({ id: existente.id, cuota: s.cuota });
+            }
+          } else {
+            seleccionesNuevas.push({
+              mercado_id: idMercado,
+              nombre: s.nombre,
+              cuota: s.cuota,
+              orden: s.orden,
+              lado: s.lado,
+              punto: s.punto,
+            });
+          }
         }
       });
     }
-    if (filasMercados.length > 0) await supabase.from("mercados").insert(filasMercados);
-    if (filasSelecciones.length > 0) await supabase.from("selecciones").insert(filasSelecciones);
 
-    resumen.push({ liga: fuente.liga, eventos: refrescables.length + (idsRefrescables.length === 0 ? nuevos.length : 0) || utiles.length });
+    if (mercadosNuevos.length > 0) await supabase.from("mercados").insert(mercadosNuevos);
+    if (seleccionesNuevas.length > 0) await supabase.from("selecciones").insert(seleccionesNuevas);
+    for (const c of cambiosCuota) {
+      await supabase.from("selecciones").update({ cuota: c.cuota, activa: true }).eq("id", c.id);
+    }
+
+    // Las que ya no ofrece la casa: fuera del catálogo, pero sin borrarlas.
+    const desaparecidas = [...selPorClave.values()]
+      .map((s) => s.id)
+      .filter((id) => !selVistas.has(id));
+    if (desaparecidas.length > 0) {
+      await supabase.from("selecciones").update({ activa: false }).in("id", desaparecidas);
+    }
+
+    resumen.push({ liga: fuente.liga, eventos: refrescables.length });
   }
 
   return { ok: true, resumen, creditosRestantes };

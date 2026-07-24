@@ -2,29 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Icono } from "./iconos";
+import { useFormatoCuota } from "./formato-cuota";
 import { fmt } from "@/lib/cupon";
-import { crearClienteNavegador } from "@/lib/supabase/client";
-
-type Linea = {
-  id: string;
-  cuota: number;
-  estado: string | null;
-  selecciones: {
-    nombre: string;
-    mercados: { nombre: string; eventos: { equipo_a: string; equipo_b: string } };
-  } | null;
-};
-
-type Apuesta = {
-  id: string;
-  tipo: string;
-  monto: number;
-  cuota_total: number;
-  ganancia_posible: number;
-  estado: string;
-  created_at: string;
-  apuesta_lineas: Linea[];
-};
+import { cargarTickets, pickLegible, type LineaTicket, type Ticket } from "@/lib/apuestas";
 
 const ETIQUETA: Record<string, string> = {
   abierta: "En juego",
@@ -33,27 +13,67 @@ const ETIQUETA: Record<string, string> = {
   anulada: "Anulada",
 };
 
+const FILTROS = [
+  { id: "todas", nombre: "Todas" },
+  { id: "abierta", nombre: "En juego" },
+  { id: "ganada", nombre: "Ganadas" },
+  { id: "perdida", nombre: "Perdidas" },
+] as const;
+
+function fechaCorta(iso: string): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("es", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+// Qué pasó con el partido de esta línea: por jugar, en curso o resultado final.
+function estadoPartido(l: LineaTicket): { texto: string; clase: string } {
+  if (l.estadoEvento === "finalizado" && l.marcadorA !== null && l.marcadorB !== null) {
+    return { texto: `Final ${l.marcadorA} - ${l.marcadorB}`, clase: "fin" };
+  }
+  if (l.estadoEvento === "en_juego") return { texto: "En juego", clase: "vivo" };
+  if (l.estadoEvento === "suspendido") return { texto: "Suspendido", clase: "" };
+  const inicio = l.comienzaAt ? new Date(l.comienzaAt) : null;
+  if (inicio && inicio.getTime() < Date.now()) return { texto: "Empezó", clase: "vivo" };
+  return { texto: inicio ? `Juega ${fechaCorta(l.comienzaAt)}` : "Por jugar", clase: "" };
+}
+
+function marcaLinea(estado: string) {
+  if (estado === "ganada") return "✓";
+  if (estado === "perdida") return "✕";
+  if (estado === "anulada") return "—";
+  return "•";
+}
+
 export function MisApuestas({ usuario }: { usuario: { email: string } | null }) {
-  const [apuestas, setApuestas] = useState<Apuesta[] | null>(null);
+  const { fc } = useFormatoCuota();
+  const [tickets, setTickets] = useState<Ticket[] | null>(null);
+  const [filtro, setFiltro] = useState<string>("todas");
+  const [abierto, setAbierto] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!usuario) return;
     let activo = true;
-    (async () => {
-      const supabase = crearClienteNavegador();
-      const { data } = await supabase
-        .from("apuestas")
-        .select(
-          "id, tipo, monto, cuota_total, ganancia_posible, estado, created_at, apuesta_lineas(id, cuota, estado, selecciones(nombre, mercados(nombre, eventos(equipo_a, equipo_b))))"
-        )
-        .order("created_at", { ascending: false })
-        .limit(30);
-      if (activo) setApuestas((data as unknown as Apuesta[]) ?? []);
-    })();
+    cargarTickets().then((t) => {
+      if (activo) setTickets(t);
+    });
     return () => {
       activo = false;
     };
   }, [usuario]);
+
+  const toggle = (id: string) =>
+    setAbierto((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id);
+      else s.add(id);
+      return s;
+    });
 
   if (!usuario) {
     return (
@@ -65,7 +85,7 @@ export function MisApuestas({ usuario }: { usuario: { email: string } | null }) 
     );
   }
 
-  if (apuestas === null) {
+  if (tickets === null) {
     return (
       <div className="svacio" style={{ padding: "60px 20px" }}>
         <p>Cargando…</p>
@@ -73,7 +93,7 @@ export function MisApuestas({ usuario }: { usuario: { email: string } | null }) 
     );
   }
 
-  if (apuestas.length === 0) {
+  if (tickets.length === 0) {
     return (
       <div className="svacio" style={{ padding: "60px 20px" }}>
         <Icono id="i-slip" />
@@ -83,43 +103,101 @@ export function MisApuestas({ usuario }: { usuario: { email: string } | null }) 
     );
   }
 
+  const visibles = filtro === "todas" ? tickets : tickets.filter((t) => t.estado === filtro);
+  const cuenta = (id: string) =>
+    id === "todas" ? tickets.length : tickets.filter((t) => t.estado === id).length;
+
   return (
     <>
-      {apuestas.map((a) => (
-        <div key={a.id} className="ap">
-          <div className="aph">
-            <span className="tp">
-              {a.tipo === "combinada"
-                ? `Combinada · ${a.apuesta_lineas.length} selecciones`
-                : "Simple"}
-            </span>
-            <span className={`st ${a.estado}`}>{ETIQUETA[a.estado] ?? a.estado}</span>
-          </div>
-          {a.apuesta_lineas.map((l) => (
-            <div key={l.id} className="apl">
-              <span className={`dot ${l.estado ?? ""}`} />
-              <span className="tx">
-                {l.selecciones
-                  ? `${l.selecciones.mercados.eventos.equipo_a} v ${l.selecciones.mercados.eventos.equipo_b} — ${l.selecciones.mercados.nombre}: ${l.selecciones.nombre}`
-                  : "Selección"}
-              </span>
-              <span className="cu mono">{Number(l.cuota).toFixed(2)}</span>
-            </div>
-          ))}
-          <div className="apf">
-            <span className="mi">
-              Apostado<b className="mono">{fmt(Number(a.monto))}</b>
-            </span>
-            <span className={`mi ${a.estado === "ganada" ? "gan" : ""}`}>
-              {a.estado === "ganada" ? "Pagado" : "Ganancia posible"}
-              <b className="mono">{fmt(Number(a.ganancia_posible))}</b>
-            </span>
-            <span className="mi" style={{ marginLeft: "auto" }}>
-              Cuota<b className="mono">{Number(a.cuota_total).toFixed(2)}</b>
-            </span>
-          </div>
+      <div className="filtros">
+        {FILTROS.map((f) => (
+          <button
+            key={f.id}
+            className={filtro === f.id ? "on" : ""}
+            onClick={() => setFiltro(f.id)}
+          >
+            {f.nombre}
+            <span className="fc mono">{cuenta(f.id)}</span>
+          </button>
+        ))}
+      </div>
+
+      {visibles.length === 0 ? (
+        <div className="svacio" style={{ padding: "48px 20px" }}>
+          <b>Nada por aquí</b>
+          <p>No tienes apuestas en este estado.</p>
         </div>
-      ))}
+      ) : (
+        visibles.map((t) => {
+          const abre = abierto.has(t.id);
+          const cobro =
+            t.estado === "ganada"
+              ? t.gananciaPosible
+              : t.estado === "anulada"
+                ? t.monto
+                : t.gananciaPosible;
+          return (
+            <div key={t.id} className={`tk ${t.estado}`}>
+              <button className="tk-head" onClick={() => toggle(t.id)} aria-expanded={abre}>
+                <span className="tk-tipo">
+                  {t.tipo === "combinada"
+                    ? `Combinada · ${t.lineas.length} selecciones`
+                    : "Simple"}
+                </span>
+                <span className={`st ${t.estado}`}>{ETIQUETA[t.estado] ?? t.estado}</span>
+                <Icono id="i-chev" className="tk-chev" />
+              </button>
+
+              <div className="tk-fecha">
+                {fechaCorta(t.creadaAt)} · Ticket #{t.id.slice(0, 8)}
+              </div>
+
+              {t.lineas.map((l) => {
+                const ep = estadoPartido(l);
+                return (
+                  <div key={l.id} className={`tk-linea ${l.estado}`}>
+                    <span className={`marca ${l.estado}`}>{marcaLinea(l.estado)}</span>
+                    <div className="tk-info">
+                      <div className="tk-partido">
+                        {l.equipoA} <i>vs</i> {l.equipoB}
+                      </div>
+                      <div className="tk-pick">
+                        <span className="mk">{l.mercado}:</span> {pickLegible(l)}
+                      </div>
+                      {abre && (
+                        <div className="tk-extra">
+                          <span className="lg">{l.liga}</span>
+                          <span className={`ev ${ep.clase}`}>{ep.texto}</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="tk-cuota mono">{fc(l.cuota)}</span>
+                  </div>
+                );
+              })}
+
+              <div className="tk-pie">
+                <span className="mi">
+                  Apostado<b className="mono">{fmt(t.monto)}</b>
+                </span>
+                <span className="mi">
+                  Cuota<b className="mono">{fc(t.cuotaTotal)}</b>
+                </span>
+                <span className={`mi ${t.estado === "ganada" ? "gan" : ""}`}>
+                  {t.estado === "ganada"
+                    ? "Pagado"
+                    : t.estado === "perdida"
+                      ? "Perdido"
+                      : t.estado === "anulada"
+                        ? "Devuelto"
+                        : "A ganar"}
+                  <b className="mono">{t.estado === "perdida" ? fmt(0) : fmt(cobro)}</b>
+                </span>
+              </div>
+            </div>
+          );
+        })
+      )}
     </>
   );
 }
