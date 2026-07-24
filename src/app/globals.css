@@ -165,13 +165,21 @@ button {
 .vhead h2 { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
 .vhead .sub { color: var(--mist); font-size: 13px; }
 
-/* ---- Encabezado de liga ---- */
-.grp { margin-bottom: 16px; }
-.gh { display: flex; align-items: center; gap: 8px; padding: 2px 3px 9px; }
-.gh-ic { width: 16px; height: 16px; color: var(--lima-txt); flex: 0 0 auto; }
-.gh .nm { font-weight: 700; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gh .ct { font-family: var(--font-jetbrains), monospace; font-size: 11px; color: var(--mist); margin-left: auto;
+/* ---- Encabezado de liga (plegable) ---- */
+.grp { margin-bottom: 8px; }
+.gh { display: flex; align-items: center; gap: 9px; width: 100%; padding: 12px 14px; text-align: left;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; color: inherit; transition: 0.18s; }
+.gh:hover { border-color: var(--line2); }
+.grp.open .gh { border-radius: 12px 12px 0 0; }
+.gh-ic { width: 17px; height: 17px; color: var(--lima-txt); flex: 0 0 auto; }
+.gh .nm { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.gh .ct { font-family: var(--font-jetbrains), monospace; font-size: 11px; color: var(--mist);
   background: var(--panel2); border: 1px solid var(--line); border-radius: 100px; padding: 1px 8px; flex: 0 0 auto; }
+.gh-chev { width: 16px; height: 16px; color: var(--mist); flex: 0 0 auto; transition: transform 0.25s; }
+.grp.open .gh-chev { transform: rotate(180deg); }
+.grp-body { border: 1px solid var(--line); border-top: none; border-radius: 0 0 12px 12px;
+  padding: 8px 8px 2px; background: var(--bg); }
+.grp-body .mt:last-child { margin-bottom: 6px; }
 
 /* ---- Tarjeta de partido: nombre del equipo en cada cuota (no 1/X/2) ---- */
 .mt { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; margin-bottom: 8px;

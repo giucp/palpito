@@ -31,6 +31,7 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   const router = useRouter();
   const [vista, setVista] = useState<Vista>("lobby");
   const [deporte, setDeporte] = useState("futbol");
+  const [ligasAbiertas, setLigasAbiertas] = useState<Set<string>>(new Set());
   const [detalle, setDetalle] = useState<Evento | null>(null);
   const [sel, setSel] = useState<SeleccionCupon[]>([]);
   const [modo, setModo] = useState<ModoCupon>("simple");
@@ -61,7 +62,17 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
 
   const elegirDeporte = (id: string) => {
     setDeporte(id);
+    setLigasAbiertas(new Set()); // al cambiar de deporte, todas las ligas colapsadas
     irVista("lobby");
+  };
+
+  const toggleLiga = (liga: string) => {
+    setLigasAbiertas((prev) => {
+      const s = new Set(prev);
+      if (s.has(liga)) s.delete(liga);
+      else s.add(liga);
+      return s;
+    });
   };
 
   const cerrarSesion = async () => {
@@ -238,22 +249,32 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
               ) : (
                 ligas.map((liga) => {
                   const enLiga = eventosDeporte.filter((e) => e.liga === liga);
+                  const abierta = ligasAbiertas.has(liga);
                   return (
-                    <div key={liga} className="grp">
-                      <div className="gh">
+                    <div key={liga} className={`grp ${abierta ? "open" : ""}`}>
+                      <button
+                        className="gh"
+                        onClick={() => toggleLiga(liga)}
+                        aria-expanded={abierta}
+                      >
                         <Icono id={iconoDeporte} className="gh-ic" />
                         <span className="nm">{liga}</span>
                         <span className="ct">{enLiga.length}</span>
-                      </div>
-                      {enLiga.map((e) => (
-                        <FilaPartido
-                          key={e.id}
-                          evento={e}
-                          seleccionadas={seleccionadas}
-                          onCuota={toggleCuota}
-                          onDetalle={verDetalle}
-                        />
-                      ))}
+                        <Icono id="i-chev" className="gh-chev" />
+                      </button>
+                      {abierta && (
+                        <div className="grp-body">
+                          {enLiga.map((e) => (
+                            <FilaPartido
+                              key={e.id}
+                              evento={e}
+                              seleccionadas={seleccionadas}
+                              onCuota={toggleCuota}
+                              onDetalle={verDetalle}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })
