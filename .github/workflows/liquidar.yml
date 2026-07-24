@@ -1,0 +1,37 @@
+name: Liquidar apuestas
+
+# Cierra resultados y liquida apuestas cada 30 minutos.
+# Necesario porque el cron de Vercel (plan Hobby) solo corre una vez al día.
+# La función cerrarResultados() no gasta créditos de The Odds API cuando no hay
+# partidos pendientes de cerrar, así que la mayoría de estas corridas son gratis.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *" # cada 30 min (cambia a "0 * * * *" para cada hora)
+  workflow_dispatch: {} # permite dispararlo a mano desde la pestaña Actions
+
+# Evita que dos corridas se pisen si una tarda
+concurrency:
+  group: liquidar
+  cancel-in-progress: false
+
+jobs:
+  liquidar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a /api/resultados
+        env:
+          PALPITO_URL: ${{ vars.PALPITO_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$PALPITO_URL" ]; then
+            echo "PALPITO_URL aún no está configurada (falta el deploy). Nada que hacer."
+            exit 0
+          fi
+          code=$(curl -sS -o respuesta.json -w "%{http_code}" \
+            "${PALPITO_URL%/}/api/resultados" \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "HTTP $code"
+          cat respuesta.json || true
+          echo
+          test "$code" = "200"
