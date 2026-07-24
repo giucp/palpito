@@ -587,21 +587,78 @@ button {
 .adm-yo { margin-left: auto; font-size: 12px; color: var(--mist); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .adm-main { max-width: 1240px; margin: 0 auto; padding: 20px 20px 60px; }
-.adm-h2 { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--mist); font-weight: 700; margin: 26px 0 12px; }
-.adm-h2:first-child { margin-top: 0; }
-.adm-cuenta { font-family: var(--font-jetbrains), monospace; font-size: 11px; letter-spacing: 0;
-  text-transform: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 100px;
-  padding: 2px 9px; }
+.adm-recargar { width: 32px; height: 32px; border-radius: 9px; background: var(--panel2);
+  border: 1px solid var(--line); color: var(--ink2); display: flex; align-items: center;
+  justify-content: center; margin-left: auto; transition: 0.18s; flex: 0 0 auto; }
+.adm-recargar:hover { border-color: var(--lima); color: var(--lima-txt); }
+.adm-recargar svg { width: 15px; height: 15px; }
+.adm-cab .adm-yo { margin-left: 0; }
 
-.adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px;
-  margin-bottom: 10px; }
-.adm-cifra { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 15px 16px; }
-.adm-cifra .t { display: block; font-size: 11px; color: var(--mist); font-weight: 600; margin-bottom: 5px; }
-.adm-cifra b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
-.adm-cifra .p { display: block; font-size: 10.5px; color: var(--mist); margin-top: 5px; line-height: 1.4; }
-.adm-cifra.bien b { color: var(--sube); }
-.adm-cifra.mal b { color: var(--baja); }
+/* ---- Zona principal: una sola cifra manda ---- */
+.adm-hero { display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); gap: 12px;
+  margin-bottom: 12px; }
+@media (max-width: 820px) { .adm-hero { grid-template-columns: minmax(0, 1fr); } }
+
+.hero-num { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 22px 24px; display: flex; flex-direction: column; justify-content: center; }
+.hero-num .t { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--mist); font-weight: 700; }
+/* Cifra guía: grande y con dígitos proporcionales (tabular la haría suelta). */
+.hero-num b { font-size: clamp(44px, 7vw, 60px); font-weight: 700; letter-spacing: -0.03em;
+  line-height: 1.05; margin: 8px 0 6px; }
+.hero-num b.bien { color: var(--lima-txt); }
+.hero-num b.mal { color: var(--baja); }
+.hero-num .p { font-size: 12.5px; color: var(--mist); line-height: 1.5; }
+.hero-num .p strong { color: var(--ink2); font-weight: 700; }
+
+.hero-desglose { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.hd-cab { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.hd-cab > span { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--mist); font-weight: 700; }
+.hd-leyenda { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 11px;
+  color: var(--mist); }
+.hd-leyenda .ly { width: 9px; height: 9px; border-radius: 3px; display: inline-block;
+  margin-right: 5px; vertical-align: -1px; }
+.hd-leyenda .ly.casa { background: var(--lima); }
+.hd-leyenda .ly.pagado { background: #5a6472; }
+
+.hd-barra { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.hb-et { font-size: 13px; font-weight: 600; color: var(--ink2); }
+.hb-pista { height: 18px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+/* La barra entera es lo jugado; dentro, lo que se queda la casa y lo devuelto.
+   El hueco de 2px los separa sin necesidad de dibujar bordes. */
+.hb-relleno { height: 100%; display: flex; gap: 2px; min-width: 3px; transition: width 0.5s ease; }
+.hb-casa { background: var(--lima); border-radius: 5px 2px 2px 5px; flex: 0 0 auto; }
+.hb-pagado { background: #5a6472; border-radius: 2px 5px 5px 2px; flex: 1 1 auto; min-width: 0; }
+.hb-val { font-size: 14px; font-weight: 700; min-width: 62px; text-align: right; }
+.hb-val.bien { color: var(--lima-txt); }
+.hb-val.mal { color: var(--baja); }
+
+/* ---- Indicadores de apoyo ---- */
+.adm-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;
+  margin-bottom: 26px; }
+.adm-kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 15px 16px; }
+.adm-kpi .t { display: block; font-size: 11px; color: var(--mist); font-weight: 600; }
+.adm-kpi b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 0; }
+.adm-kpi .d { display: block; font-size: 11px; color: var(--mist); margin-top: 6px; }
+.kpi-medidor { height: 5px; background: var(--panel3); border-radius: 100px; overflow: hidden; margin-top: 9px; }
+.kpi-medidor i { display: block; height: 100%; background: var(--lima); border-radius: 100px;
+  transition: width 0.5s ease; }
+.kpi-reparto { display: flex; gap: 2px; height: 5px; margin-top: 9px; }
+.kpi-reparto i { display: block; height: 100%; border-radius: 100px; }
+.kpi-reparto .g { background: var(--sube); flex: 0 0 auto; }
+.kpi-reparto .p { background: #5a6472; flex: 1 1 auto; }
+
+/* ---- Secciones ---- */
+.adm-seccion { margin-bottom: 26px; }
+.adm-titulo { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.adm-titulo h2 { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.adm-orden { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+.adm-orden button { font-size: 11.5px; font-weight: 600; padding: 6px 11px; border-radius: 100px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--mist); transition: 0.18s; }
+.adm-orden button:hover { color: var(--ink); }
+.adm-orden button.on { background: var(--lima); border-color: var(--lima); color: var(--lima-ink); }
 
 .adm-buscador { max-width: 420px; }
 
