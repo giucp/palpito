@@ -2,15 +2,15 @@ import type { ModoCupon, SeleccionCupon } from "./tipos";
 
 export const fmt = (n: number) => "$" + n.toFixed(2);
 
-// Dos selecciones del mismo partido no se pueden combinar: la combinada exige
-// que TODAS acierten, y dos resultados del mismo evento se excluyen entre sí.
-// Devuelve los ids de evento que aparecen más de una vez.
-export function eventosEnConflicto(sel: SeleccionCupon[]): Set<string> {
+// Lo que no se puede combinar son dos picks del MISMO MERCADO, porque se
+// excluyen entre sí ("gana Racing" y "empate" no pueden acertar a la vez).
+// Dos mercados distintos del mismo partido sí valen: "gana Racing" + "menos de
+// 1.5 goles" es un 1-0, perfectamente posible.
+// Devuelve los ids de mercado que aparecen más de una vez.
+export function mercadosEnConflicto(sel: SeleccionCupon[]): Set<string> {
   const veces = new Map<string, number>();
-  for (const s of sel) veces.set(s.eventoId, (veces.get(s.eventoId) ?? 0) + 1);
-  return new Set(
-    [...veces.entries()].filter(([, n]) => n > 1).map(([id]) => id)
-  );
+  for (const s of sel) veces.set(s.mercadoId, (veces.get(s.mercadoId) ?? 0) + 1);
+  return new Set([...veces.entries()].filter(([, n]) => n > 1).map(([id]) => id));
 }
 
 // Cálculo del cupón (palpito_guia.md §5):

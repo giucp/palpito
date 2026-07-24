@@ -2,7 +2,7 @@
 
 import { Icono } from "./iconos";
 import { useFormatoCuota } from "./formato-cuota";
-import { calcular, eventosEnConflicto, fmt } from "@/lib/cupon";
+import { calcular, fmt, mercadosEnConflicto } from "@/lib/cupon";
 import type { ModoCupon, SeleccionCupon } from "@/lib/tipos";
 
 type Props = {
@@ -38,11 +38,11 @@ export function CuponPanel({
 }: Props) {
   const { fc } = useFormatoCuota();
 
-  const conflictos = eventosEnConflicto(sel);
+  const conflictos = mercadosEnConflicto(sel);
   const hayConflicto = conflictos.size > 0;
   const combinadaPosible = sel.length >= 2 && !hayConflicto;
-  // Con una sola selección, o con dos picks del mismo partido, la combinada
-  // no aplica: se cae a simples para no ofrecer una apuesta imposible.
+  // Con una sola selección, o con dos picks que se excluyen entre sí, la
+  // combinada no aplica: se cae a simples para no ofrecer algo imposible.
   const modoReal: ModoCupon = combinadaPosible ? modo : "simple";
 
   const c = calcular(sel, modoReal, monto);
@@ -82,7 +82,7 @@ export function CuponPanel({
               sel.length < 2
                 ? "Agrega otra selección para combinar"
                 : hayConflicto
-                  ? "No se pueden combinar dos picks del mismo partido"
+                  ? "Hay dos picks del mismo mercado y se excluyen entre sí"
                   : undefined
             }
           >
@@ -104,15 +104,15 @@ export function CuponPanel({
               <div className="s-alerta">
                 <b>No se puede combinar</b>
                 <p>
-                  Tienes dos picks del mismo partido y una combinada exige que todos acierten.
-                  Se calculará como apuestas simples.
+                  Hay dos picks del mismo mercado y no pueden acertar los dos a la vez. Se
+                  calculará como apuestas simples.
                 </p>
               </div>
             )}
             {sel.map((s) => (
               <div
                 key={s.key}
-                className={`selc ${conflictos.has(s.eventoId) && modo === "combinada" ? "choca" : ""}`}
+                className={`selc ${conflictos.has(s.mercadoId) && modo === "combinada" ? "choca" : ""}`}
               >
                 <button className="x" onClick={() => onQuitar(s.key)} aria-label="Quitar selección">
                   <Icono id="i-x" />

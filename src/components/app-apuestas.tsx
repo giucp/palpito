@@ -11,7 +11,7 @@ import { Icono, IconosDefs } from "./iconos";
 import { MisApuestas } from "./mis-apuestas";
 import { PanelCuenta } from "./panel-cuenta";
 import { ProveedorFormatoCuota } from "./formato-cuota";
-import { calcular, eventosEnConflicto, fmt } from "@/lib/cupon";
+import { calcular, fmt, mercadosEnConflicto } from "@/lib/cupon";
 import { crearClienteNavegador } from "@/lib/supabase/client";
 import { DEPORTES } from "@/lib/datos-ejemplo";
 import type { Evento, Mercado, ModoCupon, Seleccion, SeleccionCupon, Vista } from "@/lib/tipos";
@@ -109,6 +109,7 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
         {
           key: seleccion.id,
           eventoId: evento.id,
+          mercadoId: mercado.id,
           mercado: mercado.nombre,
           pick: nombrePick(evento, seleccion),
           evento: `${evento.equipoA} v ${evento.equipoB}`,
@@ -132,9 +133,9 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
     if (enviando) return;
     setEnviando(true);
     try {
-      // El mismo criterio que muestra el cupón: sin 2+ selecciones de partidos
-      // distintos no hay combinada posible, así que se envía como simples.
-      const puedeCombinar = sel.length >= 2 && eventosEnConflicto(sel).size === 0;
+      // El mismo criterio que muestra el cupón: hacen falta 2+ selecciones y
+      // que ninguna se excluya con otra; si no, se envía como simples.
+      const puedeCombinar = sel.length >= 2 && mercadosEnConflicto(sel).size === 0;
       const tipo = modo === "combinada" && puedeCombinar ? "combinada" : "simple";
       const c = calcular(sel, tipo, monto);
       const res = await fetch("/api/apostar", {
@@ -169,8 +170,8 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
         aviso("Las cuotas cambiaron — revisa y confirma de nuevo");
       } else if (r.motivo === "saldo") {
         aviso("Saldo insuficiente para esta apuesta");
-      } else if (r.motivo === "mismo_partido") {
-        aviso("No puedes combinar dos picks del mismo partido");
+      } else if (r.motivo === "mismo_mercado") {
+        aviso("Esos dos picks se excluyen: no pueden acertar los dos");
       } else if (r.motivo === "evento_cerrado") {
         aviso("Ese partido ya no acepta apuestas");
         idempotencia.current = crypto.randomUUID();

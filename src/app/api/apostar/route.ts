@@ -43,19 +43,19 @@ export async function POST(req: NextRequest) {
   const admin = crearClienteAdmin();
 
   // Una combinada exige que todas las líneas acierten, así que dos picks del
-  // mismo partido la harían imposible de ganar. Se valida aquí y no solo en la
-  // interfaz: el navegador nunca es la última palabra.
+  // mismo mercado la harían imposible ("gana Racing" y "empate" se excluyen).
+  // Dos mercados distintos del mismo partido sí valen: "gana Racing" + "menos
+  // de 1.5 goles" es un 1-0. Se valida aquí y no solo en la interfaz: el
+  // navegador nunca es la última palabra.
   if (tipo === "combinada") {
     const ids = selecciones.map((s) => s.seleccion_id as string);
     const { data: filas } = await admin
       .from("selecciones")
-      .select("id, mercados(evento_id)")
+      .select("id, mercado_id")
       .in("id", ids);
-    const eventos = (filas ?? []).map(
-      (f) => (f.mercados as unknown as { evento_id: string } | null)?.evento_id
-    );
-    if (new Set(eventos).size !== eventos.length) {
-      return NextResponse.json({ ok: false, motivo: "mismo_partido" }, { status: 409 });
+    const mercados = (filas ?? []).map((f) => f.mercado_id);
+    if (new Set(mercados).size !== mercados.length) {
+      return NextResponse.json({ ok: false, motivo: "mismo_mercado" }, { status: 409 });
     }
   }
 

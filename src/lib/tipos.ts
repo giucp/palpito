@@ -32,7 +32,8 @@ export type Evento = {
 
 export type SeleccionCupon = {
   key: string; // id de la selección
-  eventoId: string; // para detectar combinadas imposibles del mismo partido
+  eventoId: string;
+  mercadoId: string; // dos picks del mismo mercado se excluyen entre sí
   mercado: string;
   pick: string;
   evento: string;
