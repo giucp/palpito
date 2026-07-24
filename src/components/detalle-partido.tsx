@@ -4,6 +4,13 @@ import { useState } from "react";
 import { Icono } from "./iconos";
 import type { Evento, Mercado, Seleccion } from "@/lib/tipos";
 
+// Nombre del equipo en vez de "Local"/"Visitante" (más claro, como en el lobby).
+function etiquetaPick(evento: Evento, seleccion: Seleccion): string {
+  if (seleccion.nombre === "Local") return evento.equipoA;
+  if (seleccion.nombre === "Visitante") return evento.equipoB;
+  return seleccion.nombre;
+}
+
 type Props = {
   evento: Evento;
   seleccionadas: Set<string>;
@@ -60,7 +67,7 @@ export function DetallePartido({ evento, seleccionadas, onCuota, onVolver }: Pro
                 className={`od ${seleccionadas.has(s.id) ? "sel" : ""}`}
                 onClick={() => onCuota(evento, m, s)}
               >
-                <div className="k">{s.nombre}</div>
+                <div className="k">{etiquetaPick(evento, s)}</div>
                 <div className="v">{s.cuota.toFixed(2)}</div>
               </button>
             ))}

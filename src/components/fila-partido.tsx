@@ -10,51 +10,58 @@ type Props = {
   onDetalle: (evento: Evento) => void;
 };
 
-// Etiquetas cortas del mercado principal: 1/X/2 con empate, 1/2 sin él.
-function etiqueta(mercado: Mercado, i: number): string {
-  if (mercado.selecciones.length === 3) return ["1", "X", "2"][i];
-  return ["1", "2"][i];
+// Etiqueta clara de cada cuota: el nombre del equipo o "Empate", en vez de 1/X/2.
+function etiquetaPick(evento: Evento, seleccion: Seleccion): string {
+  if (seleccion.nombre === "Local") return evento.equipoA;
+  if (seleccion.nombre === "Visitante") return evento.equipoB;
+  return seleccion.nombre; // "Empate", "Más de 2.5", etc.
 }
 
 export function FilaPartido({ evento, seleccionadas, onCuota, onDetalle }: Props) {
   const principal = evento.mercados[0];
+  const extra = evento.mercados.length - 1;
+  const n = principal?.selecciones.length ?? 3;
 
   return (
     <article className="mt">
-      <div className="mrow">
-        <div className="minfo">
-          <div className="mmeta">
-            <span className="hh">{evento.hora}</span>
-            <span className="lg">{evento.liga}</span>
-          </div>
-          <div className="eq">
-            <div className="eqr">
-              <span className="nm">{evento.equipoA}</span>
-            </div>
-            <div className="eqr">
-              <span className="nm">{evento.equipoB}</span>
-            </div>
-          </div>
+      <div className="mt-meta">
+        <span className="hh">{evento.hora}</span>
+        {principal && <span className="mkt-nombre">{principal.nombre}</span>}
+      </div>
+      <div className="mt-teams">
+        <div className="tm">
+          <span className="badge" />
+          <span className="nm">{evento.equipoA}</span>
         </div>
-        <div className="mkt">
-          {principal.selecciones.map((s, i) => (
+        <div className="tm">
+          <span className="badge" />
+          <span className="nm">{evento.equipoB}</span>
+        </div>
+      </div>
+      {principal && (
+        <div className="mt-odds" data-n={n}>
+          {principal.selecciones.map((s) => (
             <button
               key={s.id}
               className={`od ${seleccionadas.has(s.id) ? "sel" : ""}`}
               onClick={() => onCuota(evento, principal, s)}
             >
-              <span className="ar">▲</span>
-              <div className="k">{etiqueta(principal, i)}</div>
-              <div className="v">{s.cuota.toFixed(2)}</div>
+              <span className="lbl">{etiquetaPick(evento, s)}</span>
+              <span className="v">{s.cuota.toFixed(2)}</span>
             </button>
           ))}
         </div>
-      </div>
-      <div className="mfoot">
-        <button className="mas" onClick={() => onDetalle(evento)}>
-          Ver <b>{evento.mercados.length}</b> mercados <Icono id="i-arr" />
-        </button>
-      </div>
+      )}
+      <button className="mt-more" onClick={() => onDetalle(evento)}>
+        {extra > 0 ? (
+          <>
+            <b>+{extra}</b> mercados más
+          </>
+        ) : (
+          "Ver mercados"
+        )}
+        <Icono id="i-arr" />
+      </button>
     </article>
   );
 }

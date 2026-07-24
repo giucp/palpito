@@ -169,7 +169,9 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   const seleccionadas = new Set(sel.map((s) => s.key));
   const eventosDeporte = eventos.filter((e) => e.deporte === deporte);
   const ligas = [...new Set(eventosDeporte.map((e) => e.liga))];
-  const nombreDeporte = DEPORTES.find((d) => d.id === deporte)?.nombre ?? "";
+  const infoDeporte = DEPORTES.find((d) => d.id === deporte);
+  const nombreDeporte = infoDeporte?.nombre ?? "";
+  const iconoDeporte = infoDeporte?.icono ?? "d-futbol";
   const c = calcular(sel, modo, monto);
 
   const botonesDeporte = DEPORTES.map((d) => {
@@ -239,6 +241,7 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
                   return (
                     <div key={liga} className="grp">
                       <div className="gh">
+                        <Icono id={iconoDeporte} className="gh-ic" />
                         <span className="nm">{liga}</span>
                         <span className="ct">{enLiga.length}</span>
                       </div>
