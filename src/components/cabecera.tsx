@@ -17,7 +17,7 @@ type Props = {
 
 const TABS: Array<{ vista: Vista; nombre: string }> = [
   { vista: "lobby", nombre: "Deportes" },
-  { vista: "vivo", nombre: "En vivo" },
+  { vista: "juegos", nombre: "Despegue" },
   { vista: "apuestas", nombre: "Mis apuestas" },
 ];
 

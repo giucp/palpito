@@ -45,6 +45,11 @@ export function IconosDefs() {
           <circle cx="12" cy="8" r="4" />
           <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
         </symbol>
+        <symbol id="i-juego" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 20l5.5-5.5" />
+          <path d="M13.5 3.5c3-1 6 0 7 1s2 4 1 7l-4.5 4.5-1.5-4-4-1.5 2-7z" />
+          <path d="M11 13l-3.5 1 1 3.5" />
+        </symbol>
         <symbol id="i-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <circle cx="11" cy="11" r="7" />
           <path d="M16.2 16.2L21 21" />

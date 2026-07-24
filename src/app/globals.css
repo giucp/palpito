@@ -403,6 +403,82 @@ button {
   font-size: 12.5px; font-weight: 500; transition: 0.2s; }
 .avolver:hover { color: var(--ink); }
 
+/* ---- Juego: Despegue ---- */
+.dsp { max-width: 560px; }
+.dsp-caja { position: relative; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  background: var(--panel); margin-bottom: 10px; }
+/* El lienzo es de 200x140 px reales y se estira sin suavizado: así el pixel
+   art se ve nítido y cuadrado en cualquier pantalla. */
+.dsp-lienzo { display: block; width: 100%; height: auto; aspect-ratio: 200 / 140;
+  image-rendering: pixelated; }
+.dsp-mult { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; pointer-events: none; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55); }
+.dsp-mult b { font-size: clamp(38px, 11vw, 60px); font-weight: 700; letter-spacing: -0.02em;
+  color: #fff; line-height: 1; }
+:root[data-theme="light"] .dsp-mult b { color: #0b0e0c; text-shadow: 0 2px 12px rgba(255, 255, 255, 0.7); }
+.dsp-mult.volando b { color: var(--lima); }
+.dsp-mult.estrellada b { color: var(--baja); }
+.dsp-mult.retirada b { color: var(--lima); }
+.dsp-msg { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75); margin-top: 6px; }
+:root[data-theme="light"] .dsp-msg { color: var(--mist); }
+.dsp-msg.estrellada { color: var(--baja); }
+.dsp-msg.retirada { color: var(--lima); }
+
+/* Historial de vuelos */
+.dsp-hist { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; }
+.dsp-hist::-webkit-scrollbar { display: none; }
+.dsp-hist .hx { font-family: var(--font-jetbrains), monospace; font-size: 11.5px; font-weight: 700;
+  padding: 4px 9px; border-radius: 100px; white-space: nowrap; flex: 0 0 auto;
+  background: var(--panel2); border: 1px solid var(--line); color: var(--mist); }
+.dsp-hist .hx.bajo { color: var(--baja); }
+.dsp-hist .hx.alto { color: var(--ink2); }
+.dsp-hist .hx.ok { border-color: var(--lima); color: var(--lima-txt); }
+
+/* Panel de control */
+.dsp-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.dsp-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 9px; }
+.dsp-campo span { display: block; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--mist); font-weight: 600; margin-bottom: 5px; }
+.dsp-campo .inp { position: relative; display: flex; align-items: center; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 10px; transition: border-color 0.18s; }
+.dsp-campo .inp:focus-within { border-color: var(--lima); }
+.dsp-campo .inp i { font-style: normal; color: var(--mist); font-size: 14px; padding-left: 11px; }
+.dsp-campo .inp i.der { padding: 0 11px 0 0; }
+.dsp-campo input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--ink);
+  font-family: var(--font-jetbrains), monospace; font-weight: 700; font-size: 15px; padding: 11px 8px; }
+.dsp-campo input::placeholder { font-family: var(--font-outfit), sans-serif; font-weight: 500;
+  font-size: 13px; color: var(--mist); }
+.dsp-qk { margin-bottom: 11px; }
+
+.dsp-despegar, .dsp-retirar { width: 100%; border: none; border-radius: 11px; font-weight: 800;
+  transition: 0.18s; }
+.dsp-despegar { background: var(--lima); color: var(--lima-ink); font-size: 15px; padding: 14px; }
+.dsp-despegar:hover:not(:disabled) { filter: brightness(1.06); }
+.dsp-despegar:disabled { opacity: 0.4; cursor: not-allowed; }
+.dsp-retirar { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: linear-gradient(180deg, #ffd75e, #ffb03d); color: #2a1a00; padding: 16px 18px;
+  font-size: 14px; letter-spacing: 0.1em; animation: latido 1.1s ease-in-out infinite; }
+.dsp-retirar b { font-size: 19px; letter-spacing: 0; }
+@keyframes latido { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+
+/* Verificable */
+.dsp-fair { margin-top: 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 14px; }
+.dsp-fair summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px;
+  font-weight: 600; color: var(--ink2); list-style: none; }
+.dsp-fair summary::-webkit-details-marker { display: none; }
+.dsp-fair summary svg { width: 14px; height: 14px; color: var(--lima-txt); }
+.dsp-fair p { font-size: 11.5px; color: var(--mist); line-height: 1.5; margin: 9px 0; }
+.dsp-fair .ff { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 11px; }
+.dsp-fair .ff span { color: var(--mist); min-width: 96px; flex: 0 0 auto; }
+.dsp-fair .ff code { font-family: var(--font-jetbrains), monospace; color: var(--ink2); font-size: 10.5px;
+  overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 420px) {
+  .dsp-campos { grid-template-columns: 1fr; }
+}
+
 /* ---- Toast ---- */
 /* Oculto con opacidad además del desplazamiento: solo con transform quedaba
    asomando por debajo y el aviso se veía "colgado" para siempre. */
