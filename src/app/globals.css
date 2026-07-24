@@ -574,6 +574,93 @@ button {
 .mll-saltar:disabled, .mll-cobrar:disabled { opacity: 0.45; cursor: not-allowed; }
 .mll-arranque { font-size: 12px !important; }
 
+/* ---- Panel de administración ---- */
+.adm { min-height: 100vh; background: var(--bg); }
+.adm-cab { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 12px;
+  padding: 0 20px; height: 58px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.adm-logo { display: flex; align-items: center; gap: 9px; color: inherit; }
+.adm-logo svg { width: 24px; height: 24px; color: var(--lima-txt); }
+.adm-logo b { font-weight: 800; font-size: 17px; letter-spacing: -0.02em; }
+.adm-logo b i { color: var(--lima-txt); font-style: normal; }
+.adm-logo span { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mist);
+  border-left: 1px solid var(--line2); padding-left: 10px; margin-left: 3px; font-weight: 600; }
+.adm-yo { margin-left: auto; font-size: 12px; color: var(--mist); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.adm-main { max-width: 1240px; margin: 0 auto; padding: 20px 20px 60px; }
+.adm-h2 { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--mist); font-weight: 700; margin: 26px 0 12px; }
+.adm-h2:first-child { margin-top: 0; }
+.adm-cuenta { font-family: var(--font-jetbrains), monospace; font-size: 11px; letter-spacing: 0;
+  text-transform: none; background: var(--panel2); border: 1px solid var(--line); border-radius: 100px;
+  padding: 2px 9px; }
+
+.adm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px;
+  margin-bottom: 10px; }
+.adm-cifra { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 15px 16px; }
+.adm-cifra .t { display: block; font-size: 11px; color: var(--mist); font-weight: 600; margin-bottom: 5px; }
+.adm-cifra b { display: block; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.adm-cifra .p { display: block; font-size: 10.5px; color: var(--mist); margin-top: 5px; line-height: 1.4; }
+.adm-cifra.bien b { color: var(--sube); }
+.adm-cifra.mal b { color: var(--baja); }
+
+.adm-buscador { max-width: 420px; }
+
+.adm-tabla { border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: var(--panel); }
+.adm-fila { display: grid; grid-template-columns: minmax(0, 2.4fr) repeat(5, minmax(0, 1fr)) auto;
+  align-items: center; gap: 10px; padding: 11px 14px; border-top: 1px solid var(--line); }
+.adm-bloque:first-child .adm-fila { border-top: none; }
+.adm-cabecera { border-top: none; background: var(--panel2); font-size: 10.5px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--mist); font-weight: 700; padding: 9px 14px; }
+.adm-fila .num { text-align: right; font-size: 13px; }
+.adm-fila .num.suave { color: var(--mist); }
+.adm-fila .num.pos { color: var(--sube); }
+.adm-fila .num.neg { color: var(--baja); }
+.adm-bloque.abierto { background: var(--panel2); }
+
+.adm-usuario { text-align: left; background: none; border: none; color: inherit; min-width: 0; padding: 0; }
+.adm-usuario .correo { display: block; font-size: 13.5px; font-weight: 600; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.adm-usuario .correo .chip { font-style: normal; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; background: var(--lima); color: var(--lima-ink); border-radius: 100px;
+  padding: 1px 7px; margin-left: 7px; vertical-align: middle; }
+.adm-usuario .meta { display: block; font-size: 11px; color: var(--mist); margin-top: 2px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.adm-usuario:hover .correo { color: var(--lima-txt); }
+
+.adm-mas { flex: 0 0 auto; background: var(--panel2); border: 1px solid var(--line2); color: var(--ink2);
+  border-radius: 9px; padding: 7px 12px; font-size: 12px; font-weight: 700; transition: 0.18s; }
+.adm-mas:hover:not(:disabled) { border-color: var(--lima); color: var(--lima-txt); }
+.adm-mas:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.adm-movs { padding: 4px 14px 14px; }
+.adm-mov { display: grid; grid-template-columns: 86px 92px minmax(0, 1fr) auto; align-items: center;
+  gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); font-size: 12px; }
+.adm-mov .t { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+  color: var(--mist); background: var(--panel3); border-radius: 100px; padding: 2px 8px; text-align: center; }
+.adm-mov .t.regalo, .adm-mov .t.ajuste { color: var(--lima-txt); }
+.adm-mov .t.ganancia, .adm-mov .t.premio { color: var(--sube); }
+.adm-mov .t.apuesta, .adm-mov .t.juego { color: var(--ink2); }
+.adm-mov .m { text-align: right; font-weight: 700; }
+.adm-mov .m.pos { color: var(--sube); }
+.adm-mov .m.neg { color: var(--baja); }
+.adm-mov .n { color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-mov .f { color: var(--mist); font-size: 10.5px; }
+
+.adm-vacio { color: var(--mist); font-size: 13px; padding: 18px 4px; }
+
+@media (max-width: 900px) {
+  /* En pantallas estrechas la tabla se vuelve fichas apiladas. */
+  .adm-cabecera { display: none; }
+  .adm-fila { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .adm-usuario { grid-column: 1 / -1; }
+  .adm-fila .num { text-align: left; font-size: 12.5px; }
+  .adm-fila .num::before { content: attr(data-t); display: block; font-size: 9.5px; color: var(--mist);
+    text-transform: uppercase; letter-spacing: 0.06em; }
+  .adm-mas { grid-column: 1 / -1; width: 100%; padding: 9px; }
+  .adm-mov { grid-template-columns: 80px 1fr; }
+  .adm-mov .n, .adm-mov .f { grid-column: 1 / -1; }
+}
+
 /* ---- Toast ---- */
 /* Oculto con opacidad además del desplazamiento: solo con transform quedaba
    asomando por debajo y el aviso se veía "colgado" para siempre. */
