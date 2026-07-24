@@ -9,6 +9,7 @@ import { FilaPartido } from "./fila-partido";
 import { Icono, IconosDefs } from "./iconos";
 import { MisApuestas } from "./mis-apuestas";
 import { calcular, fmt } from "@/lib/cupon";
+import { crearClienteNavegador } from "@/lib/supabase/client";
 import { DEPORTES } from "@/lib/datos-ejemplo";
 import type { Evento, Mercado, ModoCupon, Seleccion, SeleccionCupon, Vista } from "@/lib/tipos";
 
@@ -61,6 +62,13 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   const elegirDeporte = (id: string) => {
     setDeporte(id);
     irVista("lobby");
+  };
+
+  const cerrarSesion = async () => {
+    await crearClienteNavegador().auth.signOut();
+    aviso("Sesión cerrada");
+    irVista("lobby");
+    router.refresh();
   };
 
   const toggleCuota = (evento: Evento, mercado: Mercado, seleccion: Seleccion) => {
@@ -271,6 +279,43 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
             </div>
           )}
 
+          {vista === "cuenta" && (
+            <div className="view">
+              <div className="vhead">
+                <h2>Mi cuenta</h2>
+              </div>
+              {usuario ? (
+                <div className="perfil">
+                  <div className="pf-saldo">
+                    <span className="k">Saldo disponible</span>
+                    <b className="mono">{saldo !== null ? fmt(saldo) : "—"}</b>
+                    <small>Fichas de prueba</small>
+                  </div>
+                  <div className="pf-row">
+                    <span>Correo</span>
+                    <b>{usuario.email}</b>
+                  </div>
+                  <button className="pf-salir" onClick={cerrarSesion}>
+                    Cerrar sesión
+                  </button>
+                </div>
+              ) : (
+                <div className="svacio" style={{ padding: "60px 20px" }}>
+                  <Icono id="i-user" />
+                  <b>No has entrado</b>
+                  <p>Crea tu cuenta y recibe 1000 fichas de prueba de regalo.</p>
+                  <button
+                    className="bapostar"
+                    style={{ maxWidth: 240, margin: "16px auto 0" }}
+                    onClick={() => router.push("/entrar")}
+                  >
+                    Entrar
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {vista === "detalle" && detalle && (
             <DetallePartido
               evento={detalle}
@@ -297,6 +342,27 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
         <div className="grab" />
         {cupon(true)}
       </div>
+
+      {/* Navegación inferior (solo móvil): sin esto, en el celular no había
+          forma de llegar a Mis apuestas ni a la cuenta. */}
+      <nav className="botnav">
+        <button className={vista === "lobby" ? "on" : ""} onClick={() => irVista("lobby")}>
+          <Icono id="i-inicio" />
+          <span>Deportes</span>
+        </button>
+        <button className={vista === "vivo" ? "on" : ""} onClick={() => irVista("vivo")}>
+          <Icono id="i-vivo" />
+          <span>En vivo</span>
+        </button>
+        <button className={vista === "apuestas" ? "on" : ""} onClick={() => irVista("apuestas")}>
+          <Icono id="i-slip" />
+          <span>Apuestas</span>
+        </button>
+        <button className={vista === "cuenta" ? "on" : ""} onClick={() => irVista("cuenta")}>
+          <Icono id="i-user" />
+          <span>Cuenta</span>
+        </button>
+      </nav>
 
       <div className={`toast ${toast.on ? "on" : ""}`}>{toast.msg}</div>
     </>

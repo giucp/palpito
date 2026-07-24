@@ -40,4 +40,4 @@ export type SeleccionCupon = {
 
 export type ModoCupon = "simple" | "combinada";
 
-export type Vista = "lobby" | "vivo" | "apuestas" | "detalle";
+export type Vista = "lobby" | "vivo" | "apuestas" | "detalle" | "cuenta";

@@ -45,6 +45,14 @@ export function IconosDefs() {
           <circle cx="12" cy="8" r="4" />
           <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
         </symbol>
+        <symbol id="i-inicio" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 11l9-7 9 7" />
+          <path d="M5 10v10h14V10" />
+        </symbol>
+        <symbol id="i-vivo" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+          <path d="M5.5 8.5a9 9 0 0 0 0 7M18.5 8.5a9 9 0 0 1 0 7M8.5 11a4.5 4.5 0 0 0 0 2M15.5 11a4.5 4.5 0 0 1 0 2" />
+          <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
+        </symbol>
         <symbol id="d-futbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7.2l3.6 2.6-1.4 4.3H9.8L8.4 9.8 12 7.2z" />
