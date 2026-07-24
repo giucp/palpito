@@ -45,6 +45,10 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoRef = useRef<number | null>(null);
   const retirando = useRef(false);
+  // El id vive en una referencia además del estado: el bucle de animación se
+  // crea al despegar y, si leyera el estado, se quedaría con el valor viejo
+  // (null) y el retiro automático nunca encontraría la ronda.
+  const rondaRef = useRef<string | null>(null);
 
   const monto = Number(montoTexto.replace(",", ".")) || 0;
   const objetivo = Number(autoTexto.replace(",", ".")) || 0;
@@ -74,6 +78,33 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
     cargarHistorial();
   }, [cargarHistorial]);
 
+  // Si el navegador se cerró a mitad de vuelo, la ronda quedó abierta y
+  // bloquearía las siguientes. Al entrar se le pide el estado al servidor,
+  // que la cierra según su propio reloj.
+  useEffect(() => {
+    if (!usuario) return;
+    let activo = true;
+    (async () => {
+      const supabase = crearClienteNavegador();
+      const { data } = await supabase
+        .from("rondas_despegue")
+        .select("id")
+        .eq("estado", "volando")
+        .limit(1)
+        .maybeSingle();
+      if (!activo || !data) return;
+      await fetch("/api/despegue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "estado", ronda_id: data.id }),
+      });
+      if (activo) cargarHistorial();
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [usuario, cargarHistorial]);
+
   const limpiarRelojes = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (pollRef.current) clearInterval(pollRef.current);
@@ -90,6 +121,8 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
     ) => {
       limpiarRelojes();
       retirando.current = false;
+      rondaRef.current = null;
+      autoRef.current = null;
       setEstado(comoEstado);
       if (datos.semilla && datos.punto_crash) {
         setRevelado({ semilla: datos.semilla, crash: Number(datos.punto_crash) });
@@ -104,12 +137,13 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
   );
 
   const retirar = useCallback(async () => {
-    if (!rondaId || retirando.current) return;
+    const id = rondaRef.current;
+    if (!id || retirando.current) return;
     retirando.current = true;
     const res = await fetch("/api/despegue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accion: "retirar", ronda_id: rondaId }),
+      body: JSON.stringify({ accion: "retirar", ronda_id: id }),
     });
     const r = await res.json();
     if (r.resultado === "retirada") {
@@ -118,7 +152,7 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
     } else {
       cerrarRonda("estrellada", r);
     }
-  }, [rondaId, cerrarRonda, onAviso]);
+  }, [cerrarRonda, onAviso]);
 
   const iniciar = async () => {
     if (!usuario) {
@@ -157,6 +191,7 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
       return;
     }
 
+    rondaRef.current = r.ronda_id;
     setRondaId(r.ronda_id);
     setHash(r.hash ?? null);
     setEstado("volando");
