@@ -1,13 +1,16 @@
 name: Liquidar apuestas
 
-# Cierra resultados y liquida apuestas cada 30 minutos.
+# Cierra resultados y liquida apuestas cada 2 horas.
 # Necesario porque el cron de Vercel (plan Hobby) solo corre una vez al día.
-# La función cerrarResultados() no gasta créditos de The Odds API cuando no hay
-# partidos pendientes de cerrar, así que la mayoría de estas corridas son gratis.
+#
+# Cada corrida con partidos pendientes gasta 1 crédito de The Odds API por liga,
+# y el plan gratis da 500 al mes (~16 por día). A cada 30 min se agotaban en
+# pocos días; para apuestas pre-partido no hace falta liquidar al minuto.
+# Cuando no hay nada que cerrar, la corrida no gasta créditos.
 
 on:
   schedule:
-    - cron: "*/30 * * * *" # cada 30 min (cambia a "0 * * * *" para cada hora)
+    - cron: "0 */2 * * *" # cada 2 horas
   workflow_dispatch: {} # permite dispararlo a mano desde la pestaña Actions
 
 # Evita que dos corridas se pisen si una tarda

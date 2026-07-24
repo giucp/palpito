@@ -4,7 +4,10 @@ import { cerrarResultados, sincronizarCartelera } from "./sincronizacion";
 // Programador interno: corre dentro del servidor de Next y no requiere ningún
 // disparo manual. (Al desplegar en Vercel esto se sustituye por Vercel Cron.)
 
-const CADA_RESULTADOS = 30 * 60 * 1000; // 30 min
+// Cada corrida cuesta créditos de The Odds API (500/mes en el plan gratis, unos
+// 16 por día). Revisar resultados cada 30 min los quemaba en pocos días, y para
+// apuestas pre-partido no hace falta liquidar al minuto.
+const CADA_RESULTADOS = 2 * 60 * 60 * 1000; // 2 h
 const CADA_SINCRONIZACION = 12 * 60 * 60 * 1000; // 12 h
 
 async function faltaSincronizar(): Promise<boolean> {
@@ -58,10 +61,12 @@ async function cicloResultados() {
   try {
     if (!process.env.ODDS_API_KEY) return;
     const r = await cerrarResultados();
-    if (r.eventosCerrados > 0 || r.ligasConsultadas.length > 0) {
+    if (r.eventosCerrados > 0 || r.ligasConsultadas.length > 0 || r.eventosAnulados > 0) {
       console.log(
         `[automatización] resultados: ${r.eventosCerrados} eventos cerrados, ` +
-          `${r.apuestasCerradas} apuestas liquidadas (${r.ligasConsultadas.join(", ") || "—"})`
+          `${r.apuestasCerradas} apuestas liquidadas` +
+          (r.eventosAnulados > 0 ? `, ${r.eventosAnulados} anulados por antigüedad` : "") +
+          ` (${r.ligasConsultadas.join(", ") || "—"})`
       );
     }
   } catch (e) {
@@ -70,7 +75,7 @@ async function cicloResultados() {
 }
 
 export function iniciarAutomatizacion() {
-  console.log("[automatización] programador iniciado: cartelera cada 12 h, resultados cada 30 min");
+  console.log("[automatización] programador iniciado: cartelera cada 12 h, resultados cada 2 h");
   // Arranque suave a los 15 s: sincroniza si hace falta y revisa resultados.
   setTimeout(async () => {
     await cicloSincronizacion();

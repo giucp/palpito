@@ -165,6 +165,13 @@ export async function sincronizarCartelera(): Promise<ResumenSincronizacion> {
   return { ok: true, resumen, creditosRestantes };
 }
 
+// Ventana de cierre, en horas desde el inicio del partido. Antes de las 2 h casi
+// ninguno terminó; pasadas las 12 h la fuente ya no lo va a reportar, así que se
+// anula en vez de seguir preguntando por él en cada corrida (eso gastaba créditos
+// indefinidamente).
+const VENTANA_MIN_H = 2;
+const VENTANA_MAX_H = 12;
+
 // Cierra eventos terminados y LIQUIDA las apuestas afectadas.
 // Inteligente con los créditos: solo consulta las ligas que tienen eventos
 // pendientes que ya deberían haber terminado (comenzaron hace más de 2 horas).
@@ -173,22 +180,55 @@ export async function cerrarResultados(): Promise<{
   eventosCerrados: number;
   apuestasCerradas: number;
   ligasConsultadas: string[];
+  eventosAnulados: number;
 }> {
   const apiKey = process.env.ODDS_API_KEY;
-  if (!apiKey) return { ok: false, eventosCerrados: 0, apuestasCerradas: 0, ligasConsultadas: [] };
+  if (!apiKey)
+    return {
+      ok: false,
+      eventosCerrados: 0,
+      apuestasCerradas: 0,
+      ligasConsultadas: [],
+      eventosAnulados: 0,
+    };
 
   const supabase = crearClienteAdmin();
-  const hace2h = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const ahora = Date.now();
+  const hace2h = new Date(ahora - VENTANA_MIN_H * 3600_000).toISOString();
+  const hace12h = new Date(ahora - VENTANA_MAX_H * 3600_000).toISOString();
 
+  // Primero: los que llevan demasiado tiempo sin cerrarse. La fuente ya no los
+  // reporta, así que se anulan (devolviendo lo apostado) y dejan de consultarse.
+  // Sin este corte se preguntaría por ellos en cada corrida, para siempre.
+  const { data: vencidos } = await supabase
+    .from("eventos")
+    .select("id")
+    .eq("estado", "programado")
+    .lt("comienza_at", hace12h);
+  let anulados = 0;
+  for (const e of vencidos ?? []) {
+    await supabase.rpc("anular_evento", { p_evento: e.id });
+    anulados++;
+  }
+
+  // Ventana de cierre: partidos que ya deberían haber terminado, pero no tan
+  // viejos como para darlos por perdidos.
   const { data: pendientes } = await supabase
     .from("eventos")
     .select("id, liga, externo_id")
     .eq("estado", "programado")
     .not("externo_id", "is", null)
-    .lt("comienza_at", hace2h);
+    .lt("comienza_at", hace2h)
+    .gte("comienza_at", hace12h);
 
   if (!pendientes || pendientes.length === 0) {
-    return { ok: true, eventosCerrados: 0, apuestasCerradas: 0, ligasConsultadas: [] };
+    return {
+      ok: true,
+      eventosCerrados: 0,
+      apuestasCerradas: 0,
+      ligasConsultadas: [],
+      eventosAnulados: anulados,
+    };
   }
 
   const ligasPendientes = new Set(pendientes.map((p) => p.liga));
@@ -229,5 +269,11 @@ export async function cerrarResultados(): Promise<{
     }
   }
 
-  return { ok: true, eventosCerrados, apuestasCerradas, ligasConsultadas: [...ligasPendientes] };
+  return {
+    ok: true,
+    eventosCerrados,
+    apuestasCerradas,
+    ligasConsultadas: [...ligasPendientes],
+    eventosAnulados: anulados,
+  };
 }
