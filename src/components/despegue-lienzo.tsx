@@ -2,22 +2,38 @@
 
 import { useEffect, useRef } from "react";
 
-// Pixel art de verdad: se dibuja en un lienzo diminuto (200×140) y se escala
-// sin suavizado, así cada píxel queda cuadrado y nítido. Nada de imágenes:
-// todo son rectángulos, así que pesa cero y carga al instante.
+// Despegue vertical: el cohete sube y el cielo va cambiando por capas
+// (noche → alto → estratosfera → espacio). Ese cambio de color es lo que da
+// sensación de progreso, más que el número solo.
+// Todo es pixel art dibujado a mano: cero imágenes, cero librerías.
 
 const ANCHO = 200;
-const ALTO = 140;
+const ALTO = 150;
 
-// Avión de perfil subiendo. C = casco, V = cabina, F = fuego del motor.
-const NAVE = [
-  "......CC..",
-  ".....CCCC.",
-  "..CCCCCCVC",
-  "FFCCCCCCCC",
-  "FFCCCCCCC.",
-  "..CCCCC...",
-  "...CC.....",
+// Cohete de frente, 13×22. C = casco, R = franjas, V = ventana, A = aletas.
+const COHETE = [
+  ".....CC......",
+  "....CCCC.....",
+  "....CCCC.....",
+  "...CCCCCC....",
+  "...CCCCCC....",
+  "..CCCCCCCC...",
+  "..CCVVVVCC...",
+  "..CCVVVVCC...",
+  "..CCCCCCCC...",
+  "..CCCCCCCC...",
+  "..CRRRRRRC...",
+  "..CRRRRRRC...",
+  "..CCCCCCCC...",
+  ".CCCCCCCCCC..",
+  "AACCCCCCCCAA.",
+  "AACCCCCCCCAA.",
+  "AAACCCCCCAAA.",
+  ".AACCCCCCAA..",
+  "...CCCCCC....",
+  "...CCCCCC....",
+  "....CCCC.....",
+  "....CCCC.....",
 ];
 
 type Estado = "listo" | "volando" | "retirada" | "estrellada";
@@ -28,32 +44,49 @@ type Props = {
   tema: "dark" | "light";
 };
 
-// Cada estrella tiene su propio parpadeo para que el cielo no se sienta muerto.
-const ESTRELLAS = Array.from({ length: 34 }, (_, i) => ({
-  x: (i * 37 + 11) % ANCHO,
-  y: (i * 23 + 7) % 88,
-  fase: (i * 0.7) % (Math.PI * 2),
+// Cada capa entra al alcanzar su multiplicador. La transición es suave para
+// que se sienta un viaje y no un cambio brusco de pantalla.
+export function capaDe(multiplicador: number): string {
+  let nombre = CAPAS[0].nombre;
+  for (const c of CAPAS) if (multiplicador >= c.desde) nombre = c.nombre;
+  return nombre;
+}
+
+const CAPAS = [
+  { desde: 1, nombre: "PISTA", cielo: ["#0a1430", "#12203a", "#16283c"], estrellas: 0.35 },
+  { desde: 2, nombre: "NUBES", cielo: ["#111a3d", "#1b2b52", "#24365e"], estrellas: 0.55 },
+  { desde: 5, nombre: "ESTRATOSFERA", cielo: ["#1a1140", "#2a1a5c", "#3a2470"], estrellas: 0.8 },
+  { desde: 15, nombre: "ÓRBITA", cielo: ["#0a0620", "#140d33", "#1d1145"], estrellas: 1 },
+  { desde: 50, nombre: "ESPACIO PROFUNDO", cielo: ["#04030d", "#080519", "#0d0a24"], estrellas: 1 },
+];
+
+const CAPAS_CLARO = [
+  { desde: 1, nombre: "PISTA", cielo: ["#bfe0f5", "#d8ecf7", "#eaf4f2"], estrellas: 0 },
+  { desde: 2, nombre: "NUBES", cielo: ["#9ccdf0", "#c2e2f5", "#dcefef"], estrellas: 0 },
+  { desde: 5, nombre: "ESTRATOSFERA", cielo: ["#5a9fd4", "#8fc4e8", "#b8dced"], estrellas: 0.3 },
+  { desde: 15, nombre: "ÓRBITA", cielo: ["#2a4a7a", "#4a72a8", "#7aa3cc"], estrellas: 0.7 },
+  { desde: 50, nombre: "ESPACIO PROFUNDO", cielo: ["#0d1a33", "#1d2f52", "#33507a"], estrellas: 1 },
+];
+
+const ESTRELLAS = Array.from({ length: 46 }, (_, i) => ({
+  x: (i * 41 + 13) % ANCHO,
+  y: (i * 29 + 5) % ALTO,
+  fase: (i * 0.83) % (Math.PI * 2),
+  brillo: 0.4 + ((i * 7) % 10) / 16,
 }));
 
-// Perfil de cerros del fondo, en píxeles.
-const CERROS = Array.from({ length: ANCHO }, (_, x) =>
-  Math.round(
-    14 +
-      6 * Math.sin(x * 0.045) +
-      4 * Math.sin(x * 0.11 + 1.3) +
-      3 * Math.sin(x * 0.021 + 0.4)
-  )
-);
-
-// El avión avanza mucho al principio y se va frenando: así nunca se sale del
-// lienzo por más que suba el multiplicador.
-const progreso = (m: number) => 1 - 1 / (1 + 0.32 * Math.max(0, m - 1));
+const mezclar = (a: string, b: string, t: number) => {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  const m = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
+  return `rgb(${m[0]},${m[1]},${m[2]})`;
+};
 
 export function DespegueLienzo({ estado, multiplicador, tema }: Props) {
   const ref = useRef<HTMLCanvasElement | null>(null);
-  const inicio = useRef<number>(0);
   const datos = useRef({ estado, multiplicador, tema });
   datos.current = { estado, multiplicador, tema };
+  const caida = useRef(0);
 
   useEffect(() => {
     const lienzo = ref.current;
@@ -64,27 +97,27 @@ export function DespegueLienzo({ estado, multiplicador, tema }: Props) {
 
     let vivo = true;
     let cuadro = 0;
-    inicio.current = performance.now();
+    const t0 = performance.now();
 
     const px = (x: number, y: number, w: number, h: number, color: string) => {
       ctx.fillStyle = color;
       ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
     };
 
-    const dibujarNave = (cx: number, cy: number, colorCasco: string, llama: boolean) => {
-      for (let f = 0; f < NAVE.length; f++) {
-        for (let c = 0; c < NAVE[f].length; c++) {
-          const ch = NAVE[f][c];
+    const dibujarCohete = (cx: number, cy: number, casco: string, franja: string) => {
+      for (let f = 0; f < COHETE.length; f++) {
+        for (let c = 0; c < COHETE[f].length; c++) {
+          const ch = COHETE[f][c];
           if (ch === ".") continue;
-          let color = colorCasco;
+          let color = casco;
           if (ch === "V") color = "#0b1020";
-          if (ch === "F") {
-            if (!llama || cuadro % 4 < 2) continue;
-            color = cuadro % 8 < 4 ? "#ffb03d" : "#ff6b2c";
-          }
+          if (ch === "R") color = franja;
+          if (ch === "A") color = franja;
           px(cx + c, cy + f, 1, 1, color);
         }
       }
+      // Reflejo de la ventana: un píxel claro que le da volumen.
+      px(cx + 5, cy + 6, 1, 1, "#7fd4ff");
     };
 
     const pintar = () => {
@@ -92,96 +125,101 @@ export function DespegueLienzo({ estado, multiplicador, tema }: Props) {
       cuadro++;
       const { estado: st, multiplicador: mult, tema: tm } = datos.current;
       const oscuro = tm === "dark";
-      const t = (performance.now() - inicio.current) / 1000;
+      const capas = oscuro ? CAPAS : CAPAS_CLARO;
+      const t = (performance.now() - t0) / 1000;
 
-      // ---- Cielo ----
+      // ---- Capa de cielo según la altura alcanzada ----
+      let idx = 0;
+      for (let i = 0; i < capas.length; i++) if (mult >= capas[i].desde) idx = i;
+      const actual = capas[idx];
+      const siguiente = capas[Math.min(idx + 1, capas.length - 1)];
+      // Mezcla progresiva hacia la capa siguiente para que la transición se
+      // sienta un viaje continuo y no un salto.
+      const tramo =
+        siguiente.desde > actual.desde
+          ? Math.min(1, Math.max(0, (mult - actual.desde) / (siguiente.desde - actual.desde)))
+          : 0;
+
       const cielo = ctx.createLinearGradient(0, 0, 0, ALTO);
-      if (st === "estrellada") {
-        cielo.addColorStop(0, oscuro ? "#2a0b12" : "#f7d6d6");
-        cielo.addColorStop(1, oscuro ? "#12060a" : "#e8b9b9");
-      } else if (oscuro) {
-        cielo.addColorStop(0, "#0a1430");
-        cielo.addColorStop(0.55, "#0d1a24");
-        cielo.addColorStop(1, "#08090b");
-      } else {
-        cielo.addColorStop(0, "#bfe0f5");
-        cielo.addColorStop(0.6, "#e6f0e2");
-        cielo.addColorStop(1, "#f1f3ef");
+      for (let p = 0; p < 3; p++) {
+        cielo.addColorStop(p / 2, mezclar(actual.cielo[p], siguiente.cielo[p], tramo));
       }
       ctx.fillStyle = cielo;
       ctx.fillRect(0, 0, ANCHO, ALTO);
 
-      // ---- Estrellas (solo de noche) ----
-      if (oscuro && st !== "estrellada") {
+      if (st === "estrellada") {
+        px(0, 0, ANCHO, ALTO, "rgba(120,20,25,0.42)");
+      }
+
+      // ---- Estrellas: aparecen conforme se sube ----
+      const densidad = actual.estrellas + (siguiente.estrellas - actual.estrellas) * tramo;
+      if (densidad > 0.02) {
+        // El desplazamiento hacia abajo da la sensación de que el cohete sube.
+        const arrastre = (Math.log(Math.max(1, mult)) * 60) % ALTO;
         for (const e of ESTRELLAS) {
-          const brillo = 0.35 + 0.65 * Math.abs(Math.sin(t * 1.4 + e.fase));
-          px(e.x, e.y, 1, 1, `rgba(230,240,255,${brillo.toFixed(2)})`);
+          if (e.brillo > densidad + 0.35) continue;
+          const y = (e.y + arrastre) % ALTO;
+          const parpadeo = 0.45 + 0.55 * Math.abs(Math.sin(t * 1.5 + e.fase));
+          px(e.x, y, 1, 1, `rgba(235,244,255,${(densidad * parpadeo).toFixed(2)})`);
         }
       }
 
-      // ---- Cerros del fondo, con desplazamiento lento ----
-      const desliz = Math.floor(progreso(mult) * 26);
-      for (let x = 0; x < ANCHO; x++) {
-        const h = CERROS[(x + desliz) % ANCHO];
-        px(x, ALTO - 12 - h, 1, h + 12, oscuro ? "#121b2b" : "#cfd9cc");
-        px(x, ALTO - 12 - h, 1, 1, oscuro ? "#1b2942" : "#bcc9b8");
+      // ---- Suelo y torre: solo mientras se está abajo ----
+      const alturaVuelo = Math.min(1, Math.log(Math.max(1, mult)) / Math.log(6));
+      const ySuelo = ALTO - 14 + alturaVuelo * 40;
+      if (ySuelo < ALTO + 4) {
+        px(0, ySuelo, ANCHO, ALTO - ySuelo + 4, oscuro ? "#0c1a14" : "#c9d6c2");
+        px(0, ySuelo, ANCHO, 1, oscuro ? "#1b3326" : "#aebfa6");
+        // Torre de lanzamiento
+        px(48, ySuelo - 26, 3, 26, oscuro ? "#2a3a4a" : "#8a97a3");
+        px(48, ySuelo - 26, 12, 2, oscuro ? "#2a3a4a" : "#8a97a3");
+        for (let y = ySuelo - 22; y < ySuelo; y += 6) px(51, y, 6, 1, oscuro ? "#22303e" : "#9aa7b3");
       }
 
-      // ---- Suelo ----
-      px(0, ALTO - 12, ANCHO, 12, oscuro ? "#0b1119" : "#dde5d8");
-      for (let x = (desliz * 2) % 8; x < ANCHO; x += 8) {
-        px(x, ALTO - 7, 4, 1, oscuro ? "#1d2a3a" : "#c2cdbd");
-      }
-
-      // ---- Trayectoria y avión ----
-      const p = progreso(mult);
-      const naveX = 16 + p * 150;
-      const naveY = ALTO - 24 - p * 96;
-
-      const lima = "#b6ff3d";
-      const rojo = "#ff5a5a";
-      const colorEstela = st === "estrellada" ? rojo : lima;
-
-      // Estela: la misma curva que sigue el avión, pintada por detrás.
-      const pasos = 46;
-      for (let i = 0; i <= pasos; i++) {
-        const q = (i / pasos) * p;
-        const x = 16 + q * 150;
-        const y = ALTO - 24 - q * 96;
-        const grosor = i > pasos - 6 ? 2 : 1;
-        px(x, y + 5, grosor, grosor, colorEstela);
-        if (i % 3 === 0) px(x, y + 6, 1, 1, `${colorEstela}55`);
-      }
+      // ---- Cohete, siempre centrado: lo que se mueve es el mundo ----
+      const cx = ANCHO / 2 - 6;
+      const cyBase = ALTO / 2 - 16;
 
       if (st === "estrellada") {
-        // Explosión: anillos de píxeles que se abren.
-        const edad = Math.min(1, (cuadro % 60) / 22);
-        const radio = 3 + edad * 16;
+        caida.current = Math.min(70, caida.current + 2.2);
+        const cy = cyBase + caida.current;
+        const giro = Math.sin(cuadro * 0.25) * 2;
+        if (caida.current < 60) dibujarCohete(cx + giro, cy, "#8a6a6a", "#5a2a2a");
+        // Explosión en anillos
+        const edad = Math.min(1, (cuadro % 70) / 26);
+        const radio = 4 + edad * 22;
         const tonos = ["#fff3c4", "#ffb03d", "#ff6b2c", "#ff5a5a"];
-        for (let a = 0; a < 20; a++) {
-          const ang = (a / 20) * Math.PI * 2;
-          const r = radio * (0.7 + 0.3 * Math.sin(a * 2.3));
-          px(
-            naveX + 5 + Math.cos(ang) * r,
-            naveY + 3 + Math.sin(ang) * r,
-            2,
-            2,
-            tonos[a % tonos.length]
-          );
-        }
-        px(naveX + 3, naveY + 1, 5, 5, "#3a1010");
-      } else if (st === "retirada") {
-        // Destello y el avión escapando hacia arriba.
-        const salto = Math.min(30, (cuadro % 90) * 0.9);
-        dibujarNave(naveX, naveY - salto, "#ffe98a", true);
-        for (let a = 0; a < 12; a++) {
-          const ang = (a / 12) * Math.PI * 2;
-          const r = 6 + (cuadro % 30) * 0.7;
-          px(naveX + 5 + Math.cos(ang) * r, naveY + 3 + Math.sin(ang) * r, 1, 1, lima);
+        for (let a = 0; a < 26; a++) {
+          const ang = (a / 26) * Math.PI * 2;
+          const r = radio * (0.65 + 0.35 * Math.sin(a * 1.9));
+          px(cx + 6 + Math.cos(ang) * r, cyBase + 10 + Math.sin(ang) * r, 2, 2, tonos[a % 4]);
         }
       } else {
-        const flote = st === "listo" ? Math.sin(t * 2.2) * 1.5 : Math.sin(t * 9) * 0.8;
-        dibujarNave(naveX, naveY + flote, oscuro ? "#e8f0f5" : "#2b3440", st === "volando");
+        const vibra = st === "volando" ? Math.sin(t * 22) * 0.9 : Math.sin(t * 2) * 1.2;
+        const subida = st === "retirada" ? Math.min(50, (cuadro % 120) * 1.1) : 0;
+        const cy = cyBase + vibra - subida;
+
+        // Llama: crece con la velocidad, parpadea por cuadros.
+        if (st === "volando" || st === "retirada") {
+          const largo = 6 + (cuadro % 4) * 2 + Math.min(10, mult);
+          for (let i = 0; i < largo; i++) {
+            const w = Math.max(1, 6 - Math.floor(i / 2));
+            const color = i < 3 ? "#fff3c4" : i < largo * 0.55 ? "#ffb03d" : "#ff6b2c";
+            px(cx + 6 - w / 2, cy + 22 + i, w, 1, color);
+          }
+          // Humo que queda atrás
+          for (let s = 0; s < 5; s++) {
+            const sy = cy + 30 + s * 7 + ((cuadro * 2) % 7);
+            px(cx + 4 + Math.sin(t * 3 + s) * 3, sy, 2, 2, "rgba(190,200,215,0.16)");
+          }
+        }
+
+        dibujarCohete(
+          cx,
+          cy,
+          st === "retirada" ? "#ffe98a" : "#e8eef5",
+          st === "retirada" ? "#c9a227" : "#ff5a5a"
+        );
       }
 
       requestAnimationFrame(pintar);
@@ -193,13 +231,17 @@ export function DespegueLienzo({ estado, multiplicador, tema }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    if (estado !== "estrellada") caida.current = 0;
+  }, [estado]);
+
   return (
     <canvas
       ref={ref}
       width={ANCHO}
       height={ALTO}
       className="dsp-lienzo"
-      aria-label="Animación del despegue"
+      aria-label="Despegue del cohete"
     />
   );
 }

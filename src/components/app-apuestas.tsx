@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Cabecera } from "./cabecera";
 import { CuponPanel } from "./cupon";
-import { Despegue } from "./despegue";
+import { Juegos } from "./juegos";
 import { DetallePartido } from "./detalle-partido";
 import { FilaPartido } from "./fila-partido";
 import { Icono, IconosDefs } from "./iconos";
@@ -372,10 +372,10 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
           {vista === "juegos" && (
             <div className="view">
               <div className="vhead">
-                <h2>Despegue</h2>
-                <span className="sub">Retira antes de que se estrelle</span>
+                <h2>Juegos</h2>
+                <span className="sub">Con fichas de prueba, como todo aquí</span>
               </div>
-              <Despegue
+              <Juegos
                 usuario={usuario}
                 saldo={saldo}
                 onAviso={aviso}
@@ -432,9 +432,13 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
           <Icono id="i-inicio" />
           <span>Deportes</span>
         </button>
+        <button className={vista === "vivo" ? "on" : ""} onClick={() => irVista("vivo")}>
+          <Icono id="i-vivo" />
+          <span>En vivo</span>
+        </button>
         <button className={vista === "juegos" ? "on" : ""} onClick={() => irVista("juegos")}>
           <Icono id="i-juego" />
-          <span>Despegue</span>
+          <span>Juegos</span>
         </button>
         <button className={vista === "apuestas" ? "on" : ""} onClick={() => irVista("apuestas")}>
           <Icono id="i-slip" />

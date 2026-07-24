@@ -45,10 +45,23 @@ export function IconosDefs() {
           <circle cx="12" cy="8" r="4" />
           <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
         </symbol>
-        <symbol id="i-juego" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 20l5.5-5.5" />
-          <path d="M13.5 3.5c3-1 6 0 7 1s2 4 1 7l-4.5 4.5-1.5-4-4-1.5 2-7z" />
-          <path d="M11 13l-3.5 1 1 3.5" />
+        <symbol id="i-sonido" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5z" />
+          <path d="M15.5 9.2a4 4 0 0 1 0 5.6" />
+          <path d="M18 6.7a7.5 7.5 0 0 1 0 10.6" />
+        </symbol>
+        <symbol id="i-mudo" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4v-5z" />
+          <path d="M16 10l5 4M21 10l-5 4" />
+        </symbol>
+        {/* Dado: se lee como "juegos" al instante, sin necesidad de texto. */}
+        <symbol id="i-juego" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+          <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+          <circle cx="8.5" cy="8.5" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="15.5" cy="8.5" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="8.5" cy="15.5" r="1.35" fill="currentColor" stroke="none" />
+          <circle cx="15.5" cy="15.5" r="1.35" fill="currentColor" stroke="none" />
         </symbol>
         <symbol id="i-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <circle cx="11" cy="11" r="7" />

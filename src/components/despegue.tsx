@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DespegueLienzo } from "./despegue-lienzo";
+import { capaDe, DespegueLienzo } from "./despegue-lienzo";
 import { Icono } from "./iconos";
 import { fmt } from "@/lib/cupon";
+import { sonar } from "@/lib/sonido";
 import { crearClienteNavegador } from "@/lib/supabase/client";
 
 const K = 0.09; // debe coincidir con el servidor
@@ -38,6 +39,7 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
   const [revelado, setRevelado] = useState<{ semilla: string; crash: number } | null>(null);
   const [historial, setHistorial] = useState<Ronda[]>([]);
   const [ocupado, setOcupado] = useState(false);
+  const [cobrando, setCobrando] = useState(false);
   const [tema, setTema] = useState<"dark" | "light">("dark");
 
   const t0 = useRef(0);
@@ -123,6 +125,7 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
       retirando.current = false;
       rondaRef.current = null;
       autoRef.current = null;
+      setCobrando(false);
       setEstado(comoEstado);
       if (datos.semilla && datos.punto_crash) {
         setRevelado({ semilla: datos.semilla, crash: Number(datos.punto_crash) });
@@ -140,6 +143,14 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
     const id = rondaRef.current;
     if (!id || retirando.current) return;
     retirando.current = true;
+
+    // Reacción inmediata: se congela el número y el botón cambia en el acto,
+    // sin esperar al servidor. Si no, el toque se siente muerto mientras va
+    // y viene la petición.
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    setCobrando(true);
+
     const res = await fetch("/api/despegue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -147,9 +158,11 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
     });
     const r = await res.json();
     if (r.resultado === "retirada") {
+      sonar("gana");
       onAviso(`¡Retiraste ${r.multiplicador}x → ${fmt(Number(r.pago))}!`);
       cerrarRonda("retirada", r);
     } else {
+      sonar("pierde");
       cerrarRonda("estrellada", r);
     }
   }, [cerrarRonda, onAviso]);
@@ -195,6 +208,7 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
     setRondaId(r.ronda_id);
     setHash(r.hash ?? null);
     setEstado("volando");
+    sonar("inicio");
     router.refresh();
 
     // El reloj arranca cuando llega la respuesta, no antes: así el número que
@@ -221,7 +235,10 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ accion: "estado", ronda_id: r.ronda_id }),
       }).then((x) => x.json());
-      if (e?.estado === "estrellada") cerrarRonda("estrellada", e);
+      if (e?.estado === "estrellada") {
+        sonar("pierde");
+        cerrarRonda("estrellada", e);
+      }
     }, 400);
   };
 
@@ -234,9 +251,10 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
         <DespegueLienzo estado={estado} multiplicador={mult} tema={tema} />
         <div className={`dsp-mult ${estado}`}>
           <b className="mono">{mult.toFixed(2)}x</b>
-          {estado === "estrellada" && <span className="dsp-msg estrellada">Se estrelló</span>}
+          {estado === "estrellada" && <span className="dsp-msg estrellada">Estalló</span>}
           {estado === "retirada" && <span className="dsp-msg retirada">¡Retiraste a tiempo!</span>}
           {estado === "listo" && <span className="dsp-msg">Listo para despegar</span>}
+          {volando && <span className="dsp-capa">{capaDe(mult)}</span>}
         </div>
       </div>
 
@@ -259,8 +277,14 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
 
       <div className="dsp-panel">
         {volando ? (
-          <button className="dsp-retirar" onClick={retirar}>
-            <span>RETIRAR</span>
+          // onPointerDown, no onClick: dispara al tocar y no al soltar, que en
+          // el móvil son unos 100 ms de diferencia muy perceptibles aquí.
+          <button
+            className={`dsp-retirar ${cobrando ? "cobrando" : ""}`}
+            onPointerDown={retirar}
+            disabled={cobrando}
+          >
+            <span>{cobrando ? "COBRANDO" : "RETIRAR"}</span>
             <b className="mono">{fmt(gananciaActual)}</b>
           </button>
         ) : (
