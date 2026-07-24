@@ -19,16 +19,20 @@ type Valor = {
   fc: (decimal: number) => string; // formatea una cuota según la preferencia
 };
 
+// Americano por defecto, como las casas grandes: el signo dice de un vistazo
+// quién es favorito. Quien prefiera decimal lo cambia en Cuenta.
+const POR_DEFECTO: FormatoCuota = "americano";
+
 const Ctx = createContext<Valor>({
-  formato: "decimal",
+  formato: POR_DEFECTO,
   cambiarFormato: () => {},
-  fc: (d) => d.toFixed(2),
+  fc: cuotaAmericana,
 });
 
 export const useFormatoCuota = () => useContext(Ctx);
 
 export function ProveedorFormatoCuota({ children }: { children: React.ReactNode }) {
-  const [formato, setFormato] = useState<FormatoCuota>("decimal");
+  const [formato, setFormato] = useState<FormatoCuota>(POR_DEFECTO);
 
   useEffect(() => {
     try {
