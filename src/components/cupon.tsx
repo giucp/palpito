@@ -7,29 +7,38 @@ import type { ModoCupon, SeleccionCupon } from "@/lib/tipos";
 type Props = {
   sel: SeleccionCupon[];
   modo: ModoCupon;
+  montoTexto: string;
   monto: number;
+  saldo: number | null;
+  enviando: boolean;
   onModo: (m: ModoCupon) => void;
-  onMonto: (n: number) => void;
-  onSumar: (n: number) => void;
+  onMontoTexto: (v: string) => void;
   onQuitar: (key: string) => void;
   onLimpiar: () => void;
   onApostar: () => void;
   onCerrar?: () => void; // presente solo en la hoja móvil
 };
 
+const RAPIDOS = [5, 10, 25, 50];
+
 export function CuponPanel({
   sel,
   modo,
+  montoTexto,
   monto,
+  saldo,
+  enviando,
   onModo,
-  onMonto,
-  onSumar,
+  onMontoTexto,
   onQuitar,
   onLimpiar,
   onApostar,
   onCerrar,
 }: Props) {
   const c = calcular(sel, modo, monto);
+  const sinMonto = monto < 1;
+  const sinSaldo = saldo !== null && c.apuesta > saldo;
+  const bloqueado = enviando || sinMonto || sinSaldo;
 
   return (
     <>
@@ -87,18 +96,31 @@ export function CuponPanel({
             <div className="inp">
               <span>$</span>
               <input
-                type="number"
-                value={monto}
-                min={1}
-                step={1}
-                onChange={(e) => onMonto(Math.max(1, Number(e.target.value) || 1))}
+                type="text"
+                inputMode="decimal"
+                value={montoTexto}
+                placeholder="0"
+                aria-label="Monto de la apuesta"
+                onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => {
+                  // Solo dígitos y un separador decimal; se permite vacío.
+                  const v = e.target.value.replace(/[^\d.,]/g, "").replace(/[.,]/g, ",");
+                  const partes = v.split(",");
+                  onMontoTexto(
+                    partes.length > 1 ? `${partes[0]},${partes.slice(1).join("").slice(0, 2)}` : v
+                  );
+                }}
               />
             </div>
           </div>
           <div className="qk">
-            {[5, 10, 25, 50].map((q) => (
-              <button key={q} onClick={() => onSumar(q)}>
-                +{q}
+            {RAPIDOS.map((q) => (
+              <button
+                key={q}
+                className={monto === q ? "on" : ""}
+                onClick={() => onMontoTexto(String(q))}
+              >
+                {q}
               </button>
             ))}
           </div>
@@ -116,8 +138,9 @@ export function CuponPanel({
             <span className="k">Ganancia posible</span>
             <span className="v mono">{fmt(c.ganancia)}</span>
           </div>
-          <button className="bapostar" onClick={onApostar}>
-            Apostar
+          {sinSaldo && <p className="saviso">No te alcanzan las fichas para esta apuesta.</p>}
+          <button className="bapostar" onClick={onApostar} disabled={bloqueado}>
+            {enviando ? "Colocando…" : sinMonto ? "Escribe un monto" : "Apostar"}
           </button>
         </div>
       )}

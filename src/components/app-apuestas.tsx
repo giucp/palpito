@@ -13,6 +13,10 @@ import { crearClienteNavegador } from "@/lib/supabase/client";
 import { DEPORTES } from "@/lib/datos-ejemplo";
 import type { Evento, Mercado, ModoCupon, Seleccion, SeleccionCupon, Vista } from "@/lib/tipos";
 
+// Sin acentos ni mayúsculas: así "velez" encuentra "Vélez".
+const ACENTOS = /[̀-ͯ]/g;
+const normalizar = (s: string) => s.toLowerCase().normalize("NFD").replace(ACENTOS, "").trim();
+
 // Nombre legible del pick: 'Local' → equipo A, 'Visitante' → equipo B.
 function nombrePick(evento: Evento, seleccion: Seleccion): string {
   if (seleccion.nombre === "Local") return evento.equipoA;
@@ -32,23 +36,33 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   const [vista, setVista] = useState<Vista>("lobby");
   const [deporte, setDeporte] = useState("futbol");
   const [ligasAbiertas, setLigasAbiertas] = useState<Set<string>>(new Set());
+  const [busqueda, setBusqueda] = useState("");
   const [detalle, setDetalle] = useState<Evento | null>(null);
   const [sel, setSel] = useState<SeleccionCupon[]>([]);
   const [modo, setModo] = useState<ModoCupon>("simple");
-  const [monto, setMonto] = useState(10);
+  // El monto se guarda como texto para poder borrarlo por completo mientras se
+  // escribe; el número sale de ahí y el botón Apostar se bloquea si no es válido.
+  const [montoTexto, setMontoTexto] = useState("10");
+  const monto = Number(montoTexto.replace(",", ".")) || 0;
   const [sheet, setSheet] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [toast, setToast] = useState({ msg: "", on: false });
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [toast, setToast] = useState<{ msg: string; n: number } | null>(null);
   const idempotencia = useRef<string>(
     typeof crypto !== "undefined" ? crypto.randomUUID() : `${Math.random()}`
   );
 
+  // El contador hace que dos avisos iguales seguidos reinicien el temporizador.
   const aviso = useCallback((msg: string) => {
-    setToast({ msg, on: true });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast((t) => ({ ...t, on: false })), 1800);
+    setToast((t) => ({ msg, n: (t?.n ?? 0) + 1 }));
   }, []);
+
+  // Cerrar el aviso desde un efecto (no desde un setTimeout suelto): así el
+  // cleanup lo cancela siempre, aunque el árbol se re-renderice por refresh().
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2400);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const irVista = useCallback((v: Vista) => {
     setVista(v);
@@ -63,6 +77,7 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   const elegirDeporte = (id: string) => {
     setDeporte(id);
     setLigasAbiertas(new Set()); // al cambiar de deporte, todas las ligas colapsadas
+    setBusqueda("");
     irVista("lobby");
   };
 
@@ -178,7 +193,17 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   }, []);
 
   const seleccionadas = new Set(sel.map((s) => s.key));
-  const eventosDeporte = eventos.filter((e) => e.deporte === deporte);
+  const q = normalizar(busqueda);
+  const buscando = q.length > 0;
+  const eventosDeporte = eventos
+    .filter((e) => e.deporte === deporte)
+    .filter(
+      (e) =>
+        !buscando ||
+        normalizar(e.equipoA).includes(q) ||
+        normalizar(e.equipoB).includes(q) ||
+        normalizar(e.liga).includes(q)
+    );
   const ligas = [...new Set(eventosDeporte.map((e) => e.liga))];
   const infoDeporte = DEPORTES.find((d) => d.id === deporte);
   const nombreDeporte = infoDeporte?.nombre ?? "";
@@ -204,10 +229,12 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
     <CuponPanel
       sel={sel}
       modo={modo}
+      montoTexto={montoTexto}
       monto={monto}
+      saldo={saldo}
+      enviando={enviando}
       onModo={setModo}
-      onMonto={setMonto}
-      onSumar={(q) => setMonto((m) => m + q)}
+      onMontoTexto={setMontoTexto}
       onQuitar={quitar}
       onLimpiar={limpiar}
       onApostar={apostar}
@@ -241,15 +268,42 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
                   {origen === "ejemplo" ? " · datos locales (base sin conectar)" : ""}
                 </span>
               </div>
+
+              <div className="buscador">
+                <Icono id="i-lupa" className="bs-ic" />
+                <input
+                  type="search"
+                  value={busqueda}
+                  placeholder="Buscar equipo o liga…"
+                  aria-label="Buscar equipo o liga"
+                  onChange={(e) => setBusqueda(e.target.value)}
+                />
+                {busqueda && (
+                  <button className="bs-x" onClick={() => setBusqueda("")} aria-label="Limpiar">
+                    <Icono id="i-x" />
+                  </button>
+                )}
+              </div>
+
               {eventosDeporte.length === 0 ? (
                 <div className="svacio" style={{ padding: "60px 20px" }}>
-                  <b>No hay partidos de este deporte todavía</b>
-                  <p>En esta fase cargamos fútbol y béisbol. Prueba con uno de esos.</p>
+                  {buscando ? (
+                    <>
+                      <b>Sin resultados para “{busqueda}”</b>
+                      <p>Prueba con otro nombre o revisa otro deporte.</p>
+                    </>
+                  ) : (
+                    <>
+                      <b>No hay partidos de este deporte todavía</b>
+                      <p>En esta fase cargamos fútbol y béisbol. Prueba con uno de esos.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 ligas.map((liga) => {
                   const enLiga = eventosDeporte.filter((e) => e.liga === liga);
-                  const abierta = ligasAbiertas.has(liga);
+                  // Al buscar, las ligas con coincidencias se muestran abiertas.
+                  const abierta = buscando || ligasAbiertas.has(liga);
                   return (
                     <div key={liga} className={`grp ${abierta ? "open" : ""}`}>
                       <button
@@ -388,7 +442,9 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
         </button>
       </nav>
 
-      <div className={`toast ${toast.on ? "on" : ""}`}>{toast.msg}</div>
+      <div className={`toast ${toast ? "on" : ""}`} role="status" aria-live="polite">
+        {toast?.msg ?? ""}
+      </div>
     </>
   );
 }
