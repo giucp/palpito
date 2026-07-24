@@ -153,7 +153,9 @@ button {
 .rail .sbtn { width: auto; white-space: nowrap; background: var(--panel); border: 1px solid var(--line);
   border-radius: 100px; padding: 9px 14px; font-size: 13px; }
 .rail .sbtn .c { display: none; }
-.rail .sbtn.on { border-color: var(--lima); }
+/* Seleccionado: pastilla lima completa (como el sidebar). Sin esto, el riel
+   dejaba el fondo oscuro con texto oscuro y el nombre no se leía en modo oscuro. */
+.rail .sbtn.on { background: var(--lima); color: var(--lima-ink); border-color: var(--lima); }
 @media (max-width: 1020px) { .rail { display: flex; } }
 
 /* ---- Vistas ---- */
