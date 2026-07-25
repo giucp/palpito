@@ -395,6 +395,8 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
                 saldo={saldo}
                 onEntrar={() => router.push("/entrar")}
                 onSalir={cerrarSesion}
+                onAviso={aviso}
+                onCambioSaldo={() => router.refresh()}
               />
             </div>
           )}

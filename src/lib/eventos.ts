@@ -3,7 +3,10 @@ import { EVENTOS as RESPALDO } from "./datos-ejemplo";
 import type { Evento } from "./tipos";
 
 // Zona horaria de presentación. Ajustable cuando haya preferencias por usuario.
-const ZONA = "America/Caracas";
+// Se exporta porque la tarjeta del desafío se dibuja en el servidor y ahí no hay
+// zona del navegador: si no usara esta misma, la imagen y la pantalla mostrarían
+// horas distintas para el mismo partido.
+export const ZONA = "America/Caracas";
 
 type FilaSeleccion = {
   id: string;

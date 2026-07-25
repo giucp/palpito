@@ -28,6 +28,16 @@ export function IconosDefs() {
         <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
           <path d="M6 6l12 12M18 6L6 18" />
         </symbol>
+        {/* Dos siluetas: la lista de amigos y los desafíos entre ellos. */}
+        <symbol id="i-amigos" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="9" cy="8" r="3.4" />
+          <path d="M2.8 19.2a6.2 6.2 0 0 1 12.4 0" />
+          <path d="M16.4 5.2a3.4 3.4 0 0 1 0 6.6M17.6 13.6a6.2 6.2 0 0 1 3.6 5.6" opacity=".55" />
+        </symbol>
+        <symbol id="i-reloj" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5.3l3.4 2" />
+        </symbol>
         <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 9l6 6 6-6" />
         </symbol>

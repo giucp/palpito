@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icono } from "./iconos";
 import { useFormatoCuota } from "./formato-cuota";
+import { PanelAmigos } from "./panel-amigos";
 import { fmt } from "@/lib/cupon";
 import { calcularEstadisticas, cargarTickets, type Estadisticas } from "@/lib/apuestas";
 
@@ -11,6 +12,8 @@ type Props = {
   saldo: number | null;
   onEntrar: () => void;
   onSalir: () => void;
+  onAviso: (texto: string) => void;
+  onCambioSaldo: () => void;
 };
 
 // Anillo de aciertos: un solo arco lima sobre el fondo rojo. Sin librerías.
@@ -49,9 +52,10 @@ function Anillo({ ganadas, perdidas }: { ganadas: number; perdidas: number }) {
   );
 }
 
-export function PanelCuenta({ usuario, saldo, onEntrar, onSalir }: Props) {
+export function PanelCuenta({ usuario, saldo, onEntrar, onSalir, onAviso, onCambioSaldo }: Props) {
   const { formato, cambiarFormato } = useFormatoCuota();
   const [est, setEst] = useState<Estadisticas | null>(null);
+  const [pestania, setPestania] = useState<"cuenta" | "amigos">("cuenta");
 
   useEffect(() => {
     if (!usuario) return;
@@ -81,6 +85,22 @@ export function PanelCuenta({ usuario, saldo, onEntrar, onSalir }: Props) {
 
   return (
     <div className="perfil">
+      {/* Los desafíos entre amigos viven acá dentro: es tu cuenta, tu gente. */}
+      <div className="pf-pestanias">
+        <button className={pestania === "cuenta" ? "on" : ""} onClick={() => setPestania("cuenta")}>
+          <Icono id="i-user" />
+          Cuenta
+        </button>
+        <button className={pestania === "amigos" ? "on" : ""} onClick={() => setPestania("amigos")}>
+          <Icono id="i-amigos" />
+          Amigos
+        </button>
+      </div>
+
+      {pestania === "amigos" && <PanelAmigos onAviso={onAviso} onCambio={onCambioSaldo} />}
+
+      {pestania === "cuenta" && (
+        <>
       <div className="pf-saldo">
         <span className="k">Saldo disponible</span>
         <b className="mono">{saldo !== null ? fmt(saldo) : "—"}</b>
@@ -199,6 +219,8 @@ export function PanelCuenta({ usuario, saldo, onEntrar, onSalir }: Props) {
       <button className="pf-salir" onClick={onSalir}>
         Cerrar sesión
       </button>
+        </>
+      )}
     </div>
   );
 }

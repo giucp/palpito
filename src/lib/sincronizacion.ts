@@ -30,11 +30,17 @@ export async function faltaSincronizar(): Promise<boolean> {
     const supabase = crearClienteAdmin();
 
     // ¿Hay selecciones de la API sin metadatos de liquidación? (autocuración)
+    //
+    // OJO con el `!inner` sobre externo_id: solo cuentan las selecciones de
+    // eventos que vinieron de The Odds API. Los partidos de referencia que están
+    // sembrados a mano (NBA, ATP, CS2…) no tienen `lado` y **nunca lo van a
+    // tener**, porque sincronizar no los toca. Sin este filtro la autocuración
+    // se disparaba siempre y cada arranque del servidor quemaba 21 créditos.
     const { count: sinLado } = await supabase
       .from("selecciones")
-      .select("id", { count: "exact", head: true })
+      .select("id, mercados!inner(eventos!inner(externo_id))", { count: "exact", head: true })
       .is("lado", null)
-      .not("mercado_id", "is", null);
+      .not("mercados.eventos.externo_id", "is", null);
 
     const { data: ultimo } = await supabase
       .from("eventos")
@@ -263,6 +269,9 @@ async function cerrarYLiquidar(
   if (!cerrado || cerrado.length === 0) return null;
 
   const { data: liq } = await supabase.rpc("liquidar_evento", { p_evento: eventoId });
+  // Los desafíos entre amigos de este partido se resuelven en la misma pasada.
+  await supabase.rpc("liquidar_desafios", { p_evento: eventoId });
+
   if (liq && typeof liq === "object" && "apuestas_cerradas" in liq) {
     return Number((liq as { apuestas_cerradas: number }).apuestas_cerradas);
   }
@@ -288,6 +297,8 @@ export async function cerrarResultados(): Promise<ResumenResultados> {
 
   const anular = async (id: string) => {
     await supabase.rpc("anular_evento", { p_evento: id });
+    // Un partido que no se jugó también devuelve lo de los desafíos, entero.
+    await supabase.rpc("liquidar_desafios", { p_evento: id });
     anulados++;
   };
 
@@ -304,6 +315,10 @@ export async function cerrarResultados(): Promise<ResumenResultados> {
     apuestasCerradas += n;
     porFuente[fuente] = (porFuente[fuente] ?? 0) + 1;
   };
+
+  // Desafíos que nadie respondió y cuyo partido ya empezó: se devuelve lo
+  // retenido sin esperar a que el evento cierre, horas después.
+  await supabase.rpc("caducar_desafios");
 
   // Partidos que ya deberían haber terminado.
   const { data: pendientes } = await supabase

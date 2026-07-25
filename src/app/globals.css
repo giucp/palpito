@@ -883,6 +883,208 @@ button {
   .fab { bottom: 74px; }
 }
 
+/* ============================================================
+   Amigos y desafíos (apuestas entre dos, sin la casa de por medio)
+   Mismo sistema que el resto: panel + línea de 1px, el acento lima
+   marca lo que elegiste vos, y los números siempre en mono.
+   ============================================================ */
+
+/* Pestañas dentro de Mi cuenta */
+.pf-pestanias { display: flex; gap: 8px; margin-bottom: 14px; }
+.pf-pestanias button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 11px;
+  color: var(--mist); font-size: 13.5px; font-weight: 600; transition: 0.18s; }
+.pf-pestanias button svg { width: 17px; height: 17px; }
+.pf-pestanias button:hover { border-color: var(--line2); color: var(--ink2); }
+.pf-pestanias button.on { border-color: var(--lima); color: var(--ink); background: var(--panel3); }
+
+.am-cargando { text-align: center; color: var(--mist); font-size: 13px; padding: 40px 0; }
+.am-vacio { color: var(--mist); font-size: 13px; line-height: 1.55; }
+.am-pista { display: block; color: var(--mist); font-size: 11.5px; margin-top: 10px; line-height: 1.5; }
+
+/* Alias */
+.am-alias { display: flex; align-items: center; gap: 12px; }
+.am-alias b { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+.am-alias button, .am-alias-editar button { background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 13px; color: var(--ink2); font-size: 12.5px; font-weight: 600;
+  transition: 0.18s; margin-left: auto; }
+.am-alias button:hover { border-color: var(--lima); color: var(--ink); }
+.am-alias-editar { display: flex; gap: 8px; flex-wrap: wrap; }
+.am-alias-editar input { flex: 1; min-width: 130px; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 10px 12px; color: var(--ink); font-size: 14px; outline: none; transition: 0.18s; }
+.am-alias-editar input:focus { border-color: var(--lima); }
+.am-alias-editar button { margin-left: 0; }
+.am-alias-editar button.ghost { background: none; }
+
+.am-desafiar { margin-bottom: 12px; }
+
+/* Avatar de iniciales: sin fotos ni servicios externos */
+.am-avatar { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px; background: var(--panel3);
+  border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-jetbrains), monospace; font-size: 12px; font-weight: 700; color: var(--lima-txt); }
+
+.am-lista { display: flex; flex-direction: column; gap: 8px; }
+.am-item { display: flex; align-items: center; gap: 11px; width: 100%; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; color: var(--ink);
+  font-size: 14px; text-align: left; transition: 0.18s; }
+.am-item:not(.estatico):hover { border-color: var(--lima); }
+.am-item b { font-weight: 600; }
+.am-item .ir { width: 15px; height: 15px; margin-left: auto; color: var(--mist); }
+
+.am-invitacion { display: flex; align-items: center; gap: 11px; padding: 9px 0; }
+.am-invitacion b { font-weight: 600; font-size: 14px; }
+.am-invitacion .si { margin-left: auto; background: var(--lima); color: var(--lima-ink); border: none;
+  border-radius: 9px; padding: 8px 14px; font-size: 12.5px; font-weight: 700; }
+.am-invitacion .no { background: none; border: 1px solid var(--line); border-radius: 9px; padding: 8px;
+  color: var(--mist); display: flex; }
+.am-invitacion .no svg { width: 14px; height: 14px; }
+
+/* Buscador, sirve para alias y para partidos */
+.am-buscar { display: flex; align-items: center; gap: 9px; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 11px; padding: 4px 4px 4px 12px; transition: 0.18s; }
+.am-buscar:focus-within { border-color: var(--lima); }
+.am-buscar svg { width: 16px; height: 16px; color: var(--mist); flex: 0 0 auto; }
+.am-buscar input { flex: 1; min-width: 0; background: none; border: none; outline: none; color: var(--ink);
+  font-size: 14px; padding: 9px 0; }
+.am-buscar button { flex: 0 0 auto; background: var(--lima); color: var(--lima-ink); border: none;
+  border-radius: 9px; padding: 9px 15px; font-size: 12.5px; font-weight: 700; }
+
+/* Tarjeta de desafío en la lista */
+.am-desafio { display: block; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 8px; transition: 0.18s; }
+.am-desafio:hover { border-color: var(--line2); }
+.am-d-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.am-d-vs { color: var(--mist); font-size: 12px; font-weight: 600; }
+.am-d-estado { font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  color: var(--mist); }
+.am-d-estado.gano { color: var(--lima-txt); }
+.am-d-estado.perdio { color: var(--baja); }
+.am-d-partido { display: block; font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; }
+.am-d-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px;
+  color: var(--mist); font-size: 12.5px; }
+.am-d-pie b { color: var(--ink2); }
+
+/* ---- Flujo de creación ---- */
+.am-flujo { display: flex; flex-direction: column; gap: 14px; }
+.am-volver { display: flex; align-items: center; gap: 7px; align-self: flex-start; background: none;
+  border: none; color: var(--mist); font-size: 13px; font-weight: 600; padding: 0; }
+.am-volver svg { width: 15px; height: 15px; }
+.am-volver:hover { color: var(--ink); }
+.am-titulo { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; }
+.am-sub { color: var(--mist); font-size: 13px; line-height: 1.55; margin-top: -8px; }
+
+.am-partido { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px;
+  transition: 0.18s; }
+.am-partido:hover { border-color: var(--lima); }
+.am-partido .liga { color: var(--mist); font-size: 11px; }
+.am-partido b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.am-partido .hora { color: var(--mist); font-size: 11.5px; }
+
+.am-lados { display: flex; gap: 9px; }
+.am-lado { flex: 1; display: flex; flex-direction: column; gap: 5px; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 12px; padding: 15px 13px; text-align: left; transition: 0.18s; }
+.am-lado span { color: var(--mist); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  font-weight: 700; }
+.am-lado b { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+.am-lado:hover { border-color: var(--line2); }
+.am-lado.on { border-color: var(--lima); background: var(--panel3); }
+.am-lado.on span { color: var(--lima-txt); }
+
+.am-monto input { width: 100%; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px; font-family: var(--font-jetbrains), monospace; font-weight: 700; font-size: 26px;
+  text-align: center; color: var(--ink); outline: none; transition: 0.18s; }
+.am-monto input:focus { border-color: var(--lima); }
+.am-rapidos { display: flex; gap: 7px; }
+.am-rapidos button { flex: 1; background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
+  padding: 9px 0; font-family: var(--font-jetbrains), monospace; font-size: 12.5px; font-weight: 700;
+  color: var(--ink2); transition: 0.18s; }
+.am-rapidos button:hover { border-color: var(--line2); }
+.am-rapidos button.on { border-color: var(--lima); color: var(--ink); background: var(--panel3); }
+
+.am-resumen { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.am-resumen .fila { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 0; font-size: 13.5px; }
+.am-resumen .fila span { color: var(--mist); }
+.am-resumen .fila b { font-weight: 600; text-align: right; }
+.am-resumen .fila.total { border-top: 1px solid var(--line); margin-top: 5px; padding-top: 11px; }
+.am-resumen .fila.total b { color: var(--lima-txt); font-size: 16px; }
+
+.am-listo { text-align: center; display: flex; flex-direction: column; gap: 12px; }
+.am-tic { width: 58px; height: 58px; margin: 6px auto 0; border-radius: 18px; background: var(--panel3);
+  border: 1px solid var(--lima); display: flex; align-items: center; justify-content: center; }
+.am-tic svg { width: 26px; height: 26px; color: var(--lima-txt); }
+.am-listo .am-sub { margin-top: 0; }
+.am-copiar { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+  color: var(--ink2); font-size: 13.5px; font-weight: 600; transition: 0.18s; }
+.am-copiar:hover { border-color: var(--line2); color: var(--ink); }
+
+/* ============================================================
+   Página del desafío: la que abre tu amigo desde WhatsApp
+   ============================================================ */
+.desafio-pagina { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 20px;
+  padding: 28px 16px 48px; background: var(--bg); }
+.dsf-marca { display: flex; align-items: center; gap: 9px; color: var(--ink); font-weight: 700;
+  font-size: 17px; letter-spacing: -0.01em; }
+.dsf-punto { width: 15px; height: 15px; border-radius: 5px; background: var(--lima); }
+
+.dsf-card { width: 100%; max-width: 460px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 18px; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--sh); }
+.dsf-card h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.2; }
+.dsf-liga { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mist);
+  font-weight: 700; }
+.dsf-partido span { color: var(--mist); font-weight: 500; }
+.dsf-cuando { color: var(--mist); font-size: 13px; margin-top: -8px; }
+.dsf-marcador { text-align: center; font-size: 30px; font-weight: 700; color: var(--ink);
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+
+.dsf-lados { display: flex; align-items: stretch; gap: 9px; }
+.dsf-lado { flex: 1; display: flex; flex-direction: column; gap: 5px; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 12px; padding: 13px; }
+.dsf-lado .q { color: var(--mist); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  font-weight: 700; }
+.dsf-lado b { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.dsf-lado.elegido { border-color: var(--lima); background: var(--panel3); }
+.dsf-lado.elegido .q { color: var(--lima-txt); }
+.dsf-lado.gano { border-color: var(--lima); box-shadow: inset 0 0 0 1px var(--lima); }
+.dsf-vs { align-self: center; color: var(--mist); font-size: 11px; font-weight: 700; }
+
+.dsf-pozo { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 13px 15px; }
+.dsf-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0;
+  font-size: 13.5px; }
+.dsf-fila span { color: var(--mist); }
+.dsf-fila b { font-weight: 600; }
+.dsf-fila.menor { font-size: 12.5px; }
+.dsf-fila.menor b { color: var(--mist); }
+.dsf-fila.total { border-top: 1px solid var(--line); margin-top: 5px; padding-top: 11px; }
+.dsf-fila.total b { color: var(--lima-txt); font-size: 17px; }
+
+.dsf-empate { color: var(--mist); font-size: 12px; line-height: 1.5; margin-top: -6px; }
+.dsf-nota { color: var(--ink2); font-size: 13px; line-height: 1.55; }
+.dsf-error { background: rgba(255, 90, 90, 0.1); border: 1px solid var(--baja); border-radius: 10px;
+  padding: 11px 13px; color: var(--baja); font-size: 13px; }
+
+.dsf-acciones { display: flex; flex-direction: column; gap: 9px; }
+.dsf-rechazar { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+  color: var(--mist); font-size: 13.5px; font-weight: 600; transition: 0.18s; }
+.dsf-rechazar:hover { border-color: var(--baja); color: var(--baja); }
+.dsf-esperando { display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--mist);
+  font-size: 13.5px; padding: 6px 0; }
+.dsf-esperando svg { width: 17px; height: 17px; }
+
+.dsf-estado { text-align: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 13px; color: var(--ink2); font-size: 13.5px; line-height: 1.5; }
+.dsf-estado.on { border-color: var(--lima); color: var(--ink); }
+.dsf-estado b { color: var(--lima-txt); }
+
+/* En pantallas angostas los dos lados van uno debajo del otro */
+@media (max-width: 420px) {
+  .am-lados, .dsf-lados { flex-direction: column; }
+  .dsf-vs { padding: 2px 0; }
+  .dsf-card { padding: 18px; }
+  .dsf-card h1 { font-size: 21px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
