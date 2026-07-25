@@ -1,17 +1,18 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+  cuotaAmericana,
+  formatearCuota,
+  FORMATO_POR_DEFECTO,
+  type FormatoCuota,
+} from "@/lib/cuota";
 
 // Las casas grandes muestran las cuotas en decimal (1.96) o americano (+96 / -143).
-// El usuario elige y la preferencia se guarda en el navegador.
-export type FormatoCuota = "decimal" | "americano";
-
-export function cuotaAmericana(decimal: number): string {
-  if (!Number.isFinite(decimal) || decimal <= 1) return "—";
-  return decimal >= 2
-    ? `+${Math.round((decimal - 1) * 100)}`
-    : `-${Math.round(100 / (decimal - 1))}`;
-}
+// El usuario elige y la preferencia se guarda en el navegador. El cálculo vive en
+// `@/lib/cuota` para que el servidor pueda usar el mismo al dibujar el ticket.
+export type { FormatoCuota };
+export { cuotaAmericana };
 
 type Valor = {
   formato: FormatoCuota;
@@ -19,9 +20,7 @@ type Valor = {
   fc: (decimal: number) => string; // formatea una cuota según la preferencia
 };
 
-// Americano por defecto, como las casas grandes: el signo dice de un vistazo
-// quién es favorito. Quien prefiera decimal lo cambia en Cuenta.
-const POR_DEFECTO: FormatoCuota = "americano";
+const POR_DEFECTO = FORMATO_POR_DEFECTO;
 
 const Ctx = createContext<Valor>({
   formato: POR_DEFECTO,
@@ -48,11 +47,7 @@ export function ProveedorFormatoCuota({ children }: { children: React.ReactNode 
     } catch {}
   }, []);
 
-  const fc = useCallback(
-    (decimal: number) =>
-      formato === "americano" ? cuotaAmericana(decimal) : decimal.toFixed(2),
-    [formato]
-  );
+  const fc = useCallback((decimal: number) => formatearCuota(decimal, formato), [formato]);
 
   return <Ctx.Provider value={{ formato, cambiarFormato, fc }}>{children}</Ctx.Provider>;
 }

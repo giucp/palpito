@@ -28,6 +28,17 @@ export function IconosDefs() {
         <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
           <path d="M6 6l12 12M18 6L6 18" />
         </symbol>
+        {/* Marcas de acierto y fallo en las líneas del ticket. */}
+        <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12.5l4.6 4.5L19 7.5" />
+        </symbol>
+        <symbol id="i-menos" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
+          <path d="M6 12h12" />
+        </symbol>
+        <symbol id="i-compartir" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 3v12M12 3L8 7M12 3l4 4" />
+          <path d="M5 13v6a1.6 1.6 0 0 0 1.6 1.6h10.8A1.6 1.6 0 0 0 19 19v-6" />
+        </symbol>
         {/* Dos siluetas: la lista de amigos y los desafíos entre ellos. */}
         <symbol id="i-amigos" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="9" cy="8" r="3.4" />
