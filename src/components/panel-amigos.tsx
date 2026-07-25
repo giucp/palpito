@@ -122,9 +122,11 @@ export function PanelAmigos({ onAviso, onCambio }: { onAviso: (t: string) => voi
     }).then((x) => x.json());
 
     const motivos: Record<string, string> = {
-      no_existe: `Nadie usa el alias @${q}`,
+      no_existe: q.includes("@")
+        ? `Nadie usa el correo ${q}`
+        : `Nadie usa el alias @${q}`,
       sos_vos: "Ese sos vos",
-      alias_invalido: "Ese alias no es válido",
+      alias_invalido: "Escribí un alias o un correo",
     };
     onAviso(r.ok ? (r.estado === "aceptada" ? "¡Ya son amigos!" : "Invitación enviada") : (motivos[r.motivo] ?? "No se pudo"));
     if (r.ok) {
@@ -471,12 +473,16 @@ export function PanelAmigos({ onAviso, onCambio }: { onAviso: (t: string) => voi
         <div className="pf-titulo">Agregar un amigo</div>
         <div className="am-buscar">
           <Icono id="i-lupa" />
+          {/* Sin tope de 20: ese límite es para el alias, y acá también entra un
+              correo, que casi siempre es más largo. */}
           <input
-            placeholder="Su alias, sin la arroba"
+            placeholder="Su alias o su correo"
             value={buscarAlias}
             onChange={(e) => setBuscarAlias(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && invitar()}
-            maxLength={20}
+            maxLength={80}
+            autoCapitalize="none"
+            spellCheck={false}
           />
           <button onClick={invitar}>Invitar</button>
         </div>

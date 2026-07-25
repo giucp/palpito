@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
   const admin = crearClienteAdmin();
 
   if (cuerpo.accion === "invitar") {
+    // Puede ser un alias o un correo, así que acá solo se comprueba que haya
+    // algo razonable; quién es lo resuelve `solicitar_amistad`.
     if (typeof cuerpo.alias !== "string" || cuerpo.alias.trim().length < 3) {
       return NextResponse.json({ ok: false, motivo: "alias_invalido" }, { status: 400 });
     }

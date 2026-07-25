@@ -68,26 +68,35 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   transition: background 0.3s, color 0.3s;
+
+  /* Nada de seleccionar texto por accidente. En Android, tocar o mantener
+     pulsada cualquier palabra hace que Chrome la seleccione y saque su barra de
+     "buscar en Google" encima de la app. Antes esto solo cubría botones y
+     tableros de juego, así que seguía saliendo en el resto de las pantallas.
+     Una app se toca, no se subraya: la selección se devuelve más abajo solo
+     donde hace falta de verdad. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Donde sí hace falta poder seleccionar y copiar: los campos de texto, y el
+   número de ticket, que uno querría pegarle a alguien. */
+input,
+textarea,
+[contenteditable="true"],
+.tk-id,
+.pf-row b {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
 }
 
 button {
   font-family: inherit;
   cursor: pointer;
-  /* Sin esto, al mantener pulsado un botón en Android el navegador selecciona
-     la palabra y saca su barra de "buscar en Google" encima del juego.
-     touch-action además quita el retardo del doble toque. */
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
+  /* touch-action quita el retardo del doble toque en móvil. */
   touch-action: manipulation;
-}
-
-/* Los tableros de juego tampoco deben poder seleccionarse: se tocan rápido y
-   con fuerza, y cualquier selección accidental interrumpe la partida. */
-.dsp, .mll, .mll-pista, .dsp-mult, .mll-info, .botnav, .tabs, .rail {
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
 }
 
 ::selection {
@@ -414,6 +423,27 @@ button {
 .acrear { width: 100%; background: none; border: 1px solid var(--line2); color: var(--ink2); font-weight: 700;
   font-size: 13.5px; padding: 12px; border-radius: 10px; margin-top: 8px; transition: 0.2s; }
 .acrear:hover { border-color: var(--lima); color: var(--ink); }
+
+/* Entrar o crear cuenta: se elige antes de escribir, no con dos botones al
+   final. Crear cuenta pide un campo más, y un formulario que cambia de forma
+   recién al final confunde. */
+.amodo { display: flex; gap: 5px; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 11px; padding: 4px; margin-bottom: 18px; }
+.amodo button { flex: 1; background: none; border: none; border-radius: 8px; padding: 9px;
+  color: var(--mist); font-size: 13.5px; font-weight: 600; transition: 0.18s; }
+.amodo button.on { background: var(--panel); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+
+/* La arroba va fija dentro del campo: se ve que es un alias y no un correo */
+.aalias { display: flex; align-items: center; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 9px; padding-left: 11px; transition: 0.2s; }
+.aalias:focus-within { border-color: var(--lima); }
+.aalias i { font-style: normal; color: var(--mist); font-size: 14px; }
+.aalias input { border: none; background: none; padding-left: 3px; }
+.aalias input:focus { border-color: transparent; }
+
+.apista { display: block; font-size: 11.5px; color: var(--mist); margin-top: 5px; line-height: 1.45; }
+.apista.libre { color: var(--sube); }
+.apista.tomado, .apista.invalido { color: var(--baja); }
 .avolver { display: block; margin: 16px auto 0; background: none; border: none; color: var(--mist);
   font-size: 12.5px; font-weight: 500; transition: 0.2s; }
 .avolver:hover { color: var(--ink); }
