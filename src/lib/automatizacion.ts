@@ -1,41 +1,20 @@
-import { crearClienteAdmin } from "./supabase/admin";
-import { cerrarResultados, sincronizarCartelera } from "./sincronizacion";
+import {
+  CADA_SINCRONIZACION_MS,
+  cerrarResultados,
+  faltaSincronizar,
+  sincronizarCartelera,
+} from "./sincronizacion";
 
 // Programador interno: corre dentro del servidor de Next y no requiere ningún
 // disparo manual. (Al desplegar en Vercel esto se sustituye por Vercel Cron.)
 
-// Cada corrida cuesta créditos de The Odds API (500/mes en el plan gratis, unos
-// 16 por día). Revisar resultados cada 30 min los quemaba en pocos días, y para
-// apuestas pre-partido no hace falta liquidar al minuto.
-const CADA_RESULTADOS = 2 * 60 * 60 * 1000; // 2 h
-const CADA_SINCRONIZACION = 12 * 60 * 60 * 1000; // 12 h
-
-async function faltaSincronizar(): Promise<boolean> {
-  try {
-    const supabase = crearClienteAdmin();
-
-    // ¿Hay selecciones de la API sin metadatos de liquidación? (autocuración)
-    const { count: sinLado } = await supabase
-      .from("selecciones")
-      .select("id", { count: "exact", head: true })
-      .is("lado", null)
-      .not("mercado_id", "is", null);
-
-    const { data: ultimo } = await supabase
-      .from("eventos")
-      .select("created_at")
-      .not("externo_id", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!ultimo) return true; // nunca se ha sincronizado
-    const viejo = Date.now() - new Date(ultimo.created_at).getTime() > CADA_SINCRONIZACION;
-    return viejo || (sinLado ?? 0) > 0;
-  } catch {
-    return false;
-  }
-}
+// Los resultados salen de fuentes gratuitas y sin tope (ver src/lib/resultados),
+// así que mirarlos seguido no cuesta nada y la ganancia se acredita a los pocos
+// minutos de terminar el partido. Lo que sí cuesta créditos son las cuotas.
+const CADA_RESULTADOS = 10 * 60 * 1000; // 10 min
+// Se revisa cada 6 h si toca sincronizar; el freno de verdad (y el porqué de su
+// valor) está en CADA_SINCRONIZACION_MS, en sincronizacion.ts.
+const CADA_REVISION_CARTELERA = 6 * 60 * 60 * 1000;
 
 async function cicloSincronizacion(forzar = false) {
   try {
@@ -59,14 +38,19 @@ async function cicloSincronizacion(forzar = false) {
 
 async function cicloResultados() {
   try {
-    if (!process.env.ODDS_API_KEY) return;
+    // Ya no hace falta ODDS_API_KEY para esto: las fuentes propias no la usan.
     const r = await cerrarResultados();
-    if (r.eventosCerrados > 0 || r.ligasConsultadas.length > 0 || r.eventosAnulados > 0) {
+    if (r.eventosCerrados > 0 || r.eventosAnulados > 0) {
+      const fuentes = Object.entries(r.porFuente)
+        .map(([f, n]) => `${f}: ${n}`)
+        .join(", ");
       console.log(
-        `[automatización] resultados: ${r.eventosCerrados} eventos cerrados, ` +
+        `[automatización] resultados: ${r.eventosCerrados} eventos cerrados (${fuentes}), ` +
           `${r.apuestasCerradas} apuestas liquidadas` +
-          (r.eventosAnulados > 0 ? `, ${r.eventosAnulados} anulados por antigüedad` : "") +
-          ` (${r.ligasConsultadas.join(", ") || "—"})`
+          (r.eventosAnulados > 0 ? `, ${r.eventosAnulados} anulados` : "") +
+          (r.ligasPlanB.length > 0
+            ? ` · plan B en ${r.ligasPlanB.join(", ")} (quedan ${r.creditosRestantes ?? "?"} créditos)`
+            : "")
       );
     }
   } catch (e) {
@@ -75,12 +59,15 @@ async function cicloResultados() {
 }
 
 export function iniciarAutomatizacion() {
-  console.log("[automatización] programador iniciado: cartelera cada 12 h, resultados cada 2 h");
+  const horas = Math.round(CADA_SINCRONIZACION_MS / 3600_000);
+  console.log(
+    `[automatización] programador iniciado: cartelera cada ${horas} h, resultados cada 10 min`
+  );
   // Arranque suave a los 15 s: sincroniza si hace falta y revisa resultados.
   setTimeout(async () => {
     await cicloSincronizacion();
     await cicloResultados();
   }, 15_000);
-  setInterval(() => cicloSincronizacion(), CADA_SINCRONIZACION);
+  setInterval(() => cicloSincronizacion(), CADA_REVISION_CARTELERA);
   setInterval(() => cicloResultados(), CADA_RESULTADOS);
 }

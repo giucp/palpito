@@ -1,16 +1,21 @@
 name: Liquidar apuestas
 
-# Cierra resultados y liquida apuestas cada 2 horas.
+# Cierra resultados y liquida apuestas cada 10 minutos.
 # Necesario porque el cron de Vercel (plan Hobby) solo corre una vez al día.
 #
-# Cada corrida con partidos pendientes gasta 1 crédito de The Odds API por liga,
-# y el plan gratis da 500 al mes (~16 por día). A cada 30 min se agotaban en
-# pocos días; para apuestas pre-partido no hace falta liquidar al minuto.
-# Cuando no hay nada que cerrar, la corrida no gasta créditos.
+# Antes corría cada 2 horas porque cada revisión gastaba créditos de The Odds
+# API. Desde la liquidación propia los resultados salen de fuentes gratuitas y
+# sin tope (statsapi.mlb.com y la API pública de ESPN), así que revisar seguido
+# no cuesta nada y la ganancia se acredita a los pocos minutos de terminar el
+# partido, que es lo que se quería. GitHub Actions es gratis e ilimitado acá
+# porque el repositorio es público.
+#
+# El cron de GitHub no es puntual: en horas pico puede demorarse. No importa,
+# porque la corrida es idempotente (un evento ya cerrado no se vuelve a liquidar).
 
 on:
   schedule:
-    - cron: "0 */2 * * *" # cada 2 horas
+    - cron: "*/10 * * * *" # cada 10 minutos
   workflow_dispatch: {} # permite dispararlo a mano desde la pestaña Actions
 
 # Evita que dos corridas se pisen si una tarda

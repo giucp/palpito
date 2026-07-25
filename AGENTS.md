@@ -21,6 +21,11 @@ Reglas no negociables:
   (`src/lib/supabase/admin.ts`, clave de servicio).
 - Los juegos deciden su resultado al iniciar, en el servidor, y son verificables:
   se publica el hash de la semilla antes y se revela la semilla al terminar.
+- **The Odds API es solo para cuotas.** Los resultados salen de fuentes propias y
+  gratuitas (`src/lib/resultados/`): statsapi.mlb.com para béisbol y la API pública
+  de ESPN para fútbol. Al tocar el emparejamiento de nombres, comprobarlo con
+  `node scripts/probar-emparejamiento.ts` antes de dar nada por bueno: si empareja
+  mal, una apuesta se liquida con el marcador de otro partido.
 - Números siempre en JetBrains Mono con `tabular-nums` (clase `.mono`).
 - Iconos propios en SVG; nunca emoji para deportes ni banderas. Sin escudos de
   equipos: el dueño los considera ruido.

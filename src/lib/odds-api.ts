@@ -63,8 +63,11 @@ export async function pedirCuotas(clave: string, apiKey: string) {
 export async function pedirMarcadores(clave: string, apiKey: string) {
   const url = `${BASE}/sports/${clave}/scores?apiKey=${apiKey}&daysFrom=2`;
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return { marcadores: null, status: res.status };
-  return { marcadores: (await res.json()) as MarcadorApi[], status: res.status };
+  // `restantes` sale de la cabecera que devuelve la propia API: es el crédito
+  // que queda de verdad, mejor que estimar a mano cuánto cuesta cada consulta.
+  const restantes = res.headers.get("x-requests-remaining");
+  if (!res.ok) return { marcadores: null, restantes, status: res.status };
+  return { marcadores: (await res.json()) as MarcadorApi[], restantes, status: res.status };
 }
 
 export type SeleccionMapeada = {

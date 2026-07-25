@@ -9,6 +9,10 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // Permite importar con extensión .ts explícita. Hace falta para que los
+    // scripts de scripts/ corran con `node` (Node exige la extensión) usando
+    // los mismos módulos que la app, sin duplicar la lógica.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",

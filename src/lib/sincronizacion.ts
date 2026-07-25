@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { crearClienteAdmin } from "./supabase/admin";
 import { FUENTES, mapearMercados, pedirCuotas, pedirMarcadores } from "./odds-api";
+import { buscarResultados } from "./resultados";
 
 // Motor de sincronización con The Odds API. Escrituras por lote (rápido) y
 // seguro con apuestas: los eventos que ya tienen apuestas no se tocan
@@ -11,6 +12,45 @@ export type ResumenSincronizacion = {
   resumen: Array<{ liga: string; eventos: number; nota?: string }>;
   creditosRestantes: string | null;
 };
+
+// Cada liga cuesta 3 créditos por sincronización (3 mercados × 1 región,
+// medido contra la API). Con 7 ligas son 21 por corrida, así que una corrida
+// diaria daría 630 al mes contra un tope de 500 en el plan gratis: no entra.
+// A 44 h entra cómodo (~11/día ≈ 345/mes) y deja margen para el plan B de
+// resultados y para las corridas a mano.
+//
+// El freno vive acá y no en el cron para no depender de su granularidad: el cron
+// de Vercel en plan Hobby solo corre una vez al día, así que llama todos los días
+// y la mayoría de las veces esto contesta "todavía no hace falta" sin gastar nada.
+export const CADA_SINCRONIZACION_MS = 44 * 60 * 60 * 1000;
+
+// ¿Vale la pena gastar créditos en refrescar la cartelera?
+export async function faltaSincronizar(): Promise<boolean> {
+  try {
+    const supabase = crearClienteAdmin();
+
+    // ¿Hay selecciones de la API sin metadatos de liquidación? (autocuración)
+    const { count: sinLado } = await supabase
+      .from("selecciones")
+      .select("id", { count: "exact", head: true })
+      .is("lado", null)
+      .not("mercado_id", "is", null);
+
+    const { data: ultimo } = await supabase
+      .from("eventos")
+      .select("created_at")
+      .not("externo_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!ultimo) return true; // nunca se ha sincronizado
+    const viejo = Date.now() - new Date(ultimo.created_at).getTime() > CADA_SINCRONIZACION_MS;
+    return viejo || (sinLado ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
 
 export async function sincronizarCartelera(): Promise<ResumenSincronizacion> {
   const apiKey = process.env.ODDS_API_KEY;
@@ -165,115 +205,179 @@ export async function sincronizarCartelera(): Promise<ResumenSincronizacion> {
   return { ok: true, resumen, creditosRestantes };
 }
 
-// Ventana de cierre, en horas desde el inicio del partido. Antes de las 2 h casi
-// ninguno terminó; pasadas las 12 h la fuente ya no lo va a reportar, así que se
-// anula en vez de seguir preguntando por él en cada corrida (eso gastaba créditos
-// indefinidamente).
+// Ventana de cierre, en horas desde el inicio del partido.
+//
+// VENTANA_MIN: antes de eso casi ningún partido terminó, no vale la pena mirar.
+//
+// PLAN_B: recién a las 6 h se le pregunta a The Odds API por lo que las fuentes
+// propias no encontraron. Esperar tanto es a propósito: cada consulta cuesta
+// créditos y casi siempre la fuente gratuita termina reportándolo sola.
+//
+// VENTANA_MAX: pasado ese plazo nadie lo reportó, así que se anula y se devuelve
+// lo apostado. Antes eran 12 h porque seguir preguntando gastaba créditos; ahora
+// preguntar es gratis, así que se puede esperar el doble antes de darlo por
+// perdido, y un postergado ya se detecta solo (no espera a que venza el plazo).
 const VENTANA_MIN_H = 2;
-const VENTANA_MAX_H = 12;
+const PLAN_B_H = 6;
+const VENTANA_MAX_H = 24;
 
-// Cierra eventos terminados y LIQUIDA las apuestas afectadas.
-// Inteligente con los créditos: solo consulta las ligas que tienen eventos
-// pendientes que ya deberían haber terminado (comenzaron hace más de 2 horas).
-export async function cerrarResultados(): Promise<{
+export type ResumenResultados = {
   ok: boolean;
   eventosCerrados: number;
   apuestasCerradas: number;
-  ligasConsultadas: string[];
   eventosAnulados: number;
-}> {
-  const apiKey = process.env.ODDS_API_KEY;
-  if (!apiKey)
-    return {
-      ok: false,
-      eventosCerrados: 0,
-      apuestasCerradas: 0,
-      ligasConsultadas: [],
-      eventosAnulados: 0,
-    };
+  // Cuántos cerró cada fuente, para ver de un vistazo si el plan B se está usando
+  // más de la cuenta (señal de que algo dejó de emparejar).
+  porFuente: Record<string, number>;
+  // Ligas por las que hubo que preguntarle a The Odds API, y crédito que quedaba
+  // según su propia cabecera. Con el emparejamiento sano, esto va vacío.
+  ligasPlanB: string[];
+  creditosRestantes: string | null;
+};
 
+// Marca el evento como finalizado y liquida sus apuestas. Devuelve cuántas cerró.
+async function cerrarYLiquidar(
+  supabase: ReturnType<typeof crearClienteAdmin>,
+  eventoId: string,
+  marcadorA: number,
+  marcadorB: number,
+  fuente: string,
+  externoId: string | null
+): Promise<number | null> {
+  const resultado = marcadorA > marcadorB ? "a" : marcadorA < marcadorB ? "b" : "x";
+  const { data: cerrado } = await supabase
+    .from("eventos")
+    .update({
+      estado: "finalizado",
+      resultado,
+      marcador_a: marcadorA,
+      marcador_b: marcadorB,
+      resultado_fuente: fuente,
+      resultado_externo_id: externoId,
+    })
+    .eq("id", eventoId)
+    .neq("estado", "finalizado")
+    .select("id");
+
+  // Si no actualizó nada, otra corrida lo cerró primero: no liquidar dos veces.
+  if (!cerrado || cerrado.length === 0) return null;
+
+  const { data: liq } = await supabase.rpc("liquidar_evento", { p_evento: eventoId });
+  if (liq && typeof liq === "object" && "apuestas_cerradas" in liq) {
+    return Number((liq as { apuestas_cerradas: number }).apuestas_cerradas);
+  }
+  return 0;
+}
+
+// Cierra eventos terminados y LIQUIDA las apuestas afectadas.
+//
+// Orden de las fuentes: primero las propias (gratis e ilimitadas), y solo lo que
+// ellas no resuelven va a The Odds API. Por eso esto se puede correr cada pocos
+// minutos sin gastar créditos, que es lo que hace que la ganancia se acredite
+// pronto en vez de hasta dos horas después.
+export async function cerrarResultados(): Promise<ResumenResultados> {
   const supabase = crearClienteAdmin();
   const ahora = Date.now();
-  const hace2h = new Date(ahora - VENTANA_MIN_H * 3600_000).toISOString();
-  const hace12h = new Date(ahora - VENTANA_MAX_H * 3600_000).toISOString();
+  const hace = (h: number) => new Date(ahora - h * 3600_000).toISOString();
 
-  // Primero: los que llevan demasiado tiempo sin cerrarse. La fuente ya no los
-  // reporta, así que se anulan (devolviendo lo apostado) y dejan de consultarse.
-  // Sin este corte se preguntaría por ellos en cada corrida, para siempre.
-  const { data: vencidos } = await supabase
-    .from("eventos")
-    .select("id")
-    .eq("estado", "programado")
-    .lt("comienza_at", hace12h);
+  const porFuente: Record<string, number> = {};
+  let eventosCerrados = 0;
+  let apuestasCerradas = 0;
   let anulados = 0;
-  for (const e of vencidos ?? []) {
-    await supabase.rpc("anular_evento", { p_evento: e.id });
-    anulados++;
-  }
+  let creditosRestantes: string | null = null;
 
-  // Ventana de cierre: partidos que ya deberían haber terminado, pero no tan
-  // viejos como para darlos por perdidos.
+  const anular = async (id: string) => {
+    await supabase.rpc("anular_evento", { p_evento: id });
+    anulados++;
+  };
+
+  const registrar = async (
+    eventoId: string,
+    a: number,
+    b: number,
+    fuente: string,
+    externoId: string | null
+  ) => {
+    const n = await cerrarYLiquidar(supabase, eventoId, a, b, fuente, externoId);
+    if (n === null) return;
+    eventosCerrados++;
+    apuestasCerradas += n;
+    porFuente[fuente] = (porFuente[fuente] ?? 0) + 1;
+  };
+
+  // Partidos que ya deberían haber terminado.
   const { data: pendientes } = await supabase
     .from("eventos")
-    .select("id, liga, externo_id")
+    .select("id, deporte, liga, equipo_a, equipo_b, comienza_at, externo_id")
     .eq("estado", "programado")
-    .not("externo_id", "is", null)
-    .lt("comienza_at", hace2h)
-    .gte("comienza_at", hace12h);
+    .lt("comienza_at", hace(VENTANA_MIN_H))
+    .order("comienza_at", { ascending: true });
 
   if (!pendientes || pendientes.length === 0) {
     return {
       ok: true,
       eventosCerrados: 0,
       apuestasCerradas: 0,
-      ligasConsultadas: [],
-      eventosAnulados: anulados,
+      eventosAnulados: 0,
+      porFuente,
+      ligasPlanB: [],
+      creditosRestantes: null,
     };
   }
 
-  const ligasPendientes = new Set(pendientes.map((p) => p.liga));
-  const fuentes = FUENTES.filter((f) => ligasPendientes.has(f.liga));
-  let eventosCerrados = 0;
-  let apuestasCerradas = 0;
+  // ---- 1) Fuentes propias, gratis ----
+  const { resueltos, cancelados, sinResolver } = await buscarResultados(pendientes);
 
-  for (const fuente of fuentes) {
-    const { marcadores } = await pedirMarcadores(fuente.clave, apiKey);
-    if (!marcadores) continue;
+  for (const r of resueltos) {
+    await registrar(r.eventoId, r.marcadorA, r.marcadorB, r.fuente, r.externoId);
+  }
+  // Postergados o cancelados: devolver lo apostado ya, sin hacer esperar a nadie.
+  for (const e of cancelados) await anular(e.id);
 
-    for (const m of marcadores) {
-      if (!m.completed || !m.scores) continue;
-      const puntosLocal = Number(m.scores.find((s) => s.name === m.home_team)?.score ?? NaN);
-      const puntosVisita = Number(m.scores.find((s) => s.name === m.away_team)?.score ?? NaN);
-      if (Number.isNaN(puntosLocal) || Number.isNaN(puntosVisita)) continue;
+  // ---- 2) Plan B: The Odds API, solo para lo que quedó sin resolver ----
+  const apiKey = process.env.ODDS_API_KEY;
+  const rezagados = sinResolver.filter(
+    (e) => e.externo_id && new Date(e.comienza_at).getTime() < ahora - PLAN_B_H * 3600_000
+  );
+  const ligasPlanB = new Set<string>();
 
-      const resultado = puntosLocal > puntosVisita ? "a" : puntosLocal < puntosVisita ? "b" : "x";
-      const { data: cerrado } = await supabase
-        .from("eventos")
-        .update({
-          estado: "finalizado",
-          resultado,
-          marcador_a: puntosLocal,
-          marcador_b: puntosVisita,
-        })
-        .eq("externo_id", m.id)
-        .neq("estado", "finalizado")
-        .select("id");
+  if (apiKey && rezagados.length > 0) {
+    const ligas = new Set(rezagados.map((e) => e.liga));
+    const porExterno = new Map(rezagados.map((e) => [e.externo_id!, e]));
 
-      for (const e of cerrado ?? []) {
-        eventosCerrados++;
-        const { data: liq } = await supabase.rpc("liquidar_evento", { p_evento: e.id });
-        if (liq && typeof liq === "object" && "apuestas_cerradas" in liq) {
-          apuestasCerradas += Number((liq as { apuestas_cerradas: number }).apuestas_cerradas);
-        }
+    for (const fuente of FUENTES.filter((f) => ligas.has(f.liga))) {
+      const { marcadores, restantes } = await pedirMarcadores(fuente.clave, apiKey);
+      if (restantes) creditosRestantes = restantes;
+      ligasPlanB.add(fuente.liga);
+      if (!marcadores) continue;
+
+      for (const m of marcadores) {
+        const evento = porExterno.get(m.id);
+        if (!evento || !m.completed || !m.scores) continue;
+        const a = Number(m.scores.find((s) => s.name === m.home_team)?.score ?? NaN);
+        const b = Number(m.scores.find((s) => s.name === m.away_team)?.score ?? NaN);
+        if (Number.isNaN(a) || Number.isNaN(b)) continue;
+        await registrar(evento.id, a, b, "odds_api", m.id);
       }
     }
   }
+
+  // ---- 3) Lo que nadie reportó en 24 h: devolver lo apostado ----
+  // Si no se puede saber quién ganó, el usuario no pierde.
+  const { data: vencidos } = await supabase
+    .from("eventos")
+    .select("id")
+    .eq("estado", "programado")
+    .lt("comienza_at", hace(VENTANA_MAX_H));
+  for (const e of vencidos ?? []) await anular(e.id);
 
   return {
     ok: true,
     eventosCerrados,
     apuestasCerradas,
-    ligasConsultadas: [...ligasPendientes],
     eventosAnulados: anulados,
+    porFuente,
+    ligasPlanB: [...ligasPlanB],
+    creditosRestantes,
   };
 }

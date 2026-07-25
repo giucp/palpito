@@ -18,8 +18,7 @@ export async function GET(req: NextRequest) {
   if (!autorizado(req)) {
     return NextResponse.json({ error: "Clave incorrecta" }, { status: 401 });
   }
-  if (!process.env.ODDS_API_KEY) {
-    return NextResponse.json({ error: "Falta ODDS_API_KEY" }, { status: 503 });
-  }
+  // No se exige ODDS_API_KEY: los resultados salen de fuentes propias y
+  // gratuitas, y The Odds API solo entra como plan B si está configurada.
   return NextResponse.json(await cerrarResultados());
 }
