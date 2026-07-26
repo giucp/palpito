@@ -119,9 +119,10 @@ export async function traerEventos(categoria: string, limite = 24): Promise<Even
 
   let datos: CrudoEvento[] = [];
   try {
-    // Los precios se mueven de verdad, pero medio minuto de cache alcanza y
-    // evita machacar la API si varios miran a la vez.
-    const res = await fetch(url, { next: { revalidate: 30 } });
+    // Sin cache, por lo mismo que la cartelera (ver `lib/tablero.ts`): Next
+    // devuelve la copia vencida y busca la nueva después, así que uno siempre
+    // ve los precios de la consulta anterior. Acá el precio ES el dato.
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
     const j = await res.json();
     datos = Array.isArray(j) ? j : [];

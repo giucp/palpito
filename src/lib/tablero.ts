@@ -130,11 +130,19 @@ export async function traerTablero(
   let datos: { events?: CrudoEvento[] } = {};
   try {
     const res = await fetch(`${BASE}/${liga.ruta}/scoreboard?dates=${desde}-${hasta}`, {
-      // Medio minuto de cache: suficiente para que un marcador en vivo se vea
-      // fresco, y suficiente para que ESPN reciba una sola consulta aunque haya
-      // muchos mirando a la vez. Pedir más seguido que esto no traería nada
-      // nuevo, así que el navegador tampoco lo hace.
-      next: { revalidate: 30 },
+      // Sin cache, y es a propósito.
+      //
+      // Antes había medio minuto de cache "para que ESPN reciba una sola
+      // consulta aunque haya muchos mirando". El problema es cómo revalida
+      // Next: cuando la entrada vence, **devuelve la vieja y recién entonces va
+      // a buscar la nueva**. O sea que siempre veías el resultado de tu consulta
+      // anterior. El 2026-07-26 un partido estuvo marcando 0-0 toda la tarde en
+      // el teléfono del dueño mientras ESPN ya decía 2-0 y final.
+      //
+      // En una pantalla de resultados en vivo eso no es una optimización, es un
+      // dato equivocado. Ahorrarle consultas a una API pública y gratuita no
+      // vale mostrar un marcador viejo.
+      cache: "no-store",
     });
     if (!res.ok) return { liga, partidos: [] };
     datos = await res.json();

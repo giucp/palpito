@@ -184,8 +184,22 @@ export function Tablero() {
 
   // Con un partido abierto, la cartelera se reemplaza por su resumen. Al volver
   // queda todo como estaba: liga, día y búsqueda no se tocaron.
+  //
+  // Y se pide la cartelera de nuevo en el acto. Sin eso pasaba lo peor que
+  // puede pasar acá: mientras mirabas el resumen el partido terminaba, y al
+  // volver la fila seguía diciendo "HT 0-0" cuando adentro acababas de ver dos
+  // goles y el final. Esperar al próximo refresco no alcanza: son tres minutos.
   if (abierto) {
-    return <DetallePartido ligaId={ligaId} partido={abierto} onVolver={() => setAbierto(null)} />;
+    return (
+      <DetallePartido
+        ligaId={ligaId}
+        partido={abierto}
+        onVolver={() => {
+          setAbierto(null);
+          setVuelta((v) => v + 1);
+        }}
+      />
+    );
   }
 
   return (

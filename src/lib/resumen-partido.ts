@@ -192,11 +192,12 @@ export async function traerResumen(
 ): Promise<ResumenPartido | null> {
   let crudo: Crudo;
   try {
-    // Medio minuto de cache, igual que la cartelera: alcanza para que un
-    // marcador en vivo se vea fresco y hace que diez personas mirando el mismo
-    // partido sean una sola consulta a ESPN.
+    // Sin cache, por lo mismo que la cartelera (ver `lib/tablero.ts`): al
+    // vencer, Next devuelve la copia vieja y recién después busca la nueva, así
+    // que uno siempre termina viendo lo de la consulta anterior. En un partido
+    // en juego eso es un marcador equivocado.
     const res = await fetch(`${BASE}/${ruta}/summary?event=${partidoId}`, {
-      next: { revalidate: 30 },
+      cache: "no-store",
     });
     if (!res.ok) return null;
     crudo = (await res.json()) as Crudo;

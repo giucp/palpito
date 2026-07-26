@@ -42,6 +42,9 @@ type Props = {
 export function DetallePartido({ ligaId, partido, onVolver }: Props) {
   const [resumen, setResumen] = useState<ResumenPartido | null>(null);
   const [listo, setListo] = useState(false);
+  // Sube con cada refresco. Va aparte del partido para que volver a pedir no
+  // borre lo que ya está en pantalla.
+  const [vuelta, setVuelta] = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -61,10 +64,41 @@ export function DetallePartido({ ligaId, partido, onVolver }: Props) {
     return () => {
       vivo = false;
     };
-  }, [ligaId, partido.id]);
+  }, [ligaId, partido.id, vuelta]);
 
-  const enJuego = partido.estado === "en_juego";
-  const terminado = partido.estado === "final";
+  // El marcador de arriba manda el resumen, no la cartelera.
+  //
+  // Los dos traen marcador y estado, pero la cartelera es una foto de cuando se
+  // cargó y el resumen se acaba de pedir. Usando la foto pasaba lo peor: arriba
+  // "HT 0-0" y justo debajo dos goles y el final del partido, la misma pantalla
+  // contradiciéndose. Mientras el resumen no llegó se usa la cartelera, que
+  // para eso está: que nunca haya un hueco.
+  const estado = resumen?.estado ?? partido.estado;
+  const detalle = resumen?.detalle || partido.detalle;
+  const enJuego = estado === "en_juego";
+  const terminado = estado === "final";
+
+  const ladosDelPartido = [
+    { deTablero: partido.visitante, delResumen: resumen?.visita },
+    { deTablero: partido.local, delResumen: resumen?.local },
+  ];
+
+  // Con el partido en juego esto se pide solo cada 30 s, como la cartelera: si
+  // no, abrís un partido en vivo, te quedás mirando y la pantalla se congela en
+  // el momento en que entraste. Un partido terminado no cambia más, así que ahí
+  // no se pide nada. También se para con la pantalla en segundo plano.
+  useEffect(() => {
+    if (!enJuego) return;
+    const refrescar = () => {
+      if (!document.hidden) setVuelta((v) => v + 1);
+    };
+    const tic = setInterval(refrescar, 30_000);
+    document.addEventListener("visibilitychange", refrescar);
+    return () => {
+      clearInterval(tic);
+      document.removeEventListener("visibilitychange", refrescar);
+    };
+  }, [enJuego]);
 
   // Qué entra en la línea de tiempo cuando no entra todo.
   //
@@ -101,30 +135,27 @@ export function DetallePartido({ ligaId, partido, onVolver }: Props) {
         <span className="dp-liga">{partido.liga}</span>
       </div>
 
-      {/* Marcador: sale de la cartelera, así que está desde el primer momento */}
+      {/* Marcador: la cartelera lo pinta al instante y el resumen lo corrige */}
       <div className="dp-marcador">
-        {[partido.visitante, partido.local].map((lado, i) => {
-          const perdio = terminado && !lado.ganador;
+        {ladosDelPartido.map(({ deTablero, delResumen }, i) => {
+          const marcador = delResumen?.marcador ?? deTablero.marcador;
+          const perdio = terminado && !(delResumen?.ganador ?? deTablero.ganador);
           return (
             <div key={i} className={`dp-equipo ${perdio ? "cayo" : ""}`}>
-              {lado.escudo ? (
+              {deTablero.escudo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={lado.escudo} alt="" className="dp-escudo" loading="lazy" />
+                <img src={deTablero.escudo} alt="" className="dp-escudo" loading="lazy" />
               ) : (
-                <span className="dp-escudo hueco">{lado.abrev.slice(0, 2)}</span>
+                <span className="dp-escudo hueco">{deTablero.abrev.slice(0, 2)}</span>
               )}
               <span className="dp-nom">
-                <b>{lado.nombre}</b>
-                {(i === 0 ? resumen?.visita.record : resumen?.local.record) && (
-                  <span className="mono">
-                    {i === 0 ? resumen?.visita.record : resumen?.local.record}
-                  </span>
-                )}
+                <b>{deTablero.nombre}</b>
+                {delResumen?.record && <span className="mono">{delResumen.record}</span>}
               </span>
-              {partido.estado === "programado" ? (
-                <span className="dp-pts pendiente mono">{lado.dinero.precio ?? "—"}</span>
+              {estado === "programado" ? (
+                <span className="dp-pts pendiente mono">{deTablero.dinero.precio ?? "—"}</span>
               ) : (
-                <b className="dp-pts mono">{lado.marcador ?? "—"}</b>
+                <b className="dp-pts mono">{marcador ?? "—"}</b>
               )}
             </div>
           );
@@ -133,7 +164,7 @@ export function DetallePartido({ ligaId, partido, onVolver }: Props) {
         <div className="dp-pie">
           {enJuego && <i className="tb-pulso" aria-hidden="true" />}
           <span className={enJuego ? "vivo" : ""}>
-            {terminado ? "Final" : enJuego ? partido.detalle || "En juego" : hora(partido.comienzaAt)}
+            {terminado ? "Final" : enJuego ? detalle || "En juego" : hora(partido.comienzaAt)}
           </span>
           {resumen?.sede && <span>· {resumen.sede}</span>}
           {resumen?.publico ? (
