@@ -10,6 +10,8 @@ import { FilaPartido } from "./fila-partido";
 import { Icono, IconosDefs } from "./iconos";
 import { MisApuestas } from "./mis-apuestas";
 import { PanelCuenta } from "./panel-cuenta";
+import { Tablero } from "./tablero";
+import { Polymarket } from "./polymarket";
 import { ProveedorFormatoCuota } from "./formato-cuota";
 import { calcular, fmt, mercadosEnConflicto } from "@/lib/cupon";
 import { crearClienteNavegador } from "@/lib/supabase/client";
@@ -261,103 +263,26 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
       <Cabecera vista={vista} onVista={irVista} usuario={usuario} saldo={saldo} onAviso={aviso} />
 
       <div className="shell">
-        <div className="sportcol">
-          <div className="card">
-            <div className="chd">Deportes</div>
-            <div className="slist">{botonesDeporte}</div>
-          </div>
-        </div>
-
         <main>
-          <div className="rail">{botonesDeporte}</div>
-
+          {/* La cartelera. Ya no es para apostar contra la casa: se mira. Las
+              líneas salen de ESPN (DraftKings), gratis, sin gastar créditos. */}
           {vista === "lobby" && (
             <div className="view">
               <div className="vhead">
-                <h2>{nombreDeporte}</h2>
-                <span className="sub">
-                  {eventosDeporte.length}{" "}
-                  {eventosDeporte.length === 1 ? "partido" : "partidos"}
-                  {origen === "ejemplo" ? " · datos locales (base sin conectar)" : ""}
-                </span>
+                <h2>Deportes</h2>
+                <span className="sub">Todos los partidos del día y sus líneas</span>
               </div>
-
-              <div className="buscador">
-                <Icono id="i-lupa" className="bs-ic" />
-                <input
-                  type="search"
-                  value={busqueda}
-                  placeholder="Buscar equipo o liga…"
-                  aria-label="Buscar equipo o liga"
-                  onChange={(e) => setBusqueda(e.target.value)}
-                />
-                {busqueda && (
-                  <button className="bs-x" onClick={() => setBusqueda("")} aria-label="Limpiar">
-                    <Icono id="i-x" />
-                  </button>
-                )}
-              </div>
-
-              {eventosDeporte.length === 0 ? (
-                <div className="svacio" style={{ padding: "60px 20px" }}>
-                  {buscando ? (
-                    <>
-                      <b>Sin resultados para “{busqueda}”</b>
-                      <p>Prueba con otro nombre o revisa otro deporte.</p>
-                    </>
-                  ) : (
-                    <>
-                      <b>No hay partidos de este deporte todavía</b>
-                      <p>En esta fase cargamos fútbol y béisbol. Prueba con uno de esos.</p>
-                    </>
-                  )}
-                </div>
-              ) : (
-                ligas.map((liga) => {
-                  const enLiga = eventosDeporte.filter((e) => e.liga === liga);
-                  // Al buscar, las ligas con coincidencias se muestran abiertas.
-                  const abierta = buscando || ligasAbiertas.has(liga);
-                  return (
-                    <div key={liga} className={`grp ${abierta ? "open" : ""}`}>
-                      <button
-                        className="gh"
-                        onClick={() => toggleLiga(liga)}
-                        aria-expanded={abierta}
-                      >
-                        <Icono id={iconoDeporte} className="gh-ic" />
-                        <span className="nm">{liga}</span>
-                        <span className="ct">{enLiga.length}</span>
-                        <Icono id="i-chev" className="gh-chev" />
-                      </button>
-                      {abierta && (
-                        <div className="grp-body">
-                          {enLiga.map((e) => (
-                            <FilaPartido
-                              key={e.id}
-                              evento={e}
-                              seleccionadas={seleccionadas}
-                              onCuota={toggleCuota}
-                              onDetalle={verDetalle}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
+              <Tablero />
             </div>
           )}
 
           {vista === "vivo" && (
             <div className="view">
               <div className="vhead">
-                <h2>En vivo ahora</h2>
+                <h2>Polymarket</h2>
+                <span className="sub">Lo que paga la gente, no lo que dice una casa</span>
               </div>
-              <div className="svacio" style={{ padding: "60px 20px" }}>
-                <b>El en vivo llega en la fase 2</b>
-                <p>Primero el flujo completo pre-partido; el tiempo real viene después.</p>
-              </div>
+              <Polymarket />
             </div>
           )}
 
@@ -411,9 +336,6 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
           )}
         </main>
 
-        <div className="slipcol">
-          <div className="slip">{cupon(false)}</div>
-        </div>
       </div>
 
       {/* Cupón móvil: barra flotante + hoja inferior */}
@@ -437,7 +359,7 @@ export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
         </button>
         <button className={vista === "vivo" ? "on" : ""} onClick={() => irVista("vivo")}>
           <Icono id="i-vivo" />
-          <span>En vivo</span>
+          <span>Polymarket</span>
         </button>
         <button className={vista === "juegos" ? "on" : ""} onClick={() => irVista("juegos")}>
           <Icono id="i-juego" />

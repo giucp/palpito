@@ -24,8 +24,19 @@ export type ResumenSincronizacion = {
 // y la mayoría de las veces esto contesta "todavía no hace falta" sin gastar nada.
 export const CADA_SINCRONIZACION_MS = 44 * 60 * 60 * 1000;
 
+// APAGADA a pedido del dueño (2026-07-26). La cartelera que se mira ahora sale
+// de ESPN, gratis (`src/lib/tablero.ts`), y los desafíos entre amigos son a
+// plata pareja, así que no necesitan cuotas de nadie. Con esto The Odds API deja
+// de gastar por completo.
+//
+// No se borró el motor: sigue entero y andando, y se vuelve a encender poniendo
+// esto en false. Los eventos ya sincronizados siguen en la base para liquidar lo
+// que quedó abierto.
+const SINCRONIZACION_APAGADA = true;
+
 // ¿Vale la pena gastar créditos en refrescar la cartelera?
 export async function faltaSincronizar(): Promise<boolean> {
+  if (SINCRONIZACION_APAGADA) return false;
   try {
     const supabase = crearClienteAdmin();
 
