@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { hashDe, multiplicadores, nuevaSemilla, tablasPodridas } from "@/lib/muelle";
+import { hashDe, multiplicadores, nuevaSemilla, pasosDelMuelle } from "@/lib/muelle";
 
-// El Muelle. El mapa de tablas podridas se decide al iniciar y vive en el
-// servidor; el navegador solo se entera de la tabla que acaba de pisar.
+// El Muelle. Qué tablas están podridas se decide al iniciar y vive en el
+// servidor; el navegador solo se entera del paso que acaba de cruzar.
 export async function POST(req: NextRequest) {
   const supabase = await crearClienteServidor();
   const {
@@ -12,7 +12,13 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, motivo: "sesion" }, { status: 401 });
 
-  let cuerpo: { accion?: string; monto?: number; partida_id?: string; idempotency_key?: string };
+  let cuerpo: {
+    accion?: string;
+    monto?: number;
+    partida_id?: string;
+    idempotency_key?: string;
+    lado?: number; // 0 izquierda, 1 derecha
+  };
   try {
     cuerpo = await req.json();
   } catch {
@@ -38,7 +44,7 @@ export async function POST(req: NextRequest) {
       p_monto: monto,
       p_semilla: semilla,
       p_hash: hashDe(semilla),
-      p_podridas: tablasPodridas(semilla),
+      p_pasos: pasosDelMuelle(semilla),
       p_mults: multiplicadores(),
       p_idempotency: idempotency_key,
     });
@@ -74,15 +80,34 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  if (cuerpo.accion === "saltar" || cuerpo.accion === "cobrar") {
+  if (cuerpo.accion === "saltar") {
+    const { partida_id, lado } = cuerpo;
+    if (typeof partida_id !== "string" || (lado !== 0 && lado !== 1)) {
+      return NextResponse.json({ ok: false, motivo: "cuerpo_invalido" }, { status: 400 });
+    }
+    const { data, error } = await admin.rpc("muelle_saltar", {
+      p_partida: partida_id,
+      p_usuario: user.id,
+      p_lado: lado,
+    });
+    if (error) {
+      console.error("[muelle:saltar]", error.message);
+      return NextResponse.json({ ok: false, motivo: "error_interno" }, { status: 500 });
+    }
+    return NextResponse.json(data);
+  }
+
+  if (cuerpo.accion === "cobrar") {
     const { partida_id } = cuerpo;
     if (typeof partida_id !== "string") {
       return NextResponse.json({ ok: false, motivo: "cuerpo_invalido" }, { status: 400 });
     }
-    const fn = cuerpo.accion === "saltar" ? "muelle_saltar" : "muelle_cobrar";
-    const { data, error } = await admin.rpc(fn, { p_partida: partida_id, p_usuario: user.id });
+    const { data, error } = await admin.rpc("muelle_cobrar", {
+      p_partida: partida_id,
+      p_usuario: user.id,
+    });
     if (error) {
-      console.error(`[muelle:${cuerpo.accion}]`, error.message);
+      console.error("[muelle:cobrar]", error.message);
       return NextResponse.json({ ok: false, motivo: "error_interno" }, { status: 500 });
     }
     return NextResponse.json(data);

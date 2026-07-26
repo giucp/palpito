@@ -1151,6 +1151,81 @@ button {
 }
 
 /* ============================================================
+   El Muelle — escena en SVG y CSS (reemplaza al pixel art)
+   Las olas son una animacion de transform: corren en la GPU y no
+   necesitan repintar nada. Todo lo demas solo se mueve al jugar.
+   ============================================================ */
+.mu-escena { position: relative; overflow: hidden; border-radius: 16px;
+  border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel) 0%, #0d1b26 100%);
+  padding: 20px 16px 0; min-height: 260px; display: flex; flex-direction: column; }
+:root[data-theme="light"] .mu-escena {
+  background: linear-gradient(180deg, var(--panel) 0%, #d8e7ee 100%); }
+
+.mu-agua { position: absolute; left: 0; right: 0; bottom: 0; height: 96px; pointer-events: none; }
+.mu-ola { position: absolute; left: -50%; width: 200%; height: 100%; fill: #12384d; }
+:root[data-theme="light"] .mu-ola { fill: #9cc4d6; }
+.mu-ola-0 { opacity: 0.45; animation: mu-vaiven 9s ease-in-out infinite; }
+.mu-ola-1 { opacity: 0.32; bottom: 8px; animation: mu-vaiven 13s ease-in-out infinite reverse; }
+.mu-ola-2 { opacity: 0.2;  bottom: 17px; animation: mu-vaiven 19s ease-in-out infinite; }
+@keyframes mu-vaiven {
+  0%, 100% { transform: translateX(-6%); }
+  50%      { transform: translateX(6%); }
+}
+
+/* Hitos: cuantos pasos llevas cruzados */
+.mu-recorrido { position: relative; display: flex; justify-content: center; gap: 6px; margin-bottom: 18px; }
+.mu-hito { width: 16px; height: 4px; border-radius: 100px; background: var(--line2); transition: 0.25s; }
+.mu-hito.hecho { background: var(--lima); }
+.mu-hito.aqui { background: var(--ink2); transform: scaleY(1.8); }
+
+.mu-paso { position: relative; flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; padding-bottom: 26px; }
+.mu-tablas { display: flex; gap: 14px; width: 100%; max-width: 320px; }
+
+/* La tabla: rectangulo redondeado con luz arriba. Nada de pixeles. */
+.mu-tabla { position: relative; flex: 1; height: 74px; border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: linear-gradient(180deg, #6b4b2f 0%, #4e361f 55%, #3a2716 100%);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.14);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s, opacity 0.3s; }
+.mu-tabla .mu-veta { position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg,
+    rgba(0,0,0,0.16) 0 2px, rgba(255,255,255,0.05) 2px 5px, rgba(0,0,0,0) 5px 13px); }
+.mu-premio { position: relative; font-size: 16px; font-weight: 700; color: #f6e8d6;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55); }
+
+.mu-tabla.activa { cursor: pointer; border-color: var(--lima); }
+.mu-tabla.activa:hover { transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2); }
+.mu-tabla.activa:active { transform: translateY(1px); }
+.mu-tabla:disabled { cursor: default; }
+
+/* La que elegiste y aguanto */
+.mu-tabla.elegida { border-color: var(--lima); box-shadow: 0 0 0 2px var(--lima), 0 8px 20px rgba(0,0,0,0.4); }
+/* La otra, que estaba sana: se ve que tambien servia */
+.mu-tabla.sana { opacity: 0.5; }
+
+/* La que se rompe: se parte al medio y cae */
+.mu-tabla.rota { animation: mu-caer 0.55s cubic-bezier(0.4, 0, 0.9, 0.6) forwards; }
+.mu-grieta { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px;
+  background: rgba(0,0,0,0.7);
+  clip-path: polygon(0 0, 100% 8%, 0 22%, 100% 38%, 0 54%, 100% 70%, 0 86%, 100% 100%, 0 100%); }
+@keyframes mu-caer {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  25%  { transform: translateY(2px) rotate(-1deg); }
+  100% { transform: translateY(90px) rotate(9deg); opacity: 0; }
+}
+
+.mu-pista { color: var(--mist); font-size: 12.5px; text-align: center; min-height: 18px; }
+.mu-escena.hundido .mu-pista { color: var(--baja); }
+
+@media (max-width: 380px) {
+  .mu-tablas { gap: 10px; }
+  .mu-tabla { height: 64px; }
+}
+
+/* ============================================================
    Cartelera (Deportes): todos los partidos del día y sus líneas.
    Solo para mirar. Tres columnas por equipo — dinero, hándicap y
    total —, el número grande es la línea y el chico es el precio.

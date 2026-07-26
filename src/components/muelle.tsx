@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MuelleLienzo } from "./muelle-lienzo";
+import { MuelleEscena, type EstadoTabla } from "./muelle-escena";
 import { Icono } from "./iconos";
 import { fmt } from "@/lib/cupon";
 import { multiplicadores, TABLAS } from "@/lib/muelle-tabla";
@@ -29,26 +29,20 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
   const [partida, setPartida] = useState<string | null>(null);
   const [mults, setMults] = useState<number[]>(PREMIOS);
   const [posicion, setPosicion] = useState(0);
-  const [podridas, setPodridas] = useState<boolean[] | null>(null);
+  const [pasos, setPasos] = useState<number[] | null>(null);
+  // Cómo quedaron las dos tablas del paso que se acaba de resolver. Se muestra
+  // un instante antes de avanzar: sin esa pausa no se ve cuál se rompió.
+  const [revelado, setRevelado] = useState<
+    { izquierda: EstadoTabla; derecha: EstadoTabla } | null
+  >(null);
   const [hash, setHash] = useState<string | null>(null);
   const [semilla, setSemilla] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [tema, setTema] = useState<"dark" | "light">("dark");
   const pista = useRef<HTMLDivElement | null>(null);
 
   const monto = Number(montoTexto.replace(",", ".")) || 0;
   const jugando = estado === "jugando";
   const acumulado = posicion > 0 && mults[posicion - 1] ? monto * mults[posicion - 1] : 0;
-  const siguiente = mults[posicion] ?? null;
-
-  useEffect(() => {
-    const leer = () =>
-      setTema(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
-    leer();
-    const obs = new MutationObserver(leer);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => obs.disconnect();
-  }, []);
 
   // Si quedó una partida abierta de una visita anterior, se retoma.
   useEffect(() => {
@@ -86,9 +80,9 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
   }, [posicion]);
 
   const cerrar = useCallback(
-    (como: Estado, r: { podridas?: boolean[]; semilla?: string }) => {
+    (como: Estado, r: { pasos?: number[]; semilla?: string }) => {
       setEstado(como);
-      if (r.podridas) setPodridas(r.podridas);
+      if (r.pasos) setPasos(r.pasos);
       if (r.semilla) setSemilla(r.semilla);
       setOcupado(false);
       router.refresh();
@@ -107,7 +101,8 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
     if (ocupado) return;
 
     setOcupado(true);
-    setPodridas(null);
+    setPasos(null);
+    setRevelado(null);
     setSemilla(null);
     setPosicion(0);
 
@@ -136,18 +131,41 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
     router.refresh();
   };
 
-  const saltar = async () => {
-    if (!partida || ocupado) return;
+  // Saltar a una de las dos tablas. El servidor decide; acá solo se muestra
+  // primero cómo quedaron las dos y recién después se avanza, porque si no el
+  // jugador nunca llega a ver cuál se partió.
+  const saltar = async (lado: 0 | 1) => {
+    if (!partida || ocupado || revelado) return;
     setOcupado(true);
+
     const r = await fetch("/api/muelle", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accion: "saltar", partida_id: partida }),
+      body: JSON.stringify({ accion: "saltar", partida_id: partida, lado }),
     }).then((x) => x.json());
 
-    if (r.resultado === "hundida") {
+    if (!r.ok) {
+      setOcupado(false);
+      onAviso("No se pudo saltar, intenta de nuevo");
+      return;
+    }
+
+    // `paso`: 0 ninguna podrida, 1 izquierda, 2 derecha, 3 ambas.
+    const paso = Number(r.paso ?? 0);
+    const cedio = r.resultado === "hundida";
+    const rota = (cual: 0 | 1) => paso === 3 || paso === cual + 1;
+    setRevelado({
+      izquierda: rota(0) ? "rota" : lado === 0 ? "elegida" : "sana",
+      derecha: rota(1) ? "rota" : lado === 1 ? "elegida" : "sana",
+    });
+    sonar(cedio ? "pierde" : "paso");
+
+    // Una pausa corta para ver la tabla partirse, y sigue.
+    await new Promise((r) => setTimeout(r, 620));
+    setRevelado(null);
+
+    if (cedio) {
       setPosicion(r.posicion);
-      sonar("pierde");
       onAviso("¡La tabla cedió!");
       cerrar("hundida", r);
     } else if (r.resultado === "completado") {
@@ -155,13 +173,9 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
       sonar("gana");
       onAviso(`¡Cruzaste el muelle entero! ${fmt(Number(r.pago))}`);
       cerrar("cobrada", r);
-    } else if (r.resultado === "firme") {
-      setPosicion(r.posicion);
-      sonar("paso");
-      setOcupado(false);
     } else {
+      setPosicion(r.posicion);
       setOcupado(false);
-      onAviso("No se pudo saltar, intenta de nuevo");
     }
   };
 
@@ -188,12 +202,14 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
   return (
     <div className="mll">
       <div className="mll-caja">
-        <MuelleLienzo
-          estado={estado}
-          posicion={posicion}
-          podridas={podridas}
+        <MuelleEscena
+          paso={posicion}
           total={total}
-          tema={tema}
+          premios={mults}
+          jugando={jugando}
+          revelado={revelado}
+          hundido={estado === "hundida"}
+          onElegir={saltar}
         />
         <div className={`mll-info ${estado}`}>
           {jugando && posicion > 0 && (
@@ -214,7 +230,8 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
           const n = i + 1;
           const m = mults[i];
           const pisada = n <= posicion;
-          const rota = podridas?.[i];
+          // Al terminar se revela el muelle entero: 0 ninguna, 1 izq, 2 der, 3 ambas.
+          const cedio = pasos ? pasos[i] !== 0 : false;
           const actual = n === posicion;
           const proxima = jugando && n === posicion + 1;
           return (
@@ -223,7 +240,7 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
               data-i={n}
               className={`tb ${pisada ? "pisada" : ""} ${actual ? "actual" : ""} ${
                 proxima ? "proxima" : ""
-              } ${rota && podridas ? "rota" : ""}`}
+              } ${pasos && cedio ? "rota" : ""}`}
             >
               <span className="tn">{n}</span>
               <b className="mono">{m ? `${m.toFixed(2)}x` : "—"}</b>
@@ -235,11 +252,8 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
       <div className="mll-panel">
         {jugando ? (
           <div className="mll-acciones">
-            {/* onPointerDown: responde al tocar, no al soltar. */}
-            <button className="mll-saltar" onPointerDown={saltar} disabled={ocupado}>
-              <span>SALTAR</span>
-              {siguiente && <b className="mono">{siguiente.toFixed(2)}x</b>}
-            </button>
+            {/* Ya no hay botón de saltar: se salta tocando una de las dos
+                tablas, que es de lo que se trata ahora el juego. */}
             <button
               className="mll-cobrar"
               onPointerDown={cobrar}
