@@ -1538,6 +1538,19 @@ button {
 .pm-titulo h3 { font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; }
 .pm-titulo span { font-size: 11.5px; color: var(--mist); }
 
+/* Cada tarjeta dice en qué está, como cada fila de la cartelera. Sin esto uno se
+   daba cuenta de que el partido había terminado solo porque veía 100% y 0%. */
+.pm-pie { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.pm-estado { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px;
+  font-weight: 700; color: var(--ink2); }
+.pm-pulso { width: 6px; height: 6px; border-radius: 50%; background: var(--vivo);
+  animation: tb-late 1.8s ease-in-out infinite; flex: 0 0 auto; }
+.pm-evento.en_juego .pm-estado { color: var(--vivo); }
+.pm-evento.por_jugar .pm-estado { color: var(--lima-txt); }
+/* Lo terminado se apaga un poco: sigue estando, pero ya no es la noticia. */
+.pm-evento.terminado .pm-cab h3 { color: var(--ink2); }
+.pm-evento.terminado .pm-estado { color: var(--mist); }
+
 .pm-mercado { padding: 11px 14px; border-top: 1px solid var(--line); }
 .pm-pregunta { font-size: 12.5px; color: var(--ink2); margin-bottom: 8px; line-height: 1.4; }
 .pm-opcion { display: grid; grid-template-columns: minmax(70px, 1fr) 2fr 42px; gap: 10px;

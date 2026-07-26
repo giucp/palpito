@@ -27,13 +27,25 @@ export type MercadoPoly = {
   volumen: number;
 };
 
+// En qué está el evento. Los mercados de temporada (campeón 2027, a qué equipo
+// va tal jugador) no tienen partido, así que no tienen ni hora ni estado.
+export type EstadoPoly = "en_juego" | "por_jugar" | "temporada" | "terminado";
+
 export type EventoPoly = {
   id: string;
   titulo: string;
   slug: string;
   imagen: string | null;
-  comienzaAt: string | null;
   volumen24h: number;
+  estado: EstadoPoly;
+  // La hora de verdad del partido. **No es `startDate`**, que es cuándo se abrió
+  // el mercado: un partido del 7 de marzo tenía `startDate` del 8 de febrero.
+  arrancaAt: string | null;
+  // "5-3", en el mismo orden que el título; el primero del título es el
+  // visitante. Comprobado contra ESPN en seis partidos.
+  marcador: string | null;
+  // "Top 5th", "Mid 8th". Solo sirve en vivo: al terminar trae "VFT" o "FT".
+  periodo: string | null;
   mercados: MercadoPoly[];
 };
 
@@ -52,9 +64,41 @@ type CrudoEvento = {
   title?: string;
   slug?: string;
   image?: string;
-  startDate?: string;
   volume24hr?: number;
+  // Campos propios de un evento deportivo. Los de temporada no los traen.
+  startTime?: string;
+  live?: boolean;
+  ended?: boolean;
+  score?: string;
+  period?: string;
   markets?: CrudoMercado[];
+};
+
+// En qué está el evento, con lo que Polymarket ya dice de sí mismo.
+//
+// La única regla nuestra es la última: los mercados acompañantes ("— More
+// Markets", "— Player Props") traen hora pero no la marca de terminado, así que
+// si la hora ya pasó se los cuenta como terminados. Falla del lado seguro: como
+// mucho, un mercado queda un rato más abajo de lo que le tocaba.
+function estadoDe(e: CrudoEvento): EstadoPoly {
+  if (e.live === true) return "en_juego";
+  if (e.ended === true) return "terminado";
+  if (!e.startTime) return "temporada";
+  return new Date(e.startTime).getTime() > Date.now() ? "por_jugar" : "terminado";
+}
+
+// El mismo patrón que la cartelera de Deportes: primero lo que está pasando, al
+// final lo que ya terminó. Dentro de cada grupo, por hora.
+//
+// Los de temporada no tienen hora, así que caen al desempate por volumen y
+// conservan exactamente el orden que traían. Por eso los deportes fuera de
+// temporada se ven igual que antes sin necesidad de una excepción: sus mercados
+// son todos de temporada.
+const PRIORIDAD: Record<EstadoPoly, number> = {
+  en_juego: 0,
+  por_jugar: 1,
+  temporada: 2,
+  terminado: 3,
 };
 
 // `outcomes` y `outcomePrices` vienen como cadenas con JSON adentro.
@@ -111,10 +155,19 @@ export async function traerEventos(categoria: string, limite = 24): Promise<Even
         titulo: e.title ?? "",
         slug: e.slug ?? "",
         imagen: e.image ?? null,
-        comienzaAt: e.startDate ?? null,
         volumen24h: Number(e.volume24hr ?? 0),
+        estado: estadoDe(e),
+        arrancaAt: e.startTime ?? null,
+        marcador: e.score ?? null,
+        periodo: e.period ?? null,
         mercados,
       };
     })
-    .filter((e) => e.mercados.length > 0);
+    .filter((e) => e.mercados.length > 0)
+    .sort(
+      (a, b) =>
+        PRIORIDAD[a.estado] - PRIORIDAD[b.estado] ||
+        (a.arrancaAt ?? "").localeCompare(b.arrancaAt ?? "") ||
+        b.volumen24h - a.volumen24h
+    );
 }
