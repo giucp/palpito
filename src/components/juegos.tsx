@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Icono } from "./iconos";
 import { RetoCarta } from "./reto-carta";
+import { MisRetos } from "./mis-retos";
 import { alternarSonido, sonidoActivo } from "@/lib/sonido";
 
 // Juegos de Pálpito: **siempre contra un amigo, nunca contra la casa**.
@@ -68,6 +69,11 @@ export function Juegos(props: Props) {
         <span className="jhint">Elegí un juego y retá a un amigo</span>
         {botonSonido}
       </div>
+
+      {/* Lo primero: los retos que esperan algo tuyo. Antes esto solo se
+          encontraba en Cuenta → Amigos y nadie lo adivinaba. */}
+      <MisRetos usuario={props.usuario} />
+
       <div className="jlista">
         {CATALOGO.map((j) => (
           <button key={j.id} className="jcard" onClick={() => setAbierto(j.id)}>

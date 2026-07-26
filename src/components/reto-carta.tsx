@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icono } from "./iconos";
 import { CartaVista } from "./carta";
 import { fmt } from "@/lib/cupon";
@@ -31,6 +32,7 @@ type Props = {
 type Paso = "amigo" | "monto" | "listo";
 
 export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
+  const router = useRouter();
   const [amigos, setAmigos] = useState<Amigo[] | null>(null);
   const [paso, setPaso] = useState<Paso>("amigo");
   const [amigo, setAmigo] = useState<Amigo | null>(null);
@@ -94,6 +96,9 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
         body: JSON.stringify({ accion: "jugar", desafio: r.desafio }),
       }).then((x) => x.json());
       if (j.ok && j.mia) setMiCarta(j.mia);
+      // El saldo de la cabecera lo pinta el servidor: sin esto seguía mostrando
+      // las fichas que ya se retuvieron.
+      router.refresh();
     } finally {
       setEnviando(false);
     }

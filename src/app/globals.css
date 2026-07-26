@@ -1155,6 +1155,21 @@ button {
   .dsf-card h1 { font-size: 21px; }
 }
 
+/* Tus retos, arriba de Juegos. Lo que espera algo tuyo se marca con el
+   acento: es lo que viniste a hacer. */
+.rt { margin-bottom: 14px; }
+.rt-item { display: flex; align-items: center; gap: 11px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; margin-bottom: 8px;
+  transition: 0.18s; }
+.rt-item:hover { border-color: var(--line2); }
+.rt-item.urgente { border-color: var(--lima); background: var(--panel3); }
+.rt-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rt-txt b { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.rt-txt span { font-size: 12px; color: var(--mist); }
+.rt-item.urgente .rt-txt span { color: var(--lima-txt); font-weight: 600; }
+.rt-monto { flex: 0 0 auto; font-size: 13.5px; color: var(--ink2); }
+.rt-ir { width: 15px; height: 15px; color: var(--mist); flex: 0 0 auto; }
+
 /* ============================================================
    Carta mas alta — la carta, en SVG
    El volteo es una rotacion en 3D con las dos caras montadas:

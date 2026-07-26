@@ -24,7 +24,7 @@ export async function GET() {
     // Una sola cadena, sin concatenar: supabase-js la lee como tipo literal para
     // inferir la forma del resultado, y partirla en dos rompe esa inferencia.
     .select(
-      "id, creador_id, rival_id, tipo, lado_creador, monto, comision_bps, estado, created_at, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
+      "id, creador_id, rival_id, tipo, lado_creador, monto, comision_bps, estado, created_at, expira_at, jugada_creador, jugada_rival, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
     )
     .or(`creador_id.eq.${user.id},rival_id.eq.${user.id}`)
     .order("created_at", { ascending: false })
@@ -37,12 +37,20 @@ export async function GET() {
     .in("usuario_id", ids.length > 0 ? ids : ["00000000-0000-0000-0000-000000000000"]);
   const alias = new Map((perfiles ?? []).map((p) => [p.usuario_id, p.alias]));
 
-  const desafios = (data ?? []).map((d) => ({
-    ...d,
-    soyCreador: d.creador_id === user.id,
-    aliasCreador: alias.get(d.creador_id) ?? "?",
-    aliasRival: alias.get(d.rival_id) ?? "?",
-  }));
+  const desafios = (data ?? []).map((d) => {
+    const soyCreador = d.creador_id === user.id;
+    // Nunca se manda la jugada del otro, solo si ya jugó: con el dato en crudo
+    // se podría leer su carta desde el navegador antes de tiempo.
+    const { jugada_creador, jugada_rival, ...resto } = d;
+    return {
+      ...resto,
+      soyCreador,
+      aliasCreador: alias.get(d.creador_id) ?? "?",
+      aliasRival: alias.get(d.rival_id) ?? "?",
+      yaJugue: Boolean(soyCreador ? jugada_creador : jugada_rival),
+      yaJugoElOtro: Boolean(soyCreador ? jugada_rival : jugada_creador),
+    };
+  });
 
   return NextResponse.json({ ok: true, desafios });
 }
