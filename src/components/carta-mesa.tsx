@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CartaVista } from "./carta";
+import { Volver } from "./volver";
 import { fmt } from "@/lib/cupon";
 import type { Carta } from "@/lib/carta";
 
@@ -134,6 +135,9 @@ export function CartaMesa({
         <div className={`cma-resultado ${resultado}`}>
           <b>{textoResultado.titulo}</b>
           <span>{textoResultado.detalle}</span>
+          {/* Terminado el reto hace falta una salida: sin esto había que tocar
+              el logo, que devolvía al inicio y no a donde estabas. */}
+          <Volver texto="Volver a Pálpito" />
         </div>
       ) : (
         <p className="cma-pista">

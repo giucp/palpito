@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Icono } from "./iconos";
+import { Volver } from "./volver";
 import { fmt } from "@/lib/cupon";
 import { ZONA } from "@/lib/eventos";
 
@@ -94,10 +95,13 @@ export function VistaDesafio({ desafio: d, soyRival, soyCreador, entrado }: Prop
 
   return (
     <main className="desafio-pagina">
-      <Link className="dsf-marca" href="/">
-        <span className="dsf-punto" />
-        Pálpito
-      </Link>
+      <div className="dsf-barra">
+        <Volver />
+        <Link className="dsf-marca" href="/">
+          <span className="dsf-punto" />
+          Pálpito
+        </Link>
+      </div>
 
       <div className="dsf-card">
         <div className="dsf-liga">{d.evento.liga}</div>

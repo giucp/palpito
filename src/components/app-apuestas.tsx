@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Cabecera } from "./cabecera";
 import { CuponPanel } from "./cupon";
 import { Juegos } from "./juegos";
@@ -38,7 +38,15 @@ type Props = {
 
 export function AppApuestas({ eventos, origen, usuario, saldo }: Props) {
   const router = useRouter();
-  const [vista, setVista] = useState<Vista>("lobby");
+  // `?ver=juegos` abre la app directo en esa pestaña. Lo usa el botón de volver
+  // de un desafío cuando no hay historial: si llegaste desde WhatsApp, volver
+  // te deja en Juegos y no en Deportes, que no es de donde venías.
+  const paramVista = useSearchParams().get("ver") as Vista | null;
+  const [vista, setVista] = useState<Vista>(
+    paramVista && ["lobby", "vivo", "juegos", "apuestas", "cuenta"].includes(paramVista)
+      ? paramVista
+      : "lobby"
+  );
   const [deporte, setDeporte] = useState("futbol");
   const [ligasAbiertas, setLigasAbiertas] = useState<Set<string>>(new Set());
   const [busqueda, setBusqueda] = useState("");
