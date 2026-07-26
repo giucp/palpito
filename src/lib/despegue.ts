@@ -6,8 +6,13 @@ import { createHash, randomBytes } from "crypto";
 // Velocidad de la curva. Debe coincidir con despegue_k() en la base.
 export const K = 0.09;
 
-// Ventaja de la casa. Con 3%, la probabilidad de que la ronda llegue a x es
-// aproximadamente 0.97/x: llegar a 2x pasa ~48% de las veces, a 10x ~9.7%.
+// Ventaja de la casa. La probabilidad de que la ronda llegue a x es exactamente
+// 0.97/x: llegar a 2x pasa el 48,5% de las veces, y a 10x el 9,7%. Con eso el
+// retorno es 97% para cualquier multiplicador donde te retires.
+//
+// Para que la cuenta cierre, la base tiene que estrellar la ronda con `>` y no
+// con `>=` (ver la migración 20260726120000). Con `>=` hacía falta un centavo
+// más del que uno cree y la ventaja real trepaba al 3,94% en los retiros bajos.
 const VENTAJA = 0.03;
 
 export const TOPE = 1000; // techo del multiplicador, por sanidad
