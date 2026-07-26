@@ -15,6 +15,7 @@ type Invitacion = { id: string; alias: string };
 
 type Desafio = {
   id: string;
+  tipo?: string; // 'deportivo' | 'carta' | 'despegue'
   lado_creador: "local" | "visitante";
   monto: number;
   comision_bps: number;
@@ -22,6 +23,7 @@ type Desafio = {
   soyCreador: boolean;
   aliasCreador: string;
   aliasRival: string;
+  // Null en los desafíos de juego: ahí no hay partido.
   eventos: {
     id: string;
     liga: string;
@@ -30,7 +32,7 @@ type Desafio = {
     comienza_at: string;
     marcador_a: number | null;
     marcador_b: number | null;
-  };
+  } | null;
 };
 
 type Paso = "inicio" | "amigo" | "partido" | "lado" | "monto" | "listo";
@@ -517,18 +519,35 @@ export function PanelAmigos({ onAviso, onCambio }: { onAviso: (t: string) => voi
           <div className="pf-titulo">Tus desafíos</div>
           {desafios.map((d) => {
             const rival = d.soyCreador ? d.aliasRival : d.aliasCreador;
-            const miLado = d.soyCreador
-              ? d.lado_creador
-              : d.lado_creador === "local"
-                ? "visitante"
-                : "local";
-            const miEquipo = miLado === "local" ? d.eventos.equipo_a : d.eventos.equipo_b;
             const gane =
               (d.estado === "ganado_creador" && d.soyCreador) ||
               (d.estado === "ganado_rival" && !d.soyCreador);
             const perdi =
               (d.estado === "ganado_creador" && !d.soyCreador) ||
               (d.estado === "ganado_rival" && d.soyCreador);
+
+            // Un desafío de juego no tiene partido: `eventos` viene null. Sin
+            // esta rama, leer d.eventos.equipo_a reventaba el componente entero
+            // y la sección Amigos no abría.
+            const esJuego = d.tipo && d.tipo !== "deportivo";
+            const titulo = esJuego
+              ? d.tipo === "carta"
+                ? "Carta más alta"
+                : "Despegue a dos"
+              : `${d.eventos?.equipo_a ?? "?"} vs ${d.eventos?.equipo_b ?? "?"}`;
+
+            let pie: string;
+            if (esJuego) {
+              pie = "Entre amigos";
+            } else {
+              const miLado = d.soyCreador
+                ? d.lado_creador
+                : d.lado_creador === "local"
+                  ? "visitante"
+                  : "local";
+              pie = `Vas con ${miLado === "local" ? d.eventos?.equipo_a : d.eventos?.equipo_b}`;
+            }
+
             return (
               <a key={d.id} className="am-desafio" href={`/desafio/${d.id}`}>
                 <div className="am-d-cab">
@@ -537,11 +556,9 @@ export function PanelAmigos({ onAviso, onCambio }: { onAviso: (t: string) => voi
                     {gane ? "Ganaste" : perdi ? "Perdiste" : (ETIQUETA_ESTADO[d.estado] ?? d.estado)}
                   </span>
                 </div>
-                <b className="am-d-partido">
-                  {d.eventos.equipo_a} vs {d.eventos.equipo_b}
-                </b>
+                <b className="am-d-partido">{titulo}</b>
                 <div className="am-d-pie">
-                  <span>Vas con {miEquipo}</span>
+                  <span>{pie}</span>
                   <b className="mono">{fmt(Number(d.monto))}</b>
                 </div>
               </a>

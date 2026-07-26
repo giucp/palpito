@@ -24,7 +24,7 @@ export async function GET() {
     // Una sola cadena, sin concatenar: supabase-js la lee como tipo literal para
     // inferir la forma del resultado, y partirla en dos rompe esa inferencia.
     .select(
-      "id, creador_id, rival_id, lado_creador, monto, comision_bps, estado, created_at, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
+      "id, creador_id, rival_id, tipo, lado_creador, monto, comision_bps, estado, created_at, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
     )
     .or(`creador_id.eq.${user.id},rival_id.eq.${user.id}`)
     .order("created_at", { ascending: false })

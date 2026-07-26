@@ -4,13 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { Icono } from "./iconos";
 import { CartaVista } from "./carta";
 import { fmt } from "@/lib/cupon";
+import type { Carta } from "@/lib/carta";
 
 // Crear un reto de Carta más alta: elegís un amigo, ponés el monto y se lo
 // mandás. El enlace vive una hora.
 //
-// Al crearlo se te retienen las fichas, pero **todavía no podés sacar tu
-// carta**: recién cuando tu amigo acepta. Es a propósito. Si pudieras ver tu
-// carta antes y después cancelar, mirarías la carta y cancelarías las malas.
+// Al crearlo se te retienen las fichas y **sacás tu carta ahí mismo**, antes de
+// mandar el enlace: así sabés qué estás defendiendo.
+//
+// Eso obliga a cerrar una puerta, y se cierra en la base: una vez que sacaste
+// la carta **no se puede cancelar**. Si no, mirarías la carta y cancelarías las
+// malas. Lo único que queda es dejar vencer el reto a la hora, que es lento y
+// además no lo esconde: al amigo le aparece igual en su Pálpito.
 
 const RAPIDOS = [10, 25, 50, 100];
 
@@ -32,6 +37,7 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
   const [montoTexto, setMontoTexto] = useState("25");
   const [enviando, setEnviando] = useState(false);
   const [enlace, setEnlace] = useState<string | null>(null);
+  const [miCarta, setMiCarta] = useState<Carta | null>(null);
 
   const monto = Number(montoTexto.replace(",", ".")) || 0;
 
@@ -79,6 +85,15 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
       }
       setEnlace(`${window.location.origin}/desafio/${r.desafio}`);
       setPaso("listo");
+
+      // Sacar la carta enseguida: es lo que hace que valga la pena crear el
+      // reto en vez de solo mandar un enlace a ciegas.
+      const j = await fetch("/api/juego", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "jugar", desafio: r.desafio }),
+      }).then((x) => x.json());
+      if (j.ok && j.mia) setMiCarta(j.mia);
     } finally {
       setEnviando(false);
     }
@@ -111,14 +126,25 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
       <div className="am-flujo">
         <div className="am-listo">
           <div className="cma-mesa" style={{ marginBottom: 4 }}>
-            <CartaVista carta={null} volteada={false} />
-            <CartaVista carta={null} volteada={false} />
+            <div className="cma-lado yo">
+              <span className="cma-quien">Tu carta</span>
+              <CartaVista carta={miCarta} volteada={miCarta !== null} />
+            </div>
+            <span className="cma-vs">VS</span>
+            <div className="cma-lado">
+              <span className="cma-quien">@{amigo?.alias}</span>
+              <CartaVista carta={null} volteada={false} />
+            </div>
           </div>
-          <h3 className="am-titulo">Reto enviado</h3>
+
+          <h3 className="am-titulo">
+            {miCarta ? `Te tocó el ${miCarta.figura}${miCarta.palo}` : "Sacando tu carta…"}
+          </h3>
           <p className="am-sub">
             Se te retuvieron {fmt(monto)}. Mandáselo a @{amigo?.alias}: tiene una hora para
             aceptar, y si no acepta se te devuelven enteras.
           </p>
+
           <button className="bapostar am-wa" onClick={compartir}>
             Enviar por WhatsApp
           </button>
@@ -137,6 +163,7 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
               setPaso("amigo");
               setAmigo(null);
               setEnlace(null);
+              setMiCarta(null);
             }}
           >
             Retar a otro
