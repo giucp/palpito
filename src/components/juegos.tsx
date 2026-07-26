@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Despegue } from "./despegue";
-import { Muelle } from "./muelle";
 import { Icono } from "./iconos";
+import { RetoCarta } from "./reto-carta";
 import { alternarSonido, sonidoActivo } from "@/lib/sonido";
+
+// Juegos de Pálpito: **siempre contra un amigo, nunca contra la casa**.
+//
+// El Muelle y Despegue contra la casa se retiraron el 2026-07-26. La idea del
+// producto es que dos amigos jueguen entre ellos y Pálpito cobre una comisión
+// mínima de cada partida. Sin casa del otro lado no hace falta inclinar la
+// matemática: los dos tienen la misma probabilidad y el jugador recupera el
+// 99,5% de lo que pone, contra el 97% de un juego de casino.
 
 type Props = {
   usuario: { email: string } | null;
@@ -13,23 +20,14 @@ type Props = {
   onEntrar: () => void;
 };
 
-import { PREMIOS } from "@/lib/muelle-tabla";
-
-type Juego = "muelle" | "despegue";
+type Juego = "carta";
 
 const CATALOGO: Array<{ id: Juego; nombre: string; resumen: string; tag: string }> = [
   {
-    id: "muelle",
-    nombre: "El Muelle",
-    resumen: "Dos tablas por paso: elegís una y la otra se rompe. Cada paso paga más.",
-    // Sale de la escalera, no escrito a mano: si se cambia PREMIOS, esto sigue.
-    tag: `hasta ${PREMIOS[PREMIOS.length - 1]}x`,
-  },
-  {
-    id: "despegue",
-    nombre: "Despegue",
-    resumen: "El cohete sube y el multiplicador con él. Retira antes de que estalle.",
-    tag: "sin techo",
+    id: "carta",
+    nombre: "Carta más alta",
+    resumen: "Cada uno saca una carta. La más alta se lleva el pozo.",
+    tag: "contra un amigo",
   },
 ];
 
@@ -50,7 +48,7 @@ export function Juegos(props: Props) {
     </button>
   );
 
-  if (abierto === "muelle" || abierto === "despegue") {
+  if (abierto === "carta") {
     return (
       <>
         <div className="jbarra">
@@ -59,7 +57,7 @@ export function Juegos(props: Props) {
           </button>
           {botonSonido}
         </div>
-        {abierto === "muelle" ? <Muelle {...props} /> : <Despegue {...props} />}
+        <RetoCarta {...props} />
       </>
     );
   }
@@ -67,7 +65,7 @@ export function Juegos(props: Props) {
   return (
     <>
       <div className="jbarra">
-        <span className="jhint">Toca un juego para empezar</span>
+        <span className="jhint">Elegí un juego y retá a un amigo</span>
         {botonSonido}
       </div>
       <div className="jlista">
@@ -84,56 +82,40 @@ export function Juegos(props: Props) {
           </button>
         ))}
       </div>
+      <p className="tb-fuente">
+        Acá se juega entre amigos, no contra la casa. Pálpito solo cobra una comisión del 0,5%
+        del pozo: recuperás el 99,5% de lo que ponés.
+      </p>
     </>
   );
 }
 
-// Portadas dibujadas en el momento con el mismo lenguaje pixelado de los
-// juegos, para que la lista no se sienta un menú de texto.
+// Portada dibujada con formas, sin imágenes: nítida en cualquier pantalla y
+// pesa unos pocos kilobytes.
 function PortadaJuego({ id }: { id: Juego }) {
+  if (id !== "carta") return null;
   return (
-    <svg viewBox="0 0 100 48" preserveAspectRatio="xMidYMid slice" shapeRendering="crispEdges">
-      {id === "muelle" ? (
-        <>
-          <rect width="100" height="48" fill="#12283d" />
-          <rect x="0" y="30" width="100" height="18" fill="#0d2233" />
-          <rect x="0" y="30" width="100" height="1" fill="#1d4a63" />
-          {[6, 26, 46, 66, 86].map((x, i) => (
-            <g key={x}>
-              <rect x={x} y="26" width="14" height="3" fill={i < 2 ? "#b6ff3d" : "#8a6b45"} />
-              <rect x={x + 2} y="29" width="2" height="7" fill="#6b5133" />
-              <rect x={x + 10} y="29" width="2" height="7" fill="#6b5133" />
-            </g>
-          ))}
-          <rect x="30" y="20" width="7" height="6" fill="#e8e2d6" />
-          <rect x="30" y="18" width="2" height="2" fill="#e8e2d6" />
-          <rect x="35" y="18" width="2" height="2" fill="#e8e2d6" />
-          <rect x="70" y="8" width="12" height="2" fill="#1c3450" />
-          <rect x="18" y="12" width="9" height="2" fill="#1c3450" />
-        </>
-      ) : (
-        <>
-          <rect width="100" height="48" fill="#0a1430" />
-          {[
-            [12, 8],
-            [30, 18],
-            [58, 6],
-            [78, 22],
-            [90, 12],
-            [44, 30],
-          ].map(([x, y]) => (
-            <rect key={`${x}-${y}`} x={x} y={y} width="1.5" height="1.5" fill="#e6f0ff" />
-          ))}
-          <rect x="47" y="10" width="6" height="4" fill="#e8f0f5" />
-          <rect x="45" y="14" width="10" height="12" fill="#e8f0f5" />
-          <rect x="47" y="17" width="6" height="4" fill="#0b1020" />
-          <rect x="42" y="22" width="3" height="6" fill="#ff5a5a" />
-          <rect x="55" y="22" width="3" height="6" fill="#ff5a5a" />
-          <rect x="47" y="26" width="6" height="4" fill="#ffb03d" />
-          <rect x="48" y="30" width="4" height="5" fill="#ff6b2c" />
-          <rect x="49" y="35" width="2" height="4" fill="#fff3c4" />
-        </>
-      )}
+    <svg viewBox="0 0 100 48" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="jp-fondo" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#16342a" />
+          <stop offset="100%" stopColor="#0a1712" />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="48" fill="url(#jp-fondo)" />
+      {/* Dos cartas cruzadas: una de dorso y una mostrando el as */}
+      <g transform="translate(30 25) rotate(-13)">
+        <rect x="-11" y="-16" width="22" height="32" rx="3" fill="#b6ff3d" />
+        <rect x="-8" y="-13" width="16" height="26" rx="2" fill="none" stroke="#0f1a12" strokeWidth="1" opacity="0.5" />
+        <path d="M-6 1h3l1.5-4 2 7.5 2-10 1.5 6.5h3" fill="none" stroke="#0f1a12" strokeWidth="1.3"
+          strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <g transform="translate(58 24) rotate(11)">
+        <rect x="-11" y="-16" width="22" height="32" rx="3" fill="#f7f5ef" />
+        <text x="-7.5" y="-7" fontSize="7" fontWeight="700" fill="#1b2230" fontFamily="sans-serif">A</text>
+        <path d="M0 -2 C3 2 5.5 3.5 5.5 6.2 A2.6 2.6 0 0 1 0 7.4 A2.6 2.6 0 0 1 -5.5 6.2 C-5.5 3.5 -3 2 0 -2 Z"
+          fill="#1b2230" />
+      </g>
     </svg>
   );
 }

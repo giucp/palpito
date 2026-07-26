@@ -1156,6 +1156,72 @@ button {
 }
 
 /* ============================================================
+   Carta mas alta — la carta, en SVG
+   El volteo es una rotacion en 3D con las dos caras montadas:
+   una animacion de transform, sin repintar nada.
+   ============================================================ */
+.cta { width: 108px; aspect-ratio: 60 / 88; perspective: 900px; flex: 0 0 auto; }
+.cta-giro { position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.3, 1.1, 0.4, 1); }
+.cta.cara .cta-giro { transform: rotateY(180deg); }
+
+.cta-dorso, .cta-cara { position: absolute; inset: 0; backface-visibility: hidden;
+  -webkit-backface-visibility: hidden; border-radius: 9px; overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+.cta-dorso svg { width: 100%; height: 100%; display: block; }
+.cta-dorso { background: #0f1a12; }
+
+.cta-cara { transform: rotateY(180deg); background: #f7f5ef;
+  border: 1px solid rgba(0,0,0,0.14); display: flex; align-items: center; justify-content: center; }
+:root[data-theme="light"] .cta-cara { background: #fffdf8; }
+
+.cta-esquina { position: absolute; display: flex; flex-direction: column; align-items: center;
+  gap: 1px; line-height: 1; }
+.cta-esquina b { font-family: var(--font-outfit), system-ui, sans-serif; font-size: 17px;
+  font-weight: 800; letter-spacing: -0.03em; }
+.cta-esquina svg { width: 11px; height: 11px; }
+.cta-esquina.arriba { top: 7px; left: 7px; }
+.cta-esquina.abajo { bottom: 7px; right: 7px; transform: rotate(180deg); }
+.cta-centro { width: 42%; height: 42%; }
+
+/* Al resolverse: un aro alrededor de la que gana, sin tapar la carta */
+.cta.gana .cta-cara { box-shadow: 0 0 0 3px var(--lima), 0 8px 22px rgba(0,0,0,0.4); }
+.cta.pierde .cta-cara { opacity: 0.55; }
+
+/* ---- La mesa ---- */
+.cma { display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 22px 16px; border-radius: 16px; border: 1px solid var(--line);
+  background: radial-gradient(120% 90% at 50% 0%, #16342a 0%, #0e2019 55%, #0a1712 100%); }
+:root[data-theme="light"] .cma {
+  background: radial-gradient(120% 90% at 50% 0%, #dff0e4 0%, #cfe6d6 55%, #c2dccb 100%); }
+
+.cma-mesa { display: flex; align-items: center; justify-content: center; gap: 18px; width: 100%; }
+.cma-lado { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.cma-quien { font-size: 12px; font-weight: 600; color: var(--mist); }
+.cma-lado.yo .cma-quien { color: var(--lima-txt); }
+.cma-vs { font-size: 12px; font-weight: 700; color: var(--mist); letter-spacing: 0.08em; }
+
+.cma-sacar { background: var(--lima); color: var(--lima-ink); border: none; border-radius: 100px;
+  padding: 13px 30px; font-size: 15px; font-weight: 800; transition: 0.18s; }
+.cma-sacar:hover { filter: brightness(1.06); }
+.cma-sacar:disabled { opacity: 0.45; }
+
+.cma-pista { color: var(--mist); font-size: 12.5px; text-align: center; line-height: 1.5;
+  min-height: 19px; }
+.cma-fallo { color: var(--baja); }
+
+.cma-resultado { text-align: center; }
+.cma-resultado b { display: block; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.cma-resultado.ganaste b { color: var(--lima-txt); }
+.cma-resultado.perdiste b { color: var(--baja); }
+.cma-resultado span { display: block; font-size: 13px; color: var(--mist); margin-top: 3px; }
+
+@media (max-width: 360px) {
+  .cta { width: 92px; }
+  .cma-mesa { gap: 12px; }
+}
+
+/* ============================================================
    Despegue — escena en SVG y CSS (reemplaza al pixel art)
    El cielo cambia por capas segun la altura: eso es lo que da
    sensacion de viaje. Ahora es una transicion entre degradados,
