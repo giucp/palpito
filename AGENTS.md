@@ -6,8 +6,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Pálpito
 
-Plataforma de apuestas deportivas en fase de aprendizaje: pre-partido, fichas de prueba,
-sin dinero real.
+**Plataforma para que dos amigos jueguen entre ellos por fichas.** Pálpito cobra el 0,5% del
+pozo. Fichas de prueba, sin dinero real.
+
+**Ya no hay juegos contra la casa** (desde el 2026-07-26). "Deportes" es una cartelera de solo
+lectura; se juega en "Juegos", siempre contra un amigo. Lema: *La casa no juega.*
 
 **La guía maestra del proyecto vive en** `C:\Users\PC\OneDrive\Desktop\renda\palpito_guia.md`
 (identidad, tokens de color, modelo de datos, flujos de apostar/liquidar, fases). El mockup de
@@ -16,6 +19,11 @@ pantallas.
 
 Reglas no negociables:
 - Todo cálculo de dinero ocurre en el servidor (nunca en el navegador).
+- **En un reto entre amigos, nadie ve la jugada del otro hasta haber hecho la suya.** Se garantiza
+  en la base y en la ruta de servidor, no en la pantalla: al primero en jugar se le devuelve
+  `{"estado":"esperando"}` y nada más. Si se manda algo del rival "para mostrarlo después", se
+  puede leer desde el navegador y el juego deja de ser honesto.
+- **Nada de pixel art.** Las escenas son SVG y CSS. Liviano no es lo mismo que feo.
 - El saldo es la suma del libro `movimientos`; jamás una columna editable.
 - Las escrituras de apuestas/movimientos van solo por el cliente admin
   (`src/lib/supabase/admin.ts`, clave de servicio).
@@ -40,5 +48,8 @@ Reglas no negociables:
   editor de Supabase.
 - Verificar los cambios en el navegador antes de darlos por buenos; el dueño prueba
   desde su celular Android.
-- `scripts/` tiene utilidades que se corren con node desde la raíz: recargar fichas,
-  revisar rondas colgadas y comprobar la matemática de los juegos por simulación.
+- `scripts/` tiene utilidades que se corren con node desde la raíz. Los `.ts` importan el código
+  real de `src/` con extensión `.ts` explícita, para comprobar lo que de verdad corre y no una
+  copia: `probar-carta.ts`, `probar-emparejamiento.ts`, `generar-iconos.ts`.
+- **Al limpiar datos de prueba, borrar por id concreto**, nunca por patrón de texto: una vez un
+  `like("nota", "...")` se llevó puesto historial real. Comprobar el saldo antes y después.
