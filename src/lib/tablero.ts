@@ -182,7 +182,25 @@ export async function traerTablero(
     });
   }
 
-  partidos.sort((a, b) => a.comienzaAt.localeCompare(b.comienzaAt));
+  // Primero lo que está pasando, al final lo que ya terminó.
+  //
+  // Ordenar solo por hora se ve bien a la mañana, pero a medida que avanza el día
+  // los partidos terminados se acumulan arriba —son los que empezaron más
+  // temprano— y para llegar a lo que está en juego había que bajar hasta el
+  // fondo. Dentro de cada grupo se mantiene el orden por hora, que es el bueno.
+  //
+  // Los pospuestos y suspendidos ('otro') van antes que los finalizados: no se
+  // resolvieron todavía, así que interesan más que un resultado cerrado.
+  const PRIORIDAD: Record<PartidoTablero["estado"], number> = {
+    en_juego: 0,
+    programado: 1,
+    otro: 2,
+    final: 3,
+  };
+  partidos.sort(
+    (a, b) =>
+      PRIORIDAD[a.estado] - PRIORIDAD[b.estado] || a.comienzaAt.localeCompare(b.comienzaAt)
+  );
 
   // Se pidieron dos días para no perder los nocturnos, así que ahora se recorta
   // al día que de verdad se está mirando, en la zona de la app.

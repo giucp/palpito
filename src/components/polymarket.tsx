@@ -93,20 +93,47 @@ export function Polymarket() {
                 </div>
               </header>
 
-              {mercados.map((m) => (
-                <div key={m.id} className="pm-mercado">
-                  <p className="pm-pregunta">{m.pregunta}</p>
-                  {m.opciones.slice(0, 4).map((o) => (
-                    <div key={o.nombre} className="pm-opcion">
-                      <span className="pm-nombre">{o.nombre}</span>
-                      <div className="pm-barra">
-                        <i style={{ width: `${Math.max(2, o.probabilidad * 100)}%` }} />
-                      </div>
-                      <b className="mono">{pct(o.probabilidad)}</b>
-                    </div>
-                  ))}
-                </div>
-              ))}
+              {mercados.map((m) => {
+                const vistas = m.opciones.slice(0, 4);
+                // El color se decide comparando las opciones entre ellas, acá en
+                // la pantalla: **no se toca ni un dato de Polymarket**. La más
+                // probable va en lima y la menos probable en rojo, que es como se
+                // lee de un vistazo en un mercado de dos opciones. Si empatan no
+                // hay roja, porque ninguna es "la menor".
+                const probables = vistas.map((o) => o.probabilidad);
+                const mayor = Math.max(...probables);
+                const menor = Math.min(...probables);
+
+                return (
+                  <div key={m.id} className="pm-mercado">
+                    <p className="pm-pregunta">{m.pregunta}</p>
+                    {vistas.map((o) => {
+                      // Con tres o más opciones las del medio quedan neutras: la
+                      // regla que pidió el dueño habla de la mayor y la menor.
+                      const tono =
+                        mayor === menor
+                          ? ""
+                          : o.probabilidad === mayor
+                            ? ""
+                            : o.probabilidad === menor
+                              ? "baja"
+                              : "media";
+                      return (
+                        <div key={o.nombre} className="pm-opcion">
+                          <span className="pm-nombre">{o.nombre}</span>
+                          <div className="pm-barra">
+                            <i
+                              className={tono}
+                              style={{ width: `${Math.max(2, o.probabilidad * 100)}%` }}
+                            />
+                          </div>
+                          <b className={`mono ${tono}`}>{pct(o.probabilidad)}</b>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
 
               {(ocultos > 0 || abre) && (
                 <button className="tk-mas" onClick={() => alternar(e.id)} aria-expanded={abre}>

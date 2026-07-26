@@ -1546,8 +1546,16 @@ button {
   white-space: nowrap; }
 .pm-barra { height: 7px; background: var(--panel3); border-radius: 100px; overflow: hidden; }
 .pm-barra i { display: block; height: 100%; background: var(--lima); border-radius: 100px;
-  transition: width 0.3s; }
+  transition: width 0.3s, background 0.3s; }
+/* En un mercado de dos opciones, la menos probable en rojo y la más probable en
+   lima: se lee de un vistazo cuál va ganando. Con tres o más, las del medio
+   quedan neutras. El color sale de comparar las opciones entre ellas al pintar;
+   los datos de Polymarket no se tocan. */
+.pm-barra i.baja { background: var(--baja); }
+.pm-barra i.media { background: var(--mist); }
 .pm-opcion b { font-size: 13px; font-weight: 700; text-align: right; color: var(--ink); }
+.pm-opcion b.baja { color: var(--baja); }
+.pm-opcion b.media { color: var(--mist); }
 
 /* En pantallas angostas las columnas de líneas se achican un poco */
 @media (max-width: 400px) {
