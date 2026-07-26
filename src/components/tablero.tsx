@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { DetallePartido } from "./detalle-partido";
 import { Icono } from "./iconos";
 import { LIGAS, type PartidoTablero } from "@/lib/tablero";
 
@@ -9,6 +10,9 @@ import { LIGAS, type PartidoTablero } from "@/lib/tablero";
 // Tres columnas por equipo, como en cualquier cartelera: dinero, hándicap y
 // total. El número grande es la línea y el chico, el precio. No hay botones
 // para apostar a propósito: acá se mira, no se juega.
+//
+// Tocar un partido abre su resumen (`detalle-partido.tsx`): el pronóstico si no
+// empezó, cómo va si está en juego, cómo se anotó si terminó.
 
 const ZONA = "America/Caracas";
 
@@ -48,7 +52,7 @@ function Celda({ valor, precio }: { valor: string | null; precio: string | null 
   );
 }
 
-function Fila({ p }: { p: PartidoTablero }) {
+function Fila({ p, onAbrir }: { p: PartidoTablero; onAbrir: () => void }) {
   const terminado = p.estado === "final";
   const enJuego = p.estado === "en_juego";
 
@@ -74,15 +78,18 @@ function Fila({ p }: { p: PartidoTablero }) {
   );
 
   return (
-    <article className="tb-partido">
+    <button className="tb-partido" onClick={onAbrir}>
       {lado(p.visitante, false)}
       {lado(p.local, true)}
       <div className="tb-pie">
         <span className={`tb-cuando ${enJuego ? "vivo" : ""}`}>
           {terminado ? "Final" : enJuego ? p.detalle || "En juego" : hora(p.comienzaAt)}
         </span>
+        <span className="tb-ver">
+          Ver <Icono id="i-arr" />
+        </span>
       </div>
-    </article>
+    </button>
   );
 }
 
@@ -100,6 +107,7 @@ export function Tablero() {
     en: number; // cuándo se trajo, para poder decirlo en pantalla
   } | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [abierto, setAbierto] = useState<PartidoTablero | null>(null);
 
   const ligasDelDeporte = useMemo(
     () => LIGAS.filter((l) => l.deporte === deporte),
@@ -143,7 +151,10 @@ export function Tablero() {
   // Se detiene con la pantalla en segundo plano y vuelve a pedir al primer plano:
   // no tiene sentido gastar batería actualizando algo que nadie está viendo, y
   // al volver uno quiere ver lo de ahora, no lo de hace media hora.
+  // Con un partido abierto no se refresca: la cartelera no se está viendo, y
+  // recargarla por detrás solo gastaría datos del teléfono.
   useEffect(() => {
+    if (abierto) return;
     const cada = hayVivos ? 30_000 : 180_000;
 
     const tic = setInterval(() => {
@@ -159,7 +170,7 @@ export function Tablero() {
       clearInterval(tic);
       document.removeEventListener("visibilitychange", alVolver);
     };
-  }, [hayVivos]);
+  }, [hayVivos, abierto]);
 
   const visibles = useMemo(() => {
     if (!partidos) return null;
@@ -170,6 +181,12 @@ export function Tablero() {
         p.local.nombre.toLowerCase().includes(q) || p.visitante.nombre.toLowerCase().includes(q)
     );
   }, [partidos, busqueda]);
+
+  // Con un partido abierto, la cartelera se reemplaza por su resumen. Al volver
+  // queda todo como estaba: liga, día y búsqueda no se tocaron.
+  if (abierto) {
+    return <DetallePartido ligaId={ligaId} partido={abierto} onVolver={() => setAbierto(null)} />;
+  }
 
   return (
     <div className="tb">
@@ -263,7 +280,7 @@ export function Tablero() {
           <p>No hay partidos de esta liga en el día elegido.</p>
         </div>
       ) : (
-        visibles.map((p) => <Fila key={p.id} p={p} />)
+        visibles.map((p) => <Fila key={p.id} p={p} onAbrir={() => setAbierto(p)} />)
       )}
 
       {datos && (

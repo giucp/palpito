@@ -1478,8 +1478,15 @@ button {
 .tb-cabecera span { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--mist); font-weight: 700; text-align: center; }
 
-.tb-partido { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-  margin-bottom: 9px; overflow: hidden; }
+/* La fila es un botón: se toca y abre el resumen del partido. */
+.tb-partido { display: block; width: 100%; text-align: left; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 14px; margin-bottom: 9px; overflow: hidden;
+  color: inherit; transition: border-color 0.18s; }
+.tb-partido:hover { border-color: var(--line2); }
+.tb-ver { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px;
+  color: var(--mist); font-weight: 600; }
+.tb-ver svg { width: 13px; height: 13px; }
+.tb-partido:hover .tb-ver { color: var(--lima-txt); }
 .tb-lado { display: grid; grid-template-columns: 1fr repeat(3, 62px); gap: 6px; align-items: center;
   padding: 9px 12px; }
 .tb-lado + .tb-lado { border-top: 1px solid var(--line); }
@@ -1636,6 +1643,134 @@ button {
 .rt-lado { color: var(--mist); font-size: 11.5px; }
 .rt-item.gano .rt-txt span:first-of-type { color: var(--sube); font-weight: 600; }
 .rt-item.perdio .rt-txt span:first-of-type { color: var(--baja); font-weight: 600; }
+
+/* ============================================================
+   Detalle de partido: lo que se ve al tocar uno de la cartelera.
+   La cabeza cambia con el estado; el cuerpo está siempre. Un bloque
+   sin datos no se dibuja, así que nunca queda un hueco.
+   ============================================================ */
+.dp { display: flex; flex-direction: column; gap: 11px; }
+.dp-barra { display: flex; align-items: center; gap: 10px; }
+.dp-liga { margin-left: auto; font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--mist); font-weight: 700; }
+
+/* Marcador: se pinta con lo que ya trae la cartelera, sin esperar nada */
+.dp-marcador { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px; }
+.dp-equipo { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 11px;
+  padding: 6px 0; }
+.dp-escudo { width: 28px; height: 28px; object-fit: contain; }
+.dp-escudo.hueco { display: flex; align-items: center; justify-content: center;
+  background: var(--panel3); border-radius: 8px; font-family: var(--font-jetbrains), monospace;
+  font-size: 10px; font-weight: 700; color: var(--mist); }
+.dp-nom { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.dp-nom b { font-size: 14.5px; font-weight: 650; letter-spacing: -0.01em; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.dp-nom span { font-size: 11px; color: var(--mist); }
+.dp-pts { font-size: 25px; font-weight: 800; letter-spacing: -0.02em; }
+.dp-pts.pendiente { font-size: 14px; font-weight: 700; color: var(--mist); }
+.dp-equipo.cayo .dp-nom b, .dp-equipo.cayo .dp-pts { color: var(--mist); }
+.dp-pie { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+  padding-top: 10px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--mist); }
+.dp-pie .vivo { color: var(--vivo); font-weight: 700; }
+
+.dp-bloque { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 13px 14px; }
+.dp-bloque.cabeza { border-color: var(--line2); }
+.dp-bloque > h4 { font-size: 10.5px; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--mist); font-weight: 700; margin-bottom: 11px; }
+.dp-nota { font-size: 11.5px; color: var(--mist); margin-top: 8px; line-height: 1.45; }
+.dp-nota.centro { text-align: center; padding: 10px 0; }
+
+/* Barras enfrentadas: pronóstico y probabilidad en vivo */
+.dp-prono { display: flex; flex-direction: column; gap: 10px; }
+.dp-par { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 5px; }
+.dp-par b { font-size: 13.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.dp-par span { font-size: 15px; font-weight: 800; flex: 0 0 auto; }
+.dp-riel { height: 8px; background: var(--panel3); border-radius: 100px; overflow: hidden; }
+.dp-riel i { display: block; height: 100%; border-radius: 100px; background: var(--lima);
+  transition: width 0.35s; }
+.dp-riel i.flojo { background: var(--mist); }
+
+/* Béisbol en vivo: cuenta, outs y el diamante */
+.dp-sit { display: flex; flex-direction: column; gap: 13px; }
+.dp-cuenta { display: flex; align-items: center; gap: 16px; }
+.dp-dato { display: flex; flex-direction: column; gap: 2px; }
+.dp-dato > span { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--mist); font-weight: 700; }
+.dp-dato b { font-size: 19px; font-weight: 800; }
+.dp-diamante { margin-left: auto; width: 46px; height: 46px; position: relative; flex: 0 0 auto; }
+.dp-base { position: absolute; width: 13px; height: 13px; background: var(--panel3);
+  border: 1px solid var(--line2); transform: rotate(45deg); }
+.dp-base.on { background: var(--lima); border-color: var(--lima); }
+.dp-base.b1 { right: 0; top: 16px; }
+.dp-base.b2 { left: 16px; top: 0; }
+.dp-base.b3 { left: 0; top: 16px; }
+.dp-base.home { left: 16px; bottom: 0; }
+.dp-duelo { display: flex; flex-direction: column; gap: 8px; }
+.dp-quien { display: grid; grid-template-columns: 58px 1fr; gap: 9px; align-items: baseline; }
+.dp-quien > span:first-child { font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--mist); font-weight: 700; }
+.dp-quien b { font-size: 13.5px; font-weight: 650; }
+.dp-quien i { display: block; font-style: normal; font-size: 11.5px; color: var(--mist); }
+
+/* La línea de tiempo: goles, jonrones, tarjetas */
+.dp-tiempo { display: flex; flex-direction: column; }
+.dp-hito { display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; align-items: baseline;
+  padding: 8px 0; border-top: 1px solid var(--line); }
+.dp-hito:first-child { border-top: 0; padding-top: 0; }
+.dp-min { font-size: 11px; color: var(--mist); font-weight: 600; }
+.dp-que { min-width: 0; }
+.dp-que b { display: block; font-size: 13.5px; font-weight: 650; }
+.dp-que span { font-size: 11.5px; color: var(--mist); }
+.dp-va { font-size: 13px; font-weight: 700; color: var(--ink2); }
+/* Las que dieron vuelta el partido son las que uno recuerda */
+.dp-hito.gira .dp-que b, .dp-hito.gira .dp-va { color: var(--lima-txt); }
+
+/* Carreras por inning */
+.dp-innings { overflow-x: auto; }
+.dp-innings table { border-collapse: collapse; width: 100%;
+  font-family: var(--font-jetbrains), monospace; font-size: 12px; font-variant-numeric: tabular-nums; }
+.dp-innings th { font-size: 10px; color: var(--mist); font-weight: 700; padding: 3px 4px; }
+.dp-innings td { text-align: center; padding: 4px; color: var(--ink2); }
+.dp-innings td:first-child, .dp-innings th:first-child { text-align: left; font-weight: 700;
+  color: var(--ink); }
+.dp-innings .tot { color: var(--ink); font-weight: 800; border-left: 1px solid var(--line); }
+
+/* Comparativa: visitante a la izquierda, local a la derecha */
+.dp-comp { display: flex; flex-direction: column; gap: 8px; }
+.dp-fila { display: grid; grid-template-columns: 46px 1fr 46px; gap: 10px; align-items: center; }
+.dp-fila b { font-size: 13.5px; font-weight: 700; font-family: var(--font-jetbrains), monospace;
+  font-variant-numeric: tabular-nums; }
+.dp-fila b:last-child { text-align: right; }
+.dp-fila b.gana { color: var(--lima-txt); }
+.dp-fila > span { text-align: center; font-size: 11.5px; color: var(--mist); }
+.dp-fila.cab { border-bottom: 1px solid var(--line); padding-bottom: 7px; }
+.dp-fila.cab b { font-size: 11px; color: var(--mist); }
+
+/* Forma reciente */
+.dp-forma { display: flex; flex-direction: column; gap: 9px; }
+.dp-eq { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dp-eq > b { font-size: 13px; font-weight: 650; }
+.dp-racha { display: flex; gap: 4px; }
+.dp-racha i { width: 19px; height: 19px; border-radius: 6px; display: flex; align-items: center;
+  justify-content: center; font-size: 10.5px; font-weight: 800; font-style: normal;
+  background: var(--panel3); color: var(--mist); }
+.dp-racha i.g { background: color-mix(in srgb, var(--sube) 18%, transparent); color: var(--sube); }
+.dp-racha i.p { background: color-mix(in srgb, var(--baja) 15%, transparent); color: var(--baja); }
+
+/* Bajas */
+.dp-bajas { display: flex; flex-direction: column; gap: 10px; }
+.dp-bajas b { font-size: 12.5px; font-weight: 700; display: block; margin-bottom: 3px; }
+.dp-bajas p { font-size: 12px; color: var(--mist); line-height: 1.45; }
+
+/* Datos sueltos */
+.dp-datos { display: flex; flex-direction: column; gap: 9px; }
+.dp-d { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }
+.dp-d > span { color: var(--mist); flex: 0 0 auto; }
+.dp-d b { font-weight: 650; text-align: right; }
 
 @media (prefers-reduced-motion: reduce) {
   *,
