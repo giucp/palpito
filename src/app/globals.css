@@ -114,7 +114,15 @@ button {
 /* ============ Componentes (portados del mockup palpito.html) ============ */
 
 /* ---- Header ---- */
+/* El `padding-top` con `env(safe-area-inset-top)` es lo que salva la cabecera en
+   el iPhone. Instalada como app, iOS le da a la página toda la pantalla —eso lo
+   pedimos a propósito con `viewportFit: cover` y `black-translucent`, para que
+   el fondo llegue hasta arriba y no quede una banda—, pero entonces la hora y la
+   batería se dibujan **encima** del contenido. Sin esta franja, en el iPhone el
+   logo y el saldo quedaban tapados por el reloj. En Android el inset es 0 y no
+   cambia nada, y en el navegador tampoco. */
 .cab { position: sticky; top: 0; z-index: 70; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding-top: env(safe-area-inset-top, 0px);
   transition: background 0.3s, border-color 0.3s; }
 .hin { max-width: 1560px; margin: 0 auto; padding: 0 18px; display: flex; align-items: center; gap: 14px; height: 62px; }
 .logo { display: flex; align-items: center; gap: 9px; flex: 0 0 auto; background: none; border: none; padding: 0; color: inherit; }
@@ -404,7 +412,10 @@ button {
 .apf .mi.gan b { color: var(--lima-txt); }
 
 /* ---- Entrar / crear cuenta ---- */
-.auth { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+/* La tarjeta va centrada, pero en un iPhone chico con el teclado abierto puede
+   llegar arriba: que la franja de la muesca la frene. */
+.auth { flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 16px 24px; }
 .acard { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--line);
   border-radius: 16px; padding: 26px 22px; }
 .alogo { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 8px; }
@@ -611,8 +622,12 @@ button {
 
 /* ---- Panel de administración ---- */
 .adm { min-height: 100vh; background: var(--bg); }
+/* Misma franja del iPhone que en `.cab`: esta cabecera también arranca pegada
+   al borde de arriba. El `height` se queda en 58px y la franja va aparte, para
+   que la barra no se achique cuando el inset es 0. */
 .adm-cab { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 12px;
-  padding: 0 20px; height: 58px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  padding: env(safe-area-inset-top, 0px) 20px 0; height: 58px; box-sizing: content-box;
+  background: var(--panel); border-bottom: 1px solid var(--line); }
 .adm-logo { display: flex; align-items: center; gap: 9px; color: inherit; }
 .adm-logo svg { width: 24px; height: 24px; color: var(--lima-txt); }
 .adm-logo b { font-weight: 800; font-size: 17px; letter-spacing: -0.02em; }
@@ -1092,8 +1107,10 @@ button {
 /* ============================================================
    Página del desafío: la que abre tu amigo desde WhatsApp
    ============================================================ */
+/* El botón de volver es lo primero de la página y no hay cabecera que lo baje,
+   así que en el iPhone quedaba debajo del reloj. */
 .desafio-pagina { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 20px;
-  padding: 28px 16px 48px; background: var(--bg); }
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 16px 48px; background: var(--bg); }
 /* Barra de arriba: volver a la izquierda, marca al centro. El logo solo
    llevaba al inicio, que no es de donde venías. */
 .dsf-barra { width: 100%; max-width: 460px; display: grid;
