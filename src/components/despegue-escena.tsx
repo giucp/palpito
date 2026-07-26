@@ -78,8 +78,14 @@ export function DespegueEscena({ estado, multiplicador }: Props) {
   const estrellada = estado === "estrellada";
   const h = altura(multiplicador);
 
-  // 0 abajo, 1 arriba. Se deja un margen para que no toque los bordes.
-  const y = 88 - h * 68;
+  // `top` marca la BASE del cohete (ver .dsp-cohete en el CSS): va de 96%,
+  // pegado al piso, a 40% arriba del todo.
+  //
+  // El tope es 40% y no menos por una razón medida: el cohete mide unos 75 px y
+  // la escena, en un teléfono de 320 px de ancho, queda en 219 px de alto. Con
+  // el tope en 26% la punta se salía 18 px por arriba. A 40% entra con holgura
+  // en la pantalla más chica, y en las más grandes sobra sitio.
+  const y = 96 - h * 56;
 
   return (
     <div className={`dsp-escena ${claseDe(multiplicador)} ${estado}`}>

@@ -539,7 +539,12 @@ button {
   border-radius: 14px; overflow: hidden; text-align: left; color: inherit; transition: 0.18s; padding: 0; }
 .jcard:hover { border-color: var(--lima); transform: translateY(-2px); }
 .jcard-arte { height: 96px; position: relative; overflow: hidden; }
-.jcard-arte canvas { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+/* Apuntaba solo a `canvas`, de cuando las portadas se dibujaban asi. Como
+   ahora son <svg>, no recibian altura y se desbordaban del recorte: se veia
+   la mitad de arriba del dibujo, que es cielo vacio. De ahi el hero en blanco. */
+.jcard-arte svg,
+.jcard-arte canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+.jcard-arte canvas { image-rendering: pixelated; }
 .jcard-txt { padding: 12px 14px; }
 .jcard-txt b { display: block; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 .jcard-txt span { display: block; font-size: 12px; color: var(--mist); margin-top: 2px; line-height: 1.4; }
@@ -1182,8 +1187,11 @@ button {
   border-radius: 100px; transition: height 0.25s linear;
   background: linear-gradient(180deg, rgba(182,255,61,0.55), rgba(182,255,61,0)); }
 
+/* `translateY(-100%)` es la clave: `top` marca donde va la BASE del cohete.
+   Sin esto se posicionaba por el borde de arriba y a multiplicador bajo la
+   mitad de abajo quedaba fuera del recorte. */
 .dsp-cohete { position: absolute; left: 50%; width: 46px; margin-left: -23px;
-  transition: top 0.25s linear; }
+  transform: translateY(-100%); transition: top 0.25s linear; }
 .dsp-cohete svg { width: 100%; height: auto; display: block; }
 .dsp-casco { fill: url(#dsp-casco); }
 .dsp-aleta { fill: var(--lima); }
@@ -1194,8 +1202,8 @@ button {
 /* Vibracion mientras sube: dos pixeles, suficiente para que se sienta motor */
 .dsp-cohete.subiendo { animation: dsp-vibra 0.12s linear infinite; }
 @keyframes dsp-vibra {
-  0%, 100% { transform: translateX(-0.6px); }
-  50%      { transform: translateX(0.6px); }
+  0%, 100% { transform: translateY(-100%) translateX(-0.6px); }
+  50%      { transform: translateY(-100%) translateX(0.6px); }
 }
 
 /* Fuego: un cono que late */
@@ -1211,9 +1219,9 @@ button {
 /* Al estallar: el cohete cae girando y el cielo destella */
 .dsp-cohete.roto { animation: dsp-cae 0.9s cubic-bezier(0.35, 0, 0.9, 0.6) forwards; }
 @keyframes dsp-cae {
-  0%   { transform: rotate(0deg); opacity: 1; }
-  15%  { transform: rotate(-14deg) translateY(-6px); }
-  100% { transform: rotate(120deg) translateY(140px); opacity: 0; }
+  0%   { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+  15%  { transform: translateY(-106%) rotate(-14deg); }
+  100% { transform: translateY(60%) rotate(120deg); opacity: 0; }
 }
 .dsp-estallido { position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(circle at 50% 40%, rgba(255,120,60,0.65), rgba(255,60,40,0) 55%);
@@ -1231,7 +1239,8 @@ button {
    ============================================================ */
 .mu-escena { position: relative; overflow: hidden; border-radius: 16px;
   border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel) 0%, #0d1b26 100%);
-  padding: 20px 16px 0; min-height: 260px; display: flex; flex-direction: column; }
+  /* Deja aire arriba para el marcador, que va superpuesto */
+  padding: 76px 16px 0; min-height: 300px; display: flex; flex-direction: column; }
 :root[data-theme="light"] .mu-escena {
   background: linear-gradient(180deg, var(--panel) 0%, #d8e7ee 100%); }
 
@@ -1247,13 +1256,16 @@ button {
 }
 
 /* Hitos: cuantos pasos llevas cruzados */
-.mu-recorrido { position: relative; display: flex; justify-content: center; gap: 6px; margin-bottom: 18px; }
+/* Van abajo, no arriba: arriba se superpone `.mll-info`, que es el marcador
+   grande, y quedaba un numero encima de los puntos. */
+.mu-recorrido { position: relative; z-index: 2; display: flex; justify-content: center;
+  gap: 6px; margin-top: auto; margin-bottom: 12px; }
 .mu-hito { width: 16px; height: 4px; border-radius: 100px; background: var(--line2); transition: 0.25s; }
 .mu-hito.hecho { background: var(--lima); }
 .mu-hito.aqui { background: var(--ink2); transform: scaleY(1.8); }
 
-.mu-paso { position: relative; flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 14px; padding-bottom: 26px; }
+.mu-paso { position: relative; z-index: 2; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px; }
 .mu-tablas { display: flex; gap: 14px; width: 100%; max-width: 320px; }
 
 /* La tabla: rectangulo redondeado con luz arriba. Nada de pixeles. */
