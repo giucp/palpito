@@ -94,7 +94,11 @@ export function Tablero() {
   // Lo traído se guarda junto con la clave de lo que se pidió. Así "cargando"
   // se deduce al pintar (lo que hay no corresponde a lo que se está mirando) y
   // no hace falta tocar el estado al empezar cada búsqueda.
-  const [datos, setDatos] = useState<{ clave: string; partidos: PartidoTablero[] } | null>(null);
+  const [datos, setDatos] = useState<{
+    clave: string;
+    partidos: PartidoTablero[];
+    en: number; // cuándo se trajo, para poder decirlo en pantalla
+  } | null>(null);
   const [busqueda, setBusqueda] = useState("");
 
   const ligasDelDeporte = useMemo(
@@ -106,23 +110,56 @@ export function Tablero() {
 
   const clave = `${ligaId}|${diaISO(fecha)}`;
 
+  // `vuelta` sube con cada refresco automático. Va aparte de `clave` a propósito:
+  // así el refresco trae datos nuevos sin que la pantalla parpadee a "Cargando",
+  // porque la clave no cambió.
+  const [vuelta, setVuelta] = useState(0);
+
   useEffect(() => {
     let vivo = true;
     const [liga, dia] = clave.split("|");
     (async () => {
       try {
         const r = await fetch(`/api/tablero?liga=${liga}&fecha=${dia}`).then((x) => x.json());
-        if (vivo) setDatos({ clave, partidos: r.ok ? r.partidos : [] });
+        if (vivo) setDatos({ clave, partidos: r.ok ? r.partidos : [], en: Date.now() });
       } catch {
-        if (vivo) setDatos({ clave, partidos: [] });
+        if (vivo) setDatos({ clave, partidos: [], en: Date.now() });
       }
     })();
     return () => {
       vivo = false;
     };
-  }, [clave]);
+  }, [clave, vuelta]);
 
   const partidos = datos?.clave === clave ? datos.partidos : null;
+  const hayVivos = (partidos ?? []).some((p) => p.estado === "en_juego");
+
+  // Refresco automático mientras se está mirando.
+  //
+  // Con algún partido en curso, cada 30 s: el marcador cambia y esperar más se
+  // nota. Sin nada en vivo, cada 3 min alcanza — las líneas se mueven, pero no
+  // al segundo, y esto corre en un celular con datos.
+  //
+  // Se detiene con la pantalla en segundo plano y vuelve a pedir al primer plano:
+  // no tiene sentido gastar batería actualizando algo que nadie está viendo, y
+  // al volver uno quiere ver lo de ahora, no lo de hace media hora.
+  useEffect(() => {
+    const cada = hayVivos ? 30_000 : 180_000;
+
+    const tic = setInterval(() => {
+      if (!document.hidden) setVuelta((v) => v + 1);
+    }, cada);
+
+    const alVolver = () => {
+      if (!document.hidden) setVuelta((v) => v + 1);
+    };
+    document.addEventListener("visibilitychange", alVolver);
+
+    return () => {
+      clearInterval(tic);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [hayVivos]);
 
   const visibles = useMemo(() => {
     if (!partidos) return null;
@@ -227,6 +264,22 @@ export function Tablero() {
         </div>
       ) : (
         visibles.map((p) => <Fila key={p.id} p={p} />)
+      )}
+
+      {datos && (
+        <div className="tb-actualizado">
+          {hayVivos && <i className="tb-pulso" aria-hidden="true" />}
+          <span className="mono">
+            Actualizado{" "}
+            {new Intl.DateTimeFormat("es", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+              timeZone: ZONA,
+            }).format(new Date(datos.en))}
+          </span>
+          <span>&middot; se refresca solo cada {hayVivos ? "30 s" : "3 min"}</span>
+        </div>
       )}
 
       <p className="tb-fuente">

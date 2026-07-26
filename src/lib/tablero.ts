@@ -127,9 +127,11 @@ export async function traerTablero(
   let datos: { events?: CrudoEvento[] } = {};
   try {
     const res = await fetch(`${BASE}/${liga.ruta}/scoreboard?dates=${desde}-${hasta}`, {
-      // Las líneas se mueven, pero no al segundo: un minuto de cache alcanza y
-      // evita machacar a ESPN si varios miran a la vez.
-      next: { revalidate: 60 },
+      // Medio minuto de cache: suficiente para que un marcador en vivo se vea
+      // fresco, y suficiente para que ESPN reciba una sola consulta aunque haya
+      // muchos mirando a la vez. Pedir más seguido que esto no traería nada
+      // nuevo, así que el navegador tampoco lo hace.
+      next: { revalidate: 30 },
     });
     if (!res.ok) return { liga, partidos: [] };
     datos = await res.json();

@@ -1237,6 +1237,17 @@ button {
 .tb-fuente { color: var(--mist); font-size: 11.5px; line-height: 1.55; margin: 14px 4px 0;
   text-align: center; }
 
+/* Cuándo se trajo la cartelera. Con partidos en curso late un punto, para que
+   se entienda que eso se mueve solo y no hay que recargar nada. */
+.tb-actualizado { display: flex; align-items: center; justify-content: center; gap: 7px;
+  flex-wrap: wrap; margin-top: 14px; color: var(--mist); font-size: 11.5px; }
+.tb-pulso { width: 7px; height: 7px; border-radius: 50%; background: var(--vivo);
+  animation: tb-late 1.8s ease-in-out infinite; }
+@keyframes tb-late {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
 /* ============================================================
    Polymarket: acá el precio ES la probabilidad
    ============================================================ */
