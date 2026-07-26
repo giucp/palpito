@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CartaVista } from "./carta";
 import { Volver } from "./volver";
-import { fmt } from "@/lib/cupon";
+import { fmt } from "@/lib/dinero";
 import type { Carta } from "@/lib/carta";
 
 // La mesa de Carta más alta.

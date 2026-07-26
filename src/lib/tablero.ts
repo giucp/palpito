@@ -34,6 +34,9 @@ export const LIGAS: Liga[] = [
 ];
 
 export const ligaPorId = (id: string) => LIGAS.find((l) => l.id === id);
+// Al revés: de la ruta guardada en el evento a la liga de la cartelera. Lo usa
+// el tablero de apuestas para volver a encontrar el partido de una publicación.
+export const ligaPorRuta = (ruta: string) => LIGAS.find((l) => l.ruta === ruta);
 
 // Una celda de línea: el número grande y su precio debajo, como en la cartelera.
 export type Linea = {
@@ -188,4 +191,19 @@ export async function traerTablero(
   const objetivo = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Caracas" }).format(fecha);
 
   return { liga, partidos: partidos.filter((p) => dia(p.comienzaAt) === objetivo) };
+}
+
+// Un partido concreto de la cartelera, por su id de ESPN.
+//
+// Existe para no creerle al navegador: cuando alguien publica una apuesta, el
+// servidor vuelve a pedirle el partido a ESPN y usa **estos** datos —equipos,
+// hora, estado— en vez de los que vinieron en el pedido. Si no, cualquiera
+// podría publicar una apuesta sobre un partido inventado o ya empezado.
+export async function buscarPartido(
+  ligaId: string,
+  partidoId: string,
+  fecha: Date
+): Promise<PartidoTablero | null> {
+  const { partidos } = await traerTablero(ligaId, fecha);
+  return partidos.find((p) => p.id === partidoId) ?? null;
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Icono } from "./iconos";
 import { Volver } from "./volver";
-import { fmt } from "@/lib/cupon";
+import { fmt } from "@/lib/dinero";
 import { ZONA } from "@/lib/eventos";
 
 type Props = {

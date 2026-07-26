@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icono } from "./iconos";
-import { fmt } from "@/lib/cupon";
+import { fmt } from "@/lib/dinero";
 import { crearClienteNavegador } from "@/lib/supabase/client";
 import type { Vista } from "@/lib/tipos";
 
@@ -17,9 +17,9 @@ type Props = {
 
 const TABS: Array<{ vista: Vista; nombre: string }> = [
   { vista: "lobby", nombre: "Deportes" },
-  { vista: "vivo", nombre: "En vivo" },
+  { vista: "vivo", nombre: "Polymarket" },
+  { vista: "apuestas", nombre: "Apuestas" },
   { vista: "juegos", nombre: "Juegos" },
-  { vista: "apuestas", nombre: "Mis apuestas" },
 ];
 
 export function Cabecera({ vista, onVista, usuario, saldo, onAviso }: Props) {

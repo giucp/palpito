@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icono, IconosDefs } from "./iconos";
-import { fmt } from "@/lib/cupon";
+import { fmt } from "@/lib/dinero";
 
 type Resumen = {
   usuarios: number;

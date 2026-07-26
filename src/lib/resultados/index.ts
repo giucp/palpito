@@ -7,6 +7,11 @@
 //   béisbol → statsapi.mlb.com (oficial de la MLB)
 //   fútbol  → API pública de ESPN
 //
+// Y los partidos publicados desde la cartelera se resuelven por id exacto de
+// ESPN (`cartelera.ts`), sin emparejar nada. Ese es el camino bueno; los otros
+// dos existen para los eventos viejos, que vinieron de The Odds API y no traen
+// un id de ESPN con el que buscar.
+//
 // Como no gastan créditos, se pueden consultar cada pocos minutos en vez de
 // cada dos horas, que es lo que hace que la ganancia se acredite pronto.
 
@@ -16,6 +21,7 @@
 import { emparejar, type EventoLocal } from "./nombres.ts";
 import { pedirPartidos as pedirMlb } from "./mlb.ts";
 import { LIGAS_ESPN, pedirPartidos as pedirEspn } from "./espn.ts";
+import { pedirPorRuta } from "./cartelera.ts";
 
 export { LIGAS_ESPN } from "./espn.ts";
 export { normalizar, parecido, emparejar } from "./nombres.ts";
@@ -27,6 +33,10 @@ export type EventoPendiente = {
   equipo_a: string;
   equipo_b: string;
   comienza_at: string;
+  // Los partidos publicados desde la cartelera traen el id del evento en ESPN y
+  // la ruta de su deporte. Con eso alcanza para buscar el marcador.
+  espn_id?: string | null;
+  espn_ruta?: string | null;
 };
 
 export type ResultadoPropio = {
@@ -80,8 +90,51 @@ export async function buscarResultados<T extends EventoPendiente>(
 
   if (eventos.length === 0) return { resueltos, enCurso, cancelados, sinResolver };
 
+  // ---- Los que traen id de ESPN: coincidencia exacta, sin adivinar ----
+  //
+  // Un pedido por ruta (un deporte) cubre todos sus partidos pendientes.
+  const porRuta = new Map<string, T[]>();
+  for (const e of eventos) {
+    if (!e.espn_id || !e.espn_ruta) continue;
+    const lista = porRuta.get(e.espn_ruta) ?? [];
+    lista.push(e);
+    porRuta.set(e.espn_ruta, lista);
+  }
+
+  for (const [ruta, lista] of porRuta) {
+    const { desde, hasta } = rango(lista);
+    let partidos: Awaited<ReturnType<typeof pedirPorRuta>> = new Map();
+    try {
+      partidos = await pedirPorRuta(ruta, desde, hasta);
+    } catch {
+      partidos = new Map();
+    }
+    for (const e of lista) {
+      const p = partidos.get(e.espn_id!);
+      if (!p) {
+        sinResolver.push(e);
+      } else if (p.cancelado) {
+        cancelados.push(e);
+      } else if (!p.finalizado || p.marcadorLocal === null || p.marcadorVisita === null) {
+        enCurso.push(e);
+      } else {
+        resueltos.push({
+          eventoId: e.id,
+          marcadorA: p.marcadorLocal,
+          marcadorB: p.marcadorVisita,
+          fuente: "espn",
+          externoId: p.id,
+        });
+      }
+    }
+  }
+
+  // Lo que sigue es para los eventos viejos, los que vinieron de The Odds API:
+  // no traen id de ESPN, así que hay que emparejarlos por nombre y fecha.
+  const restantes = eventos.filter((e) => !e.espn_id || !e.espn_ruta);
+
   // ---- Béisbol: un solo pedido cubre todos los días pendientes ----
-  const beisbol = eventos.filter((e) => e.deporte === "beisbol");
+  const beisbol = restantes.filter((e) => e.deporte === "beisbol");
   if (beisbol.length > 0) {
     const { desde, hasta } = rango(beisbol);
     let partidos: Awaited<ReturnType<typeof pedirMlb>> = [];
@@ -115,7 +168,7 @@ export async function buscarResultados<T extends EventoPendiente>(
   }
 
   // ---- Fútbol: un pedido por liga con eventos pendientes ----
-  const futbol = eventos.filter((e) => e.deporte !== "beisbol");
+  const futbol = restantes.filter((e) => e.deporte !== "beisbol");
   const porLiga = new Map<string, T[]>();
   for (const e of futbol) {
     if (!LIGAS_ESPN[e.liga]) {

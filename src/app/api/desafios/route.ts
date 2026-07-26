@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { asegurarEvento } from "@/lib/evento-cartelera";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/server";
 
@@ -30,7 +31,11 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const ids = [...new Set((data ?? []).flatMap((d) => [d.creador_id, d.rival_id]))];
+  // Una apuesta publicada al tablero todavía no tiene rival. Sin este filtro se
+  // colaba un null en la lista de ids y la consulta de perfiles se caía.
+  const ids = [
+    ...new Set((data ?? []).flatMap((d) => [d.creador_id, d.rival_id]).filter(Boolean)),
+  ];
   const { data: perfiles } = await admin
     .from("perfiles")
     .select("usuario_id, alias")
@@ -46,7 +51,8 @@ export async function GET() {
       ...resto,
       soyCreador,
       aliasCreador: alias.get(d.creador_id) ?? "?",
-      aliasRival: alias.get(d.rival_id) ?? "?",
+      // "?" mientras nadie la haya tomado: no hay rival del que decir el alias.
+      aliasRival: (d.rival_id && alias.get(d.rival_id)) || "?",
       yaJugue: Boolean(soyCreador ? jugada_creador : jugada_rival),
       yaJugoElOtro: Boolean(soyCreador ? jugada_rival : jugada_creador),
     };
@@ -62,7 +68,9 @@ export async function POST(req: NextRequest) {
   let cuerpo: {
     accion?: string;
     rival?: string;
-    evento?: string;
+    liga?: string;
+    partido?: string;
+    fecha?: string;
     lado?: string;
     monto?: number;
     desafio?: string;
@@ -76,20 +84,34 @@ export async function POST(req: NextRequest) {
   const admin = crearClienteAdmin();
 
   if (cuerpo.accion === "crear") {
-    const { rival, evento, lado, monto } = cuerpo;
+    const { rival, liga, partido, fecha, lado, monto } = cuerpo;
     if (
       typeof rival !== "string" ||
-      typeof evento !== "string" ||
+      typeof liga !== "string" ||
+      typeof partido !== "string" ||
+      typeof fecha !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(fecha) ||
       (lado !== "local" && lado !== "visitante") ||
       typeof monto !== "number" ||
       !Number.isFinite(monto)
     ) {
       return NextResponse.json({ ok: false, motivo: "cuerpo_invalido" }, { status: 400 });
     }
+
+    // El partido sale de la cartelera de ESPN y se crea en la base si hace
+    // falta, igual que en el tablero abierto. Antes acá llegaba un `evento` ya
+    // existente en la base, que era el catálogo de The Odds API: con la
+    // sincronización apagada ese catálogo quedó congelado y desafiar a un amigo
+    // solo ofrecía partidos viejos.
+    const evento = await asegurarEvento(liga, partido, fecha);
+    if (!evento.ok) {
+      return NextResponse.json(evento, { status: evento.motivo === "error_interno" ? 500 : 400 });
+    }
+
     const { data, error } = await admin.rpc("crear_desafio", {
       p_creador: user.id,
       p_rival: rival,
-      p_evento: evento,
+      p_evento: evento.evento,
       p_lado: lado,
       p_monto: monto,
     });

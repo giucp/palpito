@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Icono } from "./iconos";
 import { Volver } from "./volver";
 import { CartaMesa } from "./carta-mesa";
-import { fmt } from "@/lib/cupon";
+import { fmt } from "@/lib/dinero";
 import { cartaDe } from "@/lib/carta";
 
 // La pantalla de un desafío de juego: la que abre tu amigo desde WhatsApp y la

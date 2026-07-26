@@ -1539,6 +1539,66 @@ button {
   .tb-celda b { font-size: 12.5px; }
 }
 
+/* ============================================================
+   Apuestas: el tablero abierto y tus retos (palpito_guia.md §6.e)
+   ============================================================ */
+
+/* Las dos secciones de Apuestas */
+.secciones { display: flex; gap: 8px; margin-bottom: 14px; }
+.secciones button { flex: 1; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 11px; padding: 11px; color: var(--mist); font-size: 13.5px; font-weight: 600;
+  transition: 0.18s; }
+.secciones button:hover { border-color: var(--line2); color: var(--ink2); }
+.secciones button.on { border-color: var(--lima); color: var(--ink); background: var(--panel3); }
+
+.ap-publicar { margin-bottom: 14px; }
+
+/* Una apuesta publicada, esperando quien se la tome */
+.ap-item { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 13px; margin-bottom: 10px; }
+.ap-item.mia { background: var(--panel2); border-style: dashed; }
+
+.ap-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+.ap-cab > b { font-size: 13.5px; font-weight: 650; flex: 0 0 auto; }
+.ap-cuando { color: var(--mist); font-size: 11.5px; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.ap-monto { margin-left: auto; font-size: 15px; color: var(--ink); flex: 0 0 auto; }
+
+/* Los dos lados: el suyo y el que te tocaría a vos, marcado con el acento */
+.ap-lados { display: flex; align-items: stretch; gap: 8px; margin-bottom: 11px; }
+.ap-lado { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; }
+.ap-lado > span:first-child { color: var(--mist); font-size: 10px; letter-spacing: 0.09em;
+  text-transform: uppercase; font-weight: 700; }
+.ap-lado b { font-size: 14px; font-weight: 650; color: var(--ink); letter-spacing: -0.01em;
+  overflow-wrap: anywhere; }
+.ap-lado.tuyo { border-color: var(--lima); background: var(--panel3); }
+.ap-lado.tuyo > span:first-child { color: var(--lima-txt); }
+.ap-precio { color: var(--mist); font-size: 11.5px; }
+.ap-vs { align-self: center; color: var(--mist); font-size: 11px; font-weight: 700; flex: 0 0 auto; }
+
+.ap-retirar { width: 100%; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 11px; color: var(--ink2); font-size: 13px; font-weight: 600;
+  transition: 0.18s; }
+.ap-retirar:hover { border-color: var(--baja); color: var(--baja); }
+.ap-retirar:disabled { opacity: 0.5; cursor: not-allowed; }
+.ap-nota { color: var(--mist); font-size: 11.5px; line-height: 1.5; margin: 12px 0; }
+
+/* Desde Amigos, el camino a los retos: viven en Apuestas, no acá */
+.am-ver-retos { display: flex; align-items: center; gap: 11px; width: 100%; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 13px; color: var(--ink2);
+  font-size: 13.5px; font-weight: 600; transition: 0.18s; }
+.am-ver-retos:hover { border-color: var(--lima); color: var(--ink); }
+.am-ver-retos svg { width: 17px; height: 17px; color: var(--mist); }
+.am-ver-retos .ir { margin-left: auto; }
+
+/* Tus retos: el título de cada grupo separa, y el resultado se dice en color */
+.rt .pf-titulo { margin-top: 18px; }
+.rt > .pf-titulo:first-child { margin-top: 0; }
+.rt-lado { color: var(--mist); font-size: 11.5px; }
+.rt-item.gano .rt-txt span:first-of-type { color: var(--sube); font-weight: 600; }
+.rt-item.perdio .rt-txt span:first-of-type { color: var(--baja); font-weight: 600; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

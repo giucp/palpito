@@ -334,7 +334,7 @@ export async function cerrarResultados(): Promise<ResumenResultados> {
   // Partidos que ya deberían haber terminado.
   const { data: pendientes } = await supabase
     .from("eventos")
-    .select("id, deporte, liga, equipo_a, equipo_b, comienza_at, externo_id")
+    .select("id, deporte, liga, equipo_a, equipo_b, comienza_at, externo_id, espn_id, espn_ruta")
     .eq("estado", "programado")
     .lt("comienza_at", hace(VENTANA_MIN_H))
     .order("comienza_at", { ascending: true });

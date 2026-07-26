@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { Icono } from "./iconos";
 import { RetoCarta } from "./reto-carta";
-import { MisRetos } from "./mis-retos";
 import { alternarSonido, sonidoActivo } from "@/lib/sonido";
 
 // Juegos de Pálpito: **siempre contra un amigo, nunca contra la casa**.
+//
+// Acá solo se elige el juego. Los retos —los que esperan algo tuyo y los ya
+// jugados— viven en Apuestas → Retos (palpito_guia.md §6.e): son lo mismo que
+// una apuesta con otra persona, así que están todos juntos en un solo lugar.
 //
 // El Muelle y Despegue contra la casa se retiraron el 2026-07-26. La idea del
 // producto es que dos amigos jueguen entre ellos y Pálpito cobre una comisión
@@ -69,10 +72,6 @@ export function Juegos(props: Props) {
         <span className="jhint">Elegí un juego y retá a un amigo</span>
         {botonSonido}
       </div>
-
-      {/* Lo primero: los retos que esperan algo tuyo. Antes esto solo se
-          encontraba en Cuenta → Amigos y nadie lo adivinaba. */}
-      <MisRetos usuario={props.usuario} />
 
       <div className="jlista">
         {CATALOGO.map((j) => (

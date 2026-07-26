@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { Icono } from "./iconos";
 import { useFormatoCuota } from "./formato-cuota";
 import { PanelAmigos } from "./panel-amigos";
-import { fmt } from "@/lib/cupon";
-import { calcularEstadisticas, cargarTickets, type Estadisticas } from "@/lib/apuestas";
+import { fmt } from "@/lib/dinero";
+import { calcularRendimiento, type Rendimiento, type RetoResumen } from "@/lib/rendimiento";
 
 type Props = {
   usuario: { email: string; admin?: boolean } | null;
@@ -14,11 +14,13 @@ type Props = {
   onSalir: () => void;
   onAviso: (texto: string) => void;
   onCambioSaldo: () => void;
+  onIrARetos: () => void;
 };
 
 // Anillo de aciertos: un solo arco lima sobre el fondo rojo. Sin librerías.
 function Anillo({ ganadas, perdidas }: { ganadas: number; perdidas: number }) {
   const resueltas = ganadas + perdidas;
+  // Los empates no entran en el porcentaje: no se acertó ni se erró.
   const R = 46;
   const C = 2 * Math.PI * R;
   const pct = resueltas > 0 ? ganadas / resueltas : 0;
@@ -52,17 +54,30 @@ function Anillo({ ganadas, perdidas }: { ganadas: number; perdidas: number }) {
   );
 }
 
-export function PanelCuenta({ usuario, saldo, onEntrar, onSalir, onAviso, onCambioSaldo }: Props) {
+export function PanelCuenta({
+  usuario,
+  saldo,
+  onEntrar,
+  onSalir,
+  onAviso,
+  onCambioSaldo,
+  onIrARetos,
+}: Props) {
   const { formato, cambiarFormato } = useFormatoCuota();
-  const [est, setEst] = useState<Estadisticas | null>(null);
+  const [est, setEst] = useState<Rendimiento | null>(null);
   const [pestania, setPestania] = useState<"cuenta" | "amigos">("cuenta");
 
   useEffect(() => {
     if (!usuario) return;
     let activo = true;
-    cargarTickets().then((t) => {
-      if (activo) setEst(calcularEstadisticas(t));
-    });
+    (async () => {
+      try {
+        const r = await fetch("/api/desafios").then((x) => x.json());
+        if (activo && r.ok) setEst(calcularRendimiento(r.desafios as RetoResumen[]));
+      } catch {
+        // Sin datos no se muestra el bloque, que es lo mismo que ver cero retos.
+      }
+    })();
     return () => {
       activo = false;
     };
@@ -97,7 +112,9 @@ export function PanelCuenta({ usuario, saldo, onEntrar, onSalir, onAviso, onCamb
         </button>
       </div>
 
-      {pestania === "amigos" && <PanelAmigos onAviso={onAviso} onCambio={onCambioSaldo} />}
+      {pestania === "amigos" && (
+        <PanelAmigos onAviso={onAviso} onCambio={onCambioSaldo} onIrARetos={onIrARetos} />
+      )}
 
       {pestania === "cuenta" && (
         <>
@@ -107,6 +124,7 @@ export function PanelCuenta({ usuario, saldo, onEntrar, onSalir, onAviso, onCamb
         <small>Fichas de prueba</small>
       </div>
 
+      {/* Cómo te fue contra otros. Sale de tus retos: acá no hay casa. */}
       {est && est.total > 0 && (
         <>
           <div className="pf-card">
@@ -124,34 +142,30 @@ export function PanelCuenta({ usuario, saldo, onEntrar, onSalir, onAviso, onCamb
                   <span>Perdidas</span>
                   <b className="mono">{est.perdidas}</b>
                 </div>
+                {est.empatadas > 0 && (
+                  <div className="ly">
+                    <i className="p-anulada" />
+                    <span>Empatadas</span>
+                    <b className="mono">{est.empatadas}</b>
+                  </div>
+                )}
                 <div className="ly">
                   <i className="p-abierta" />
                   <span>En juego</span>
-                  <b className="mono">{est.abiertas}</b>
+                  <b className="mono">{est.enJuego}</b>
                 </div>
-                {est.anuladas > 0 && (
-                  <div className="ly">
-                    <i className="p-anulada" />
-                    <span>Anuladas</span>
-                    <b className="mono">{est.anuladas}</b>
-                  </div>
-                )}
               </div>
             </div>
           </div>
 
           <div className="pf-grid">
             <div className="pf-stat">
-              <span>Apuestas</span>
+              <span>Retos</span>
               <b className="mono">{est.total}</b>
             </div>
             <div className="pf-stat">
-              <span>Apostado</span>
+              <span>Puesto</span>
               <b className="mono">{fmt(est.apostado)}</b>
-            </div>
-            <div className="pf-stat">
-              <span>En juego</span>
-              <b className="mono">{fmt(est.enJuego)}</b>
             </div>
             <div className={`pf-stat ${balance > 0 ? "pos" : balance < 0 ? "neg" : ""}`}>
               <span>Balance</span>
@@ -161,24 +175,6 @@ export function PanelCuenta({ usuario, saldo, onEntrar, onSalir, onAviso, onCamb
               </b>
             </div>
           </div>
-
-          {est.porDia.length > 0 && (
-            <div className="pf-card">
-              <div className="pf-titulo">Por día</div>
-              {est.porDia.map((d) => (
-                <div key={d.dia} className="pf-dia">
-                  <span className="dl">{d.etiqueta}</span>
-                  <span className="dn mono">
-                    {d.total} {d.total === 1 ? "apuesta" : "apuestas"}
-                  </span>
-                  <b className={`db mono ${d.balance > 0 ? "pos" : d.balance < 0 ? "neg" : ""}`}>
-                    {d.balance > 0 ? "+" : ""}
-                    {fmt(d.balance)}
-                  </b>
-                </div>
-              ))}
-            </div>
-          )}
         </>
       )}
 

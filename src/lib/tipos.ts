@@ -30,18 +30,7 @@ export type Evento = {
   mercados: Mercado[];
 };
 
-export type SeleccionCupon = {
-  key: string; // id de la selección
-  eventoId: string;
-  mercadoId: string; // dos picks del mismo mercado se excluyen entre sí
-  mercado: string;
-  pick: string;
-  evento: string;
-  liga: string;
-  hora: string;
-  cuota: number;
-};
+// `SeleccionCupon` y `ModoCupon` vivían acá para el cupón de apostar contra la
+// casa. Se fueron con él el 2026-07-26.
 
-export type ModoCupon = "simple" | "combinada";
-
-export type Vista = "lobby" | "vivo" | "apuestas" | "detalle" | "cuenta" | "juegos";
+export type Vista = "lobby" | "vivo" | "apuestas" | "cuenta" | "juegos";

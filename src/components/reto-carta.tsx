@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icono } from "./iconos";
 import { CartaVista } from "./carta";
-import { fmt } from "@/lib/cupon";
+import { fmt } from "@/lib/dinero";
 
 // Crear un reto de Carta más alta: elegís un amigo, ponés el monto y se lo
 // mandás. El enlace vive una hora.
