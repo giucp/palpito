@@ -11,7 +11,7 @@
 //   · Las tablas son botones de verdad, así que se tocan, se navegan con
 //     teclado y las lee un lector de pantalla.
 
-export type EstadoTabla = "esperando" | "elegida" | "rota" | "sana";
+export type EstadoTabla = "esperando" | "tocada" | "elegida" | "rota" | "sana";
 
 type Props = {
   paso: number; // en qué paso va (0 = todavía en la orilla)
@@ -20,6 +20,9 @@ type Props = {
   jugando: boolean;
   // Cómo quedó cada tabla del paso actual, una vez resuelto.
   revelado: { izquierda: EstadoTabla; derecha: EstadoTabla } | null;
+  // Qué tabla se acaba de tocar, antes de que el servidor conteste. Sin esto
+  // había medio segundo largo sin respuesta al toque y se sentía roto.
+  tocada: 0 | 1 | null;
   hundido: boolean;
   onElegir: (lado: 0 | 1) => void;
 };
@@ -73,11 +76,18 @@ export function MuelleEscena({
   premios,
   jugando,
   revelado,
+  tocada,
   hundido,
   onElegir,
 }: Props) {
   const siguiente = premios[paso] ?? null;
-  const puedeElegir = jugando && !hundido && revelado === null && siguiente !== null;
+  const puedeElegir =
+    jugando && !hundido && revelado === null && tocada === null && siguiente !== null;
+
+  const estadoDe = (lado: 0 | 1): EstadoTabla => {
+    if (revelado) return lado === 0 ? revelado.izquierda : revelado.derecha;
+    return tocada === lado ? "tocada" : "esperando";
+  };
 
   return (
     <div className={`mu-escena ${hundido ? "hundido" : ""}`}>
@@ -96,14 +106,14 @@ export function MuelleEscena({
             <Tabla
               lado={0}
               premio={siguiente}
-              estado={revelado?.izquierda ?? "esperando"}
+              estado={estadoDe(0)}
               activa={puedeElegir}
               onElegir={onElegir}
             />
             <Tabla
               lado={1}
               premio={siguiente}
-              estado={revelado?.derecha ?? "esperando"}
+              estado={estadoDe(1)}
               activa={puedeElegir}
               onElegir={onElegir}
             />
@@ -113,7 +123,9 @@ export function MuelleEscena({
               ? "Elegí una tabla. La otra se rompe igual."
               : hundido
                 ? "Se partió."
-                : "…"}
+                : tocada !== null && !revelado
+                  ? "Pisando…"
+                  : " "}
           </p>
         </div>
       ) : (

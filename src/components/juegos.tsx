@@ -13,14 +13,17 @@ type Props = {
   onEntrar: () => void;
 };
 
+import { PREMIOS } from "@/lib/muelle-tabla";
+
 type Juego = "muelle" | "despegue";
 
 const CATALOGO: Array<{ id: Juego; nombre: string; resumen: string; tag: string }> = [
   {
     id: "muelle",
     nombre: "El Muelle",
-    resumen: "Salta de tabla en tabla. Cada una paga más, pero aguanta menos.",
-    tag: "hasta 48x",
+    resumen: "Dos tablas por paso: elegís una y la otra se rompe. Cada paso paga más.",
+    // Sale de la escalera, no escrito a mano: si se cambia PREMIOS, esto sigue.
+    tag: `hasta ${PREMIOS[PREMIOS.length - 1]}x`,
   },
   {
     id: "despegue",

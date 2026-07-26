@@ -35,6 +35,7 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
   const [revelado, setRevelado] = useState<
     { izquierda: EstadoTabla; derecha: EstadoTabla } | null
   >(null);
+  const [tocada, setTocada] = useState<0 | 1 | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [semilla, setSemilla] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -103,6 +104,7 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
     setOcupado(true);
     setPasos(null);
     setRevelado(null);
+    setTocada(null);
     setSemilla(null);
     setPosicion(0);
 
@@ -135,8 +137,9 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
   // primero cómo quedaron las dos y recién después se avanza, porque si no el
   // jugador nunca llega a ver cuál se partió.
   const saltar = async (lado: 0 | 1) => {
-    if (!partida || ocupado || revelado) return;
+    if (!partida || ocupado || revelado || tocada !== null) return;
     setOcupado(true);
+    setTocada(lado); // respuesta inmediata al toque, antes de que conteste el servidor
 
     const r = await fetch("/api/muelle", {
       method: "POST",
@@ -146,6 +149,7 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
 
     if (!r.ok) {
       setOcupado(false);
+      setTocada(null);
       onAviso("No se pudo saltar, intenta de nuevo");
       return;
     }
@@ -163,6 +167,7 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
     // Una pausa corta para ver la tabla partirse, y sigue.
     await new Promise((r) => setTimeout(r, 620));
     setRevelado(null);
+    setTocada(null);
 
     if (cedio) {
       setPosicion(r.posicion);
@@ -208,6 +213,7 @@ export function Muelle({ usuario, saldo, onAviso, onEntrar }: Props) {
           premios={mults}
           jugando={jugando}
           revelado={revelado}
+          tocada={tocada}
           hundido={estado === "hundida"}
           onElegir={saltar}
         />

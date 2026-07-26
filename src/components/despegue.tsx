@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { capaDe, DespegueLienzo } from "./despegue-lienzo";
+import { capaDe, DespegueEscena } from "./despegue-escena";
 import { Icono } from "./iconos";
 import { fmt } from "@/lib/cupon";
 import { sonar } from "@/lib/sonido";
@@ -40,7 +40,6 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
   const [historial, setHistorial] = useState<Ronda[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [cobrando, setCobrando] = useState(false);
-  const [tema, setTema] = useState<"dark" | "light">("dark");
 
   const t0 = useRef(0);
   const rafRef = useRef<number | null>(null);
@@ -54,15 +53,6 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
 
   const monto = Number(montoTexto.replace(",", ".")) || 0;
   const objetivo = Number(autoTexto.replace(",", ".")) || 0;
-
-  useEffect(() => {
-    const leer = () =>
-      setTema(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
-    leer();
-    const obs = new MutationObserver(leer);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => obs.disconnect();
-  }, []);
 
   const cargarHistorial = useCallback(async () => {
     if (!usuario) return;
@@ -248,7 +238,7 @@ export function Despegue({ usuario, saldo, onAviso, onEntrar }: Props) {
   return (
     <div className="dsp">
       <div className="dsp-caja">
-        <DespegueLienzo estado={estado} multiplicador={mult} tema={tema} />
+        <DespegueEscena estado={estado} multiplicador={mult} />
         <div className={`dsp-mult ${estado}`}>
           <b className="mono">{mult.toFixed(2)}x</b>
           {estado === "estrellada" && <span className="dsp-msg estrellada">Estalló</span>}

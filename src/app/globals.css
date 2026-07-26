@@ -1151,6 +1151,80 @@ button {
 }
 
 /* ============================================================
+   Despegue — escena en SVG y CSS (reemplaza al pixel art)
+   El cielo cambia por capas segun la altura: eso es lo que da
+   sensacion de viaje. Ahora es una transicion entre degradados,
+   que corre en la GPU en vez de repintar un canvas 60 veces por segundo.
+   ============================================================ */
+.dsp-escena { position: relative; overflow: hidden; border-radius: 16px;
+  border: 1px solid var(--line); aspect-ratio: 4 / 3; max-height: 340px; }
+
+.dsp-cielo { position: absolute; inset: 0; transition: background 1.4s ease; }
+.dsp-escena.pista        .dsp-cielo { background: linear-gradient(180deg, #16283c, #12203a 45%, #0a1430); }
+.dsp-escena.nubes        .dsp-cielo { background: linear-gradient(180deg, #24365e, #1b2b52 45%, #111a3d); }
+.dsp-escena.estratosfera .dsp-cielo { background: linear-gradient(180deg, #3a2470, #2a1a5c 45%, #1a1140); }
+.dsp-escena.orbita       .dsp-cielo { background: linear-gradient(180deg, #1d1145, #140d33 45%, #0a0620); }
+.dsp-escena.profundo     .dsp-cielo { background: linear-gradient(180deg, #0d0a24, #080519 45%, #04030d); }
+:root[data-theme="light"] .dsp-escena.pista .dsp-cielo { background: linear-gradient(180deg, #eaf4f2, #d8ecf7 45%, #bfe0f5); }
+:root[data-theme="light"] .dsp-escena.nubes .dsp-cielo { background: linear-gradient(180deg, #dcefef, #c2e2f5 45%, #9ccdf0); }
+
+.dsp-lienzo { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dsp-estrella { fill: #fff; opacity: 0; animation: dsp-titila 4s ease-in-out infinite; }
+.dsp-escena.pista .dsp-estrella { animation-duration: 6s; }
+:root[data-theme="light"] .dsp-estrella { display: none; }
+@keyframes dsp-titila {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.85; }
+}
+
+/* La estela crece con la altura: un degradado, sin dibujar nada */
+.dsp-estela { position: absolute; left: 50%; bottom: 12%; width: 5px; margin-left: -2.5px;
+  border-radius: 100px; transition: height 0.25s linear;
+  background: linear-gradient(180deg, rgba(182,255,61,0.55), rgba(182,255,61,0)); }
+
+.dsp-cohete { position: absolute; left: 50%; width: 46px; margin-left: -23px;
+  transition: top 0.25s linear; }
+.dsp-cohete svg { width: 100%; height: auto; display: block; }
+.dsp-casco { fill: url(#dsp-casco); }
+.dsp-aleta { fill: var(--lima); }
+.dsp-ventana { fill: #1b2b52; }
+.dsp-brillo { fill: rgba(255,255,255,0.55); }
+.dsp-franja { fill: var(--lima); }
+
+/* Vibracion mientras sube: dos pixeles, suficiente para que se sienta motor */
+.dsp-cohete.subiendo { animation: dsp-vibra 0.12s linear infinite; }
+@keyframes dsp-vibra {
+  0%, 100% { transform: translateX(-0.6px); }
+  50%      { transform: translateX(0.6px); }
+}
+
+/* Fuego: un cono que late */
+.dsp-fuego { position: absolute; left: 50%; top: 92%; width: 16px; height: 26px; margin-left: -8px;
+  border-radius: 50% 50% 50% 50% / 30% 30% 70% 70%;
+  background: linear-gradient(180deg, #fff6c2, #ffb02e 45%, rgba(255,80,20,0));
+  animation: dsp-llama 0.16s ease-in-out infinite alternate; }
+@keyframes dsp-llama {
+  from { transform: scaleY(0.82) scaleX(0.9); opacity: 0.85; }
+  to   { transform: scaleY(1.15) scaleX(1.05); opacity: 1; }
+}
+
+/* Al estallar: el cohete cae girando y el cielo destella */
+.dsp-cohete.roto { animation: dsp-cae 0.9s cubic-bezier(0.35, 0, 0.9, 0.6) forwards; }
+@keyframes dsp-cae {
+  0%   { transform: rotate(0deg); opacity: 1; }
+  15%  { transform: rotate(-14deg) translateY(-6px); }
+  100% { transform: rotate(120deg) translateY(140px); opacity: 0; }
+}
+.dsp-estallido { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% 40%, rgba(255,120,60,0.65), rgba(255,60,40,0) 55%);
+  animation: dsp-fogonazo 0.6s ease-out forwards; }
+@keyframes dsp-fogonazo {
+  0%   { opacity: 0; transform: scale(0.5); }
+  25%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* ============================================================
    El Muelle — escena en SVG y CSS (reemplaza al pixel art)
    Las olas son una animacion de transform: corren en la GPU y no
    necesitan repintar nada. Todo lo demas solo se mueve al jugar.
@@ -1200,6 +1274,10 @@ button {
   box-shadow: 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2); }
 .mu-tabla.activa:active { transform: translateY(1px); }
 .mu-tabla:disabled { cursor: default; }
+
+/* Recien tocada: se hunde un poco y se apaga el brillo, para que el toque
+   tenga respuesta antes de que conteste el servidor */
+.mu-tabla.tocada { transform: translateY(3px); filter: brightness(0.82); border-color: var(--lima); }
 
 /* La que elegiste y aguanto */
 .mu-tabla.elegida { border-color: var(--lima); box-shadow: 0 0 0 2px var(--lima), 0 8px 20px rgba(0,0,0,0.4); }
