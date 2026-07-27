@@ -156,11 +156,22 @@ button {
   .saldo .dep { font-size: 11px; padding: 5px 10px; }
 }
 
-/* ---- Layout: 3 columnas / 2 / 1 (guía §3.5) ---- */
-.shell { max-width: 1560px; margin: 0 auto; padding: 16px 18px 40px;
-  display: grid; grid-template-columns: 216px minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
-@media (max-width: 1340px) { .shell { grid-template-columns: 196px minmax(0, 1fr); } .slipcol { display: none; } }
-@media (max-width: 1020px) { .shell { grid-template-columns: minmax(0, 1fr); padding: 12px 13px 120px; } .sportcol { display: none; } }
+/* ---- Layout: una sola columna, centrada ----
+   Era una rejilla de tres columnas: barra de deportes a la izquierda, contenido
+   al medio y cupón a la derecha. Las dos laterales se fueron con el juego contra
+   la casa, pero la rejilla se quedó — y como quedó un solo hijo, el contenido
+   caía en la columna de la barra lateral: **196 px de ancho en una pantalla de
+   1280**, en todas las pantallas de la app. Por eso se veía tan angosto.
+   Ahora es una columna sola. El tope no es 1560 porque una sola columna de ese
+   ancho da renglones imposibles de leer: 780 es un teléfono ancho, que es lo que
+   esta app es.
+
+   Y el `width: 100%` no es de adorno: el `body` es un flex en columna, y ahí un
+   `margin: 0 auto` hace que el elemento **se encoja al contenido** en vez de
+   estirarse. Sin esa línea la app quedaba en una tira angosta en medio de la
+   pantalla, que es de donde venían los 248 px de ancho del contenedor. */
+.shell { width: 100%; max-width: 780px; margin: 0 auto; padding: 16px 18px 40px; }
+@media (max-width: 1020px) { .shell { padding: 12px 13px 120px; } }
 .shell > main { min-width: 0; }
 
 /* ---- Sidebar de deportes ---- */
@@ -872,7 +883,9 @@ button {
 .tk-id { font-size: 11px; color: var(--mist); }
 
 /* ---- Perfil / Mi cuenta ---- */
-.perfil { max-width: 460px; }
+/* El ancho lo pone `.shell`, como en el resto de la app. Antes tenía un
+   `max-width: 460px` propio que lo dejaba más angosto que todo lo demás. */
+.perfil { display: flex; flex-direction: column; }
 .pf-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px;
   margin-bottom: 12px; }
 .pf-titulo { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mist);
@@ -907,35 +920,42 @@ button {
 .pf-stat.pos b { color: var(--sube); }
 .pf-stat.neg b { color: var(--baja); }
 
-/* Desglose por día */
-.pf-dia { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line);
-  font-size: 13px; }
-.pf-dia:first-of-type { border-top: none; padding-top: 0; }
-.pf-dia .dl { font-weight: 600; min-width: 62px; }
-.pf-dia .dn { flex: 1; font-size: 11.5px; color: var(--mist); }
-.pf-dia .db { font-weight: 700; color: var(--ink2); }
-.pf-dia .db.pos { color: var(--sube); }
-.pf-dia .db.neg { color: var(--baja); }
+/* Quién sos: avatar, alias y correo. Va arriba de las pestañas porque no
+   depende de ninguna. El alias vivía escondido dentro de Amigos. */
+.pf-yo { display: flex; align-items: center; gap: 13px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+.pf-avatar { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 14px; background: var(--panel3);
+  border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-jetbrains), monospace; font-size: 16px; font-weight: 700;
+  color: var(--lima-txt); }
+.pf-quien { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pf-quien b { font-size: 18px; font-weight: 750; letter-spacing: -0.02em; }
+.pf-quien span { font-size: 12px; color: var(--mist); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.pf-cambiar { flex: 0 0 auto; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 12px; color: var(--ink2); font-size: 12px; font-weight: 600;
+  transition: 0.18s; }
+.pf-alias-editar { flex: 1; display: flex; gap: 8px; flex-wrap: wrap; }
+.pf-alias-editar input { flex: 1; min-width: 120px; background: var(--panel2);
+  border: 1px solid var(--line); border-radius: 9px; padding: 9px 12px; color: var(--ink);
+  font-size: 14px; outline: none; transition: 0.18s; }
+.pf-alias-editar input:focus { border-color: var(--lima); }
+.pf-alias-editar button { background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 12px; color: var(--ink2); font-size: 12px; font-weight: 600; }
+.pf-alias-editar button.ghost { background: none; }
 
-/* Selector de formato de cuota */
-.pf-formato { display: flex; gap: 8px; }
-.pf-formato button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 11px;
-  color: var(--ink2); font-size: 13px; font-weight: 600; transition: 0.18s; }
-.pf-formato button:hover { border-color: var(--line2); }
-.pf-formato button.on { border-color: var(--lima); color: var(--ink); background: var(--panel3); }
-.pf-formato button small { font-size: 11px; color: var(--mist); }
-.pf-formato button.on small { color: var(--lima-txt); }
 .pf-saldo { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px;
   margin-bottom: 12px; text-align: center; }
 .pf-saldo .k { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--mist); font-weight: 600; }
 .pf-saldo b { display: block; font-size: 34px; color: var(--lima-txt); margin: 6px 0 2px; letter-spacing: -0.02em; }
 .pf-saldo small { color: var(--mist); font-size: 12px; }
-.pf-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
-.pf-row span { color: var(--mist); font-size: 13px; flex: 0 0 auto; }
-.pf-row b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Sin retos jugados no hay nada que promediar; antes acá quedaba un hueco. */
+.pf-sinnada p { font-size: 13px; color: var(--mist); line-height: 1.55; }
+.pf-ir { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px; background: none;
+  border: none; padding: 0; color: var(--lima-txt); font-size: 13px; font-weight: 700; }
+.pf-ir svg { width: 14px; height: 14px; }
 .pf-admin { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--lima);
   border-radius: 12px; padding: 13px 15px; margin-bottom: 12px; color: var(--ink); font-weight: 600;
   font-size: 14px; transition: 0.18s; }
@@ -973,32 +993,11 @@ button {
    marca lo que elegiste vos, y los números siempre en mono.
    ============================================================ */
 
-/* Pestañas dentro de Mi cuenta */
-.pf-pestanias { display: flex; gap: 8px; margin-bottom: 14px; }
-.pf-pestanias button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 11px;
-  color: var(--mist); font-size: 13.5px; font-weight: 600; transition: 0.18s; }
-.pf-pestanias button svg { width: 17px; height: 17px; }
-.pf-pestanias button:hover { border-color: var(--line2); color: var(--ink2); }
-.pf-pestanias button.on { border-color: var(--lima); color: var(--ink); background: var(--panel3); }
-
 .am-cargando { text-align: center; color: var(--mist); font-size: 13px; padding: 40px 0; }
 .am-vacio { color: var(--mist); font-size: 13px; line-height: 1.55; }
 .am-pista { display: block; color: var(--mist); font-size: 11.5px; margin-top: 10px; line-height: 1.5; }
 
-/* Alias */
-.am-alias { display: flex; align-items: center; gap: 12px; }
-.am-alias b { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
-.am-alias button, .am-alias-editar button { background: var(--panel2); border: 1px solid var(--line);
-  border-radius: 9px; padding: 8px 13px; color: var(--ink2); font-size: 12.5px; font-weight: 600;
-  transition: 0.18s; margin-left: auto; }
-.am-alias button:hover { border-color: var(--lima); color: var(--ink); }
-.am-alias-editar { display: flex; gap: 8px; flex-wrap: wrap; }
-.am-alias-editar input { flex: 1; min-width: 130px; background: var(--panel2); border: 1px solid var(--line);
-  border-radius: 9px; padding: 10px 12px; color: var(--ink); font-size: 14px; outline: none; transition: 0.18s; }
-.am-alias-editar input:focus { border-color: var(--lima); }
-.am-alias-editar button { margin-left: 0; }
-.am-alias-editar button.ghost { background: none; }
+/* El alias se edita en la cabecera de Cuenta, no acá: ver `.pf-yo`. */
 
 .am-desafiar { margin-bottom: 12px; }
 
@@ -1624,13 +1623,6 @@ button {
 .ap-retirar:disabled { opacity: 0.5; cursor: not-allowed; }
 .ap-nota { color: var(--mist); font-size: 11.5px; line-height: 1.5; margin: 12px 0; }
 
-/* Desde Amigos, el camino a los retos: viven en Apuestas, no acá */
-.am-ver-retos { display: flex; align-items: center; gap: 11px; width: 100%; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 12px; padding: 13px; color: var(--ink2);
-  font-size: 13.5px; font-weight: 600; transition: 0.18s; }
-.am-ver-retos svg { width: 17px; height: 17px; color: var(--mist); }
-.am-ver-retos .ir { margin-left: auto; }
-
 /* Tus retos: el título de cada grupo separa, y el resultado se dice en color */
 .rt .pf-titulo { margin-top: 18px; }
 .rt > .pf-titulo:first-child { margin-top: 0; }
@@ -1783,7 +1775,7 @@ button {
   .jcard:hover { border-color: var(--lima); transform: translateY(-2px); }
   .am-partido:hover { border-color: var(--lima); }
   .rt-item:hover { border-color: var(--line2); }
-  .am-ver-retos:hover { border-color: var(--lima); color: var(--ink); }
+  .pf-cambiar:hover { border-color: var(--lima); color: var(--ink); }
 }
 
 @media (prefers-reduced-motion: reduce) {

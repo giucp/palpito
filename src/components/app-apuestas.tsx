@@ -6,25 +6,21 @@ import { Cabecera } from "./cabecera";
 import { Juegos } from "./juegos";
 import { Icono, IconosDefs } from "./iconos";
 import { PanelCuenta } from "./panel-cuenta";
-import { Retos } from "./retos";
 import { Tablero } from "./tablero";
 import { TableroApuestas } from "./tablero-apuestas";
 import { Polymarket } from "./polymarket";
-import { ProveedorFormatoCuota } from "./formato-cuota";
 import { crearClienteNavegador } from "@/lib/supabase/client";
 import type { Vista } from "@/lib/tipos";
 
 // La app entera, en vistas que se intercambian.
 //
-// Apuestas es la zona social (palpito_guia.md §6.e): el tablero abierto, donde
-// cualquiera publica una apuesta sobre un partido y espera quien se la tome, y
-// Retos, donde ves los tuyos y quedan las ganadas y las perdidas. Juegos quedó
-// solo para elegir el juego.
+// **Apuestas** es el tablero abierto y nada más (palpito_guia.md §6.e):
+// cualquiera publica una apuesta sobre un partido y espera quien se la tome.
+// **Cuenta** es lo tuyo: quién sos, cuánto tenés, tus retos y tus amigos.
+// **Juegos** es solo el catálogo.
 //
-// El cupón y Mis apuestas se retiraron con el resto del juego contra la casa:
-// acá no se apuesta contra Pálpito, se apuesta contra alguien.
-
-type Seccion = "tablero" | "retos";
+// Los retos estuvieron un día en Apuestas y el dueño los mudó a Cuenta el
+// 2026-07-27, con razón: son tuyos, no del tablero público.
 
 type Props = {
   usuario: { email: string; admin?: boolean } | null;
@@ -33,18 +29,16 @@ type Props = {
 
 export function AppApuestas({ usuario, saldo }: Props) {
   const router = useRouter();
-  // `?ver=apuestas` abre la app directo en esa pestaña, y `?ver=retos` además
-  // en la sección de retos. Lo usa el botón de volver de un desafío cuando no
-  // hay historial: si llegaste desde WhatsApp, volver tiene que dejarte donde
-  // está tu reto, no en Deportes.
+  // `?ver=<pestaña>` abre la app directo ahí. `?ver=retos` es el caso especial:
+  // lo usa el botón de volver de un desafío cuando no hay historial, y tiene que
+  // dejarte en Cuenta con los retos abiertos, no en Deportes.
   const paramVista = useSearchParams().get("ver");
   const [vista, setVista] = useState<Vista>(() => {
-    if (paramVista === "retos") return "apuestas";
+    if (paramVista === "retos") return "cuenta";
     return paramVista && ["lobby", "vivo", "juegos", "apuestas", "cuenta"].includes(paramVista)
       ? (paramVista as Vista)
       : "lobby";
   });
-  const [seccion, setSeccion] = useState<Seccion>(paramVista === "retos" ? "retos" : "tablero");
   const [toast, setToast] = useState<{ msg: string; n: number } | null>(null);
 
   // El contador hace que dos avisos iguales seguidos reinicien el temporizador.
@@ -73,7 +67,7 @@ export function AppApuestas({ usuario, saldo }: Props) {
   };
 
   return (
-    <ProveedorFormatoCuota>
+    <>
       <IconosDefs />
       <Cabecera vista={vista} onVista={irVista} usuario={usuario} saldo={saldo} onAviso={aviso} />
 
@@ -105,39 +99,15 @@ export function AppApuestas({ usuario, saldo }: Props) {
             <div className="view">
               <div className="vhead">
                 <h2>Apuestas</h2>
-                <span className="sub">
-                  {seccion === "tablero"
-                    ? "Lo que publicó cualquiera, esperando quien se lo tome"
-                    : "Lo que tenés con otros"}
-                </span>
+                <span className="sub">Lo que publicó cualquiera, esperando quien se lo tome</span>
               </div>
-
-              <div className="secciones">
-                <button
-                  className={seccion === "tablero" ? "on" : ""}
-                  onClick={() => setSeccion("tablero")}
-                >
-                  Apuestas
-                </button>
-                <button
-                  className={seccion === "retos" ? "on" : ""}
-                  onClick={() => setSeccion("retos")}
-                >
-                  Retos
-                </button>
-              </div>
-
-              {seccion === "tablero" ? (
-                <TableroApuestas
-                  usuario={usuario}
-                  saldo={saldo}
-                  onAviso={aviso}
-                  onCambio={() => router.refresh()}
-                  onEntrar={() => router.push("/entrar")}
-                />
-              ) : (
-                <Retos usuario={usuario} onEntrar={() => router.push("/entrar")} />
-              )}
+              <TableroApuestas
+                usuario={usuario}
+                saldo={saldo}
+                onAviso={aviso}
+                onCambio={() => router.refresh()}
+                onEntrar={() => router.push("/entrar")}
+              />
             </div>
           )}
 
@@ -164,14 +134,11 @@ export function AppApuestas({ usuario, saldo }: Props) {
               <PanelCuenta
                 usuario={usuario}
                 saldo={saldo}
+                seccionInicial={paramVista === "retos" ? "retos" : "cuenta"}
                 onEntrar={() => router.push("/entrar")}
                 onSalir={cerrarSesion}
                 onAviso={aviso}
                 onCambioSaldo={() => router.refresh()}
-                onIrARetos={() => {
-                  setSeccion("retos");
-                  irVista("apuestas");
-                }}
               />
             </div>
           )}
@@ -206,6 +173,6 @@ export function AppApuestas({ usuario, saldo }: Props) {
       <div className={`toast ${toast ? "on" : ""}`} role="status" aria-live="polite">
         {toast?.msg ?? ""}
       </div>
-    </ProveedorFormatoCuota>
+    </>
   );
 }

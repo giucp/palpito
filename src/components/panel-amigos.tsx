@@ -48,27 +48,23 @@ type Respuesta = {
   enviadas?: Invitacion[];
 };
 
-// La lista de desafíos ya no vive acá: está en Apuestas → Retos, junto con los
-// de juego. Tenerla en dos lugares era pedir que uno de los dos quedara viejo.
+// Ni la lista de desafíos ni el alias viven acá. Los retos están en su propia
+// sección de Cuenta y el alias arriba, con la identidad. Acá quedó una sola
+// cosa: a quién podés retar.
 
 export function PanelAmigos({
   onAviso,
   onCambio,
-  onIrARetos,
 }: {
   onAviso: (t: string) => void;
   onCambio: () => void;
-  onIrARetos: () => void;
 }) {
-  const [alias, setAlias] = useState<string | null>(null);
   const [amigos, setAmigos] = useState<Amigo[]>([]);
   const [recibidas, setRecibidas] = useState<Invitacion[]>([]);
   const [enviadas, setEnviadas] = useState<Invitacion[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [buscarAlias, setBuscarAlias] = useState("");
-  const [editandoAlias, setEditandoAlias] = useState(false);
-  const [aliasNuevo, setAliasNuevo] = useState("");
 
   // Flujo de creación
   const [paso, setPaso] = useState<Paso>("inicio");
@@ -90,7 +86,6 @@ export function PanelAmigos({
 
   const aplicar = useCallback((a: Respuesta) => {
     if (a.ok) {
-      setAlias(a.alias ?? null);
       setAmigos(a.amigos ?? []);
       setRecibidas(a.recibidas ?? []);
       setEnviadas(a.enviadas ?? []);
@@ -146,24 +141,6 @@ export function PanelAmigos({
     });
     onAviso(aceptar ? "Amigo agregado" : "Invitación rechazada");
     recargar();
-  }
-
-  async function guardarAlias() {
-    const q = aliasNuevo.trim().toLowerCase();
-    const r = await fetch("/api/amigos", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accion: "alias", alias: q }),
-    }).then((x) => x.json());
-    const motivos: Record<string, string> = {
-      alias_tomado: "Ese alias ya está tomado",
-      alias_invalido: "Usá 3 a 20 letras, números o guión bajo",
-    };
-    onAviso(r.ok ? "Alias actualizado" : (motivos[r.motivo] ?? "No se pudo"));
-    if (r.ok) {
-      setEditandoAlias(false);
-      recargar();
-    }
   }
 
   // La cartelera del paso "elegir partido", igual que en el tablero abierto.
@@ -482,39 +459,11 @@ export function PanelAmigos({
   }
 
   // ---------- Pantalla principal ----------
+  //
+  // El alias ya no se edita acá: es tu identidad, así que vive arriba en Cuenta,
+  // junto al correo y el saldo. Acá quedó solo tu gente.
   return (
     <div className="am-panel">
-      <div className="pf-card">
-        <div className="pf-titulo">Tu alias</div>
-        {editandoAlias ? (
-          <div className="am-alias-editar">
-            <input
-              value={aliasNuevo}
-              onChange={(e) => setAliasNuevo(e.target.value)}
-              placeholder={alias ?? "tu_alias"}
-              maxLength={20}
-            />
-            <button onClick={guardarAlias}>Guardar</button>
-            <button className="ghost" onClick={() => setEditandoAlias(false)}>
-              Cancelar
-            </button>
-          </div>
-        ) : (
-          <div className="am-alias">
-            <b>@{alias ?? "—"}</b>
-            <button
-              onClick={() => {
-                setAliasNuevo(alias ?? "");
-                setEditandoAlias(true);
-              }}
-            >
-              Cambiar
-            </button>
-          </div>
-        )}
-        <small className="am-pista">Así te encuentran tus amigos.</small>
-      </div>
-
       <button className="bapostar am-desafiar" onClick={() => setPaso("amigo")}>
         Desafiar a un amigo
       </button>
@@ -580,13 +529,6 @@ export function PanelAmigos({
         )}
       </div>
 
-      {/* Los desafíos ya no se listan acá: están en Apuestas → Retos, junto con
-          los de juego y con el historial. */}
-      <button className="am-ver-retos" onClick={onIrARetos}>
-        <Icono id="i-slip" />
-        <span>Ver tus retos</span>
-        <Icono id="i-arr" className="ir" />
-      </button>
     </div>
   );
 }
