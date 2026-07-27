@@ -160,6 +160,8 @@ export type Partido = {
   mercado: { local: number; visita: number } | null;
   /** La línea de carreras del mercado y sus dos precios. */
   total: TotalMercado | null;
+  /** El −1.5 del favorito: quién y a cuánto paga. */
+  paliza: { equipo: string; lado: "local" | "visita"; p: number } | null;
   /** El contexto de la jornada, para poder normalizar por posición. */
   jornada: Jornada;
 };
@@ -536,7 +538,8 @@ function estadioDe(g: Crudo): Estadio | null {
 export async function traerJornada(
   fecha: string,
   mercado?: Map<string, { local: number; visita: number }>,
-  totales?: Map<string, TotalMercado>
+  totales?: Map<string, TotalMercado>,
+  palizas?: Map<string, { equipo: string; lado: "local" | "visita"; p: number }>
 ): Promise<Partido[]> {
   const temporada = Number(fecha.slice(0, 4));
   const [{ juegos, porJuego }, ofe, bull, form] = await Promise.all([
@@ -596,6 +599,7 @@ export async function traerJornada(
       clima: null, // se pide abajo, ya sabiendo el estadio y la hora
       mercado: mercado?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
       total: totales?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
+      paliza: palizas?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
       // Se rellena abajo, cuando ya están todos los partidos.
       jornada: {
         fipsAbridores: [],

@@ -198,7 +198,12 @@ export function PanelSenales() {
                   <span className={`sn-cmarca ${s.curado ? "tomo" : "paso"}`}>
                     {s.curado ? "La tomo" : "Paso"}
                   </span>
-                  <b>{s.equipo}</b>
+                  {/* El partido va siempre. En un total, "Más de 9.5" a secas no
+                      dice de qué juego se está hablando. */}
+                  <span className="sn-cque">
+                    <b>{s.equipo}</b>
+                    <i>{s.partido.replace(" vs. ", " · ")}</i>
+                  </span>
                   <span className="sn-cmotor">
                     el motor {s.entra ? "la recomendó" : "la descartó"}
                     {s.curado !== s.entra && <i> · difieren</i>}

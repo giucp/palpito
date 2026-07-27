@@ -17,6 +17,11 @@ import {
   nombreTotalDe,
   OPCIONES_TOTALES,
 } from "../src/lib/senales/modelos-totales.ts";
+import {
+  MODELOS_LINEA,
+  candidatoLineaDe,
+  nombreLineaDe,
+} from "../src/lib/senales/modelos-linea.ts";
 
 const fecha = process.argv[2]?.match(/^\d{4}-\d{2}-\d{2}$/)
   ? process.argv[2]
@@ -30,7 +35,7 @@ console.log(
 );
 
 const m = await mercadoDelDia(fecha);
-const partidos = await traerJornada(fecha, m.ganador, m.totales);
+const partidos = await traerJornada(fecha, m.ganador, m.totales, m.palizas);
 console.log(`${partidos.length} partidos · ${m.totales.size} con línea de carreras\n`);
 
 const barra = (n: number | null) => {
@@ -91,6 +96,30 @@ for (const m2 of MODELOS_TOTALES) {
   const pct2 = totales.length ? Math.round((n / totales.length) * 100) : 0;
   console.log(`  ${m2.nombre.padEnd(12)} ${String(pct2).padStart(3)}%  (peso ${m2.peso})`);
 }
+// ---- Ganar por dos o más ----
+const lineas = partidos
+  .flatMap(candidatoLineaDe)
+  .map((c) => ({ c, v: juzgar(c, MODELOS_LINEA) }))
+  .sort((a, b) => b.v.score - a.v.score);
+
+console.log(`\n${"═".repeat(72)}\nGANAR POR DOS O MÁS (run line)\n`);
+for (const { c, v } of lineas) {
+  if (!v.entra && !todos) continue;
+  console.log(
+    `${v.entra ? "🟢" : "  "} ${nombreLineaDe(c).padEnd(28)} ${String(v.score).padStart(3)}/100   ` +
+      `${v.acuerdo}/${v.midieron} a favor   ${c.partido.titulo.replace(" vs. ", " · ")}`
+  );
+  for (const d of v.detalle) {
+    console.log(`      ${d.nombre.padEnd(20)} ${barra(d.score)}`);
+    if (d.score !== null) for (const m3 of d.motivos) console.log(`         ${m3}`);
+  }
+  if (!v.entra) console.log(`   ✗ ${v.motivoDescarte}`);
+  console.log();
+}
+console.log(
+  `Entran ${lineas.filter((x) => x.v.entra).length} de ${lineas.length} candidatos de run line.`
+);
+
 console.log("\n" + "─".repeat(72));
 
 // El reparto de motivos de descarte dice si los umbrales están donde deben.

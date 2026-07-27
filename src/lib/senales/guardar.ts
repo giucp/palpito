@@ -9,6 +9,7 @@ import {
   nombreTotalDe,
   OPCIONES_TOTALES,
 } from "./modelos-totales.ts";
+import { MODELOS_LINEA, candidatoLineaDe, nombreLineaDe } from "./modelos-linea.ts";
 import { juzgar } from "./motor.ts";
 
 // Guardar lo que dijo el motor cada día, y comprobarlo después.
@@ -54,12 +55,16 @@ export type ResumenSenales = {
  * preferible una jornada con siete modelos a no guardar nada: el día no se
  * repite.
  */
+export type Paliza = { equipo: string; lado: "local" | "visita"; p: number };
+
 export async function mercadoDelDia(fecha: string): Promise<{
   ganador: Map<string, { local: number; visita: number }>;
   totales: Map<string, TotalMercado>;
+  palizas: Map<string, Paliza>;
 }> {
   const ganador = new Map<string, { local: number; visita: number }>();
   const totales = new Map<string, TotalMercado>();
+  const palizas = new Map<string, Paliza>();
   try {
     for (const p of await traerPartidosDelDia(fecha)) {
       const clave = clavePartido(p.visita, p.local);
@@ -72,15 +77,20 @@ export async function mercadoDelDia(fecha: string): Promise<{
       if (p.over && p.under) {
         totales.set(clave, { linea: p.over.linea, mas: p.over.p, menos: p.under.p });
       }
+      if (p.paliza) palizas.set(clave, p.paliza);
     }
   } catch {}
-  return { ganador, totales };
+  return { ganador, totales, palizas };
 }
 
 /** Calcula la jornada y la guarda. Si ya estaba guardada, no hace nada. */
 export async function guardarSenales(
   fecha: string,
-  mercado?: { ganador: Map<string, { local: number; visita: number }>; totales: Map<string, TotalMercado> }
+  mercado?: {
+    ganador: Map<string, { local: number; visita: number }>;
+    totales: Map<string, TotalMercado>;
+    palizas: Map<string, Paliza>;
+  }
 ): Promise<ResumenSenales> {
   const supabase = crearClienteAdmin();
 
@@ -93,11 +103,11 @@ export async function guardarSenales(
     .select("mercado")
     .eq("fecha", fecha);
   const guardadas = new Set((yaHay ?? []).map((f) => f.mercado as string));
-  if (guardadas.has("ganador") && guardadas.has("total")) {
+  if (guardadas.has("ganador") && guardadas.has("total") && guardadas.has("linea")) {
     return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
   }
 
-  const partidos = await traerJornada(fecha, mercado?.ganador, mercado?.totales);
+  const partidos = await traerJornada(fecha, mercado?.ganador, mercado?.totales, mercado?.palizas);
   if (partidos.length === 0) return { fecha, guardados: 0, entran: 0, motivo: "sin_jornada" };
 
   const conAbridores = partidos.filter((p) => p.abridorLocal && p.abridorVisita).length;
@@ -158,9 +168,33 @@ export async function guardarSenales(
     })
   );
 
+  // Ganar por dos o más: la run line. Un solo candidato por partido, el que el
+  // mercado publica con −1.5.
+  const deLinea = partidos.flatMap((p) =>
+    candidatoLineaDe(p).map((c) => {
+      const v = juzgar(c, MODELOS_LINEA);
+      return {
+        ...comun(p),
+        mercado: "linea",
+        linea: 1.5,
+        lado: c.lado,
+        equipo: nombreLineaDe(c),
+        score: v.score,
+        midieron: v.midieron,
+        total_modelos: v.total,
+        acuerdo: v.acuerdo,
+        entra: v.entra,
+        motivo_descarte: v.motivoDescarte,
+        contradice: v.contradice ? v.contradice.id : null,
+        detalle: v.detalle,
+      };
+    })
+  );
+
   const filas = [
     ...(guardadas.has("ganador") ? [] : deGanador),
     ...(guardadas.has("total") ? [] : deTotales),
+    ...(guardadas.has("linea") ? [] : deLinea),
   ];
   if (filas.length === 0) return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
 
@@ -172,7 +206,24 @@ export async function guardarSenales(
     return { fecha, guardados: 0, entran: 0, motivo: "error" };
   }
 
-  return { fecha, guardados: filas.length, entran: filas.filter((f) => f.entra).length };
+  // Se cuenta lo que **quedó en la tabla**, no lo que se mandó.
+  //
+  // No es paranoia: la clave única no incluía el mercado, las filas de run line
+  // chocaban con las de ganador del mismo partido, y como ese choque cae en el
+  // `catch` de arriba la ruta contestaba "guardados: 12" sin haber guardado
+  // ninguna. Un fallo que se declara a sí mismo como éxito no se descubre nunca.
+  const { count } = await supabase
+    .from("senales_dia")
+    .select("*", { count: "exact", head: true })
+    .eq("fecha", fecha);
+  const guardados = (count ?? 0) - (yaHay?.length ?? 0);
+
+  return {
+    fecha,
+    guardados,
+    entran: filas.filter((f) => f.entra).length,
+    ...(guardados < filas.length ? { motivo: `solo entraron ${guardados} de ${filas.length}` } : {}),
+  };
 }
 
 /**
@@ -212,7 +263,14 @@ export async function resolverSenales(): Promise<{ resueltos: number; pendientes
       // para que no vuelva a mirarse, pero queda fuera de la estadística.
       let gano: boolean | null = null;
       if (!r.cancelado) {
-        if (f.mercado === "total") {
+        if (f.mercado === "linea") {
+          // Cubre el −1.5 si ganó por dos o más. Perder o ganar por una, no.
+          const dif =
+            f.lado === "local"
+              ? r.carrerasLocal - r.carrerasVisita
+              : r.carrerasVisita - r.carrerasLocal;
+          gano = dif >= 2;
+        } else if (f.mercado === "total") {
           const total = r.carrerasLocal + r.carrerasVisita;
           const linea = Number(f.linea);
           // Empate exacto con la línea: ni acierta ni falla, como en cualquier
