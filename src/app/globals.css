@@ -1769,10 +1769,13 @@ button {
 /* El carrusel. Se sale del ancho del contenedor a propósito, con márgenes
    negativos, para que las tarjetas lleguen hasta el borde de la pantalla y se
    note que hay más de costado. */
+/* `align-items: start` para que cada tarjeta mida lo que traiga: el bombazo
+   tiene seis patas y los demás cuatro, y estirarlos a todos al más alto dejaba
+   un hueco muerto abajo en los cortos. */
 .cb-carrusel {
-  display: flex; gap: 11px; overflow-x: auto; scroll-snap-type: x mandatory;
-  margin: 0 -13px; padding: 2px 13px 6px; scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+  display: flex; align-items: start; gap: 11px; overflow-x: auto;
+  scroll-snap-type: x mandatory; margin: 0 -13px; padding: 2px 13px 6px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
 }
 .cb-carrusel::-webkit-scrollbar { display: none; }
 
@@ -1795,9 +1798,7 @@ button {
   color: var(--lima-txt); }
 .cb-regla { font-size: 12px; color: var(--mist); line-height: 1.45; }
 
-/* Las patas ocupan el alto que sobre, para que todas las tarjetas midan igual
-   y el pie quede alineado al deslizar. */
-.cb-patas { flex: 1; border-top: 1px solid var(--line); }
+.cb-patas { border-top: 1px solid var(--line); }
 .cb-pata { padding: 10px 15px; border-bottom: 1px solid var(--line); }
 .cb-partido { display: flex; align-items: baseline; gap: 7px; font-size: 11px;
   color: var(--mist); margin-bottom: 2px; }
