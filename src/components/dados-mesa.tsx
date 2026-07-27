@@ -169,11 +169,15 @@ export function DadosMesa({
         </p>
       )}
 
-      {/* Lo que pediste explicado, corto: cómo funciona el desempate. */}
+      {/* Cómo funciona el desempate, corto. Y el plazo, que importa saberlo
+          antes y no cuando ya pasó. */}
       <p className="dma-reglas">
         <b>Si empatan, se vuelve a tirar.</b> Las tiradas de desempate no se sortean en el momento:
         ya estaban decididas desde que se creó el reto, igual que la primera. Por eso da lo mismo
         quién tire antes y cuánto tarde el otro.
+        <br />
+        Tienen una hora para tirar desde que se aceptó. Si alguno no tira, vuelven las fichas a
+        los dos.
       </p>
     </div>
   );

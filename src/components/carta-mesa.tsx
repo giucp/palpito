@@ -144,6 +144,14 @@ export function CartaMesa({
           Listo. Falta que @{aliasRival} saque la suya y se revelan las dos.
         </p>
       )}
+
+      {/* El plazo, que conviene saberlo antes y no cuando ya pasó. */}
+      {!resultado && (
+        <p className="cma-reglas">
+          Tienen una hora para sacar desde que se aceptó. Si alguno no saca, vuelven las fichas a
+          los dos.
+        </p>
+      )}
     </div>
   );
 }

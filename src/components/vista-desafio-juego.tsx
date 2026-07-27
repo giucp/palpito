@@ -200,10 +200,12 @@ export function VistaDesafioJuego({
           </div>
         )}
 
+        {/* Un reto cancelado puede serlo por dos motivos —nadie lo aceptó, o lo
+            aceptaron y no lo jugaron— y en los dos vuelve la plata. Se dice sin
+            señalar a nadie: la app no sabe quién se quedó sin jugar y tampoco
+            hace falta. */}
         {estado === "cancelado" && (
-          <div className="dsf-estado">
-            Este desafío venció sin respuesta y se devolvieron las fichas.
-          </div>
+          <div className="dsf-estado">Este desafío no se jugó y se devolvieron las fichas.</div>
         )}
 
         {estado === "pendiente" && entrado && !soyRival && !soyCreador && (
