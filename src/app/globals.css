@@ -1706,3 +1706,57 @@ button {
     transition: none !important;
   }
 }
+
+/* ============================================================
+   Apuestas libres — apostar por cualquier cosa
+   ============================================================ */
+.al-texto { width: 100%; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 13px; color: var(--ink); font-size: 15px;
+  font-family: inherit; line-height: 1.45; resize: vertical; }
+.al-texto:focus { outline: none; border-color: var(--lima); }
+.al-ayuda { font-size: 11.5px; color: var(--mist); line-height: 1.5; margin-top: 7px; }
+
+/* La frase de la apuesta. Va entre comillas y en cursiva porque es lo que
+   escribió una persona, no una etiqueta de la app. */
+.al-frase { font-size: 15px; font-style: italic; color: var(--ink2); line-height: 1.5;
+  margin: 10px 0; }
+.al-frase.grande { font-size: 18px; color: var(--ink); text-align: center; margin: 14px 0 18px; }
+
+/* Las dos formas de decidir. Botones grandes con su explicación adentro: la
+   diferencia entre una y otra hay que entenderla ANTES de elegir, no después. */
+.al-modo { display: flex; flex-direction: column; gap: 8px; }
+.al-modo button { text-align: left; padding: 13px 15px; border-radius: 13px;
+  border: 1px solid var(--line); background: var(--panel); transition: 0.16s;
+  display: flex; flex-direction: column; gap: 4px; }
+.al-modo button b { font-size: 14px; font-weight: 700; color: var(--ink2); }
+.al-modo button span { font-size: 11.5px; color: var(--mist); line-height: 1.45; }
+.al-modo button.on { border-color: var(--lima); background: var(--panel2); }
+.al-modo button.on b { color: var(--ink); }
+
+.al-mediador { margin-top: 12px; }
+.am-item.elegido { border-color: var(--lima); }
+
+/* La regla, en la pantalla donde se acepta. Si alguien se entera de que el
+   silencio confirma recien cuando ya perdio por no contestar, la app le mintio
+   por omision. */
+.al-reglas { font-size: 12px; color: var(--mist); line-height: 1.6; padding: 12px 14px;
+  border-radius: 12px; background: var(--panel2); border: 1px solid var(--line);
+  margin: 14px 0; }
+.al-reglas b { color: var(--ink2); font-weight: 700; }
+
+.al-declarar { margin-top: 16px; }
+.al-declarar h3 { font-size: 15px; font-weight: 700; text-align: center; margin-bottom: 10px; }
+.al-votos { display: flex; gap: 9px; }
+.al-votos button { flex: 1; padding: 14px 10px; border-radius: 12px; font-size: 14px;
+  font-weight: 700; border: 1px solid var(--line2); background: var(--panel2);
+  color: var(--ink); transition: 0.16s; }
+.al-votos button:hover { border-color: var(--lima); }
+.al-votos button:disabled { opacity: 0.5; }
+
+.al-final { text-align: center; margin-top: 16px; }
+.al-final b { display: block; font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+.al-final.gano b { color: var(--lima-txt); }
+.al-final.perdio b { color: var(--baja); }
+.al-final span { display: block; font-size: 13px; color: var(--mist); margin-top: 3px; }
+.al-final .dsf-volver { margin-top: 12px; color: var(--ink2); border: 1px solid var(--line2);
+  border-radius: 100px; padding: 9px 18px; }

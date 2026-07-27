@@ -5,6 +5,7 @@ import { crearClienteServidor } from "@/lib/supabase/server";
 import { VistaDesafio } from "@/components/vista-desafio";
 import { VistaDesafioJuego } from "@/components/vista-desafio-juego";
 import { jugarDados } from "@/lib/dados";
+import { VistaApuestaLibre } from "@/components/vista-apuesta-libre";
 
 // La pantalla que abre quien recibe el desafío por WhatsApp.
 //
@@ -20,7 +21,7 @@ async function traerDesafio(id: string) {
   const { data } = await admin
     .from("desafios")
     .select(
-      "id, creador_id, rival_id, tipo, lado_creador, monto, comision_bps, estado, expira_at, semilla, jugada_creador, jugada_rival, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
+      "id, creador_id, rival_id, tipo, lado_creador, monto, comision_bps, estado, expira_at, semilla, descripcion, mediador_id, mediador_acepto_at, aceptado_at, declara_hasta, voto_creador, voto_rival, voto_mediador, jugada_creador, jugada_rival, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -29,7 +30,10 @@ async function traerDesafio(id: string) {
   const { data: perfiles } = await admin
     .from("perfiles")
     .select("usuario_id, alias")
-    .in("usuario_id", [data.creador_id, data.rival_id]);
+    .in(
+      "usuario_id",
+      [data.creador_id, data.rival_id, data.mediador_id].filter(Boolean) as string[]
+    );
   const alias = new Map((perfiles ?? []).map((p) => [p.usuario_id, p.alias]));
 
   return {
@@ -47,6 +51,7 @@ async function traerDesafio(id: string) {
     } | null,
     aliasCreador: alias.get(data.creador_id) ?? "?",
     aliasRival: alias.get(data.rival_id) ?? "?",
+    aliasMediador: data.mediador_id ? (alias.get(data.mediador_id) ?? "?") : null,
   };
 }
 
@@ -104,6 +109,49 @@ export default async function PaginaDesafio({ params }: Props) {
 
   const soyRival = user?.id === d.rival_id;
   const soyCreador = user?.id === d.creador_id;
+
+  // ---- Apuesta libre ----
+  if (d.tipo === "libre") {
+    const papel = soyCreador
+      ? "creador"
+      : soyRival
+        ? "rival"
+        : user?.id && user.id === d.mediador_id
+          ? "mediador"
+          : "nadie";
+    const miVoto =
+      papel === "creador"
+        ? d.voto_creador
+        : papel === "rival"
+          ? d.voto_rival
+          : papel === "mediador"
+            ? d.voto_mediador
+            : null;
+
+    return (
+      <VistaApuestaLibre
+        desafio={{
+          id: d.id,
+          monto: Number(d.monto),
+          comisionBps: d.comision_bps,
+          estado: d.estado,
+          descripcion: (d.descripcion as string) ?? "",
+          aliasCreador: d.aliasCreador,
+          aliasRival: d.aliasRival,
+          aliasMediador: d.aliasMediador,
+          conMediador: Boolean(d.mediador_id),
+          mediadorAcepto: Boolean(d.mediador_acepto_at),
+          aceptado: Boolean(d.aceptado_at),
+          expiraAt: d.expira_at as string | null,
+          declaraHasta: d.declara_hasta as string | null,
+          miVoto: (miVoto as "creador" | "rival" | null) ?? null,
+          votos: [d.voto_creador, d.voto_rival, d.voto_mediador].filter(Boolean).length,
+        }}
+        papel={papel}
+        entrado={Boolean(user)}
+      />
+    );
+  }
 
   // ---- Desafío de juego (carta más alta, dados) ----
   if (d.tipo !== "deportivo") {

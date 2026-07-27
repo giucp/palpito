@@ -49,6 +49,7 @@ const esJuego = (r: Reto) => Boolean(r.tipo && r.tipo !== "deportivo");
 const JUEGOS: Record<string, { nombre: string; hacer: string; suyo: string }> = {
   carta: { nombre: "Carta más alta", hacer: "Sacá tu carta", suyo: "la carta" },
   dados: { nombre: "Dados", hacer: "Tirá tus dados", suyo: "los dados" },
+  libre: { nombre: "Apuesta libre", hacer: "Declará quién ganó", suyo: "que declare" },
 };
 const delJuego = (r: Reto) =>
   JUEGOS[r.tipo ?? ""] ?? { nombre: "Reto", hacer: "Jugá tu turno", suyo: "la jugada" };

@@ -113,6 +113,15 @@ export async function cerrarResultados(): Promise<ResumenResultados> {
   // siempre si el amigo no entraba.
   await supabase.rpc("vencer_desafios_de_juego");
 
+  // Y las apuestas libres, que tienen sus propios plazos: uno para aceptar y
+  // otro para declarar quién ganó.
+  //
+  // Ojo con lo que hace esta al vencer el plazo de declarar: **paga al que tenga
+  // más votos aunque sea uno solo**. El silencio confirma lo declarado, no lo
+  // anula. Si anulara, al que pierde le bastaría con callarse y apostar no
+  // tendría consecuencia.
+  await supabase.rpc("vencer_apuestas_libres");
+
   // Partidos que ya deberían haber terminado.
   const { data: pendientes } = await supabase
     .from("eventos")
