@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ParDados } from "./dado";
 import { Volver } from "./volver";
 import { fmt } from "@/lib/dinero";
+import { sonar } from "@/lib/sonido";
 import type { Tirada } from "@/lib/dados";
 
 // La mesa de Dados.
@@ -61,6 +62,9 @@ export function DadosMesa({
     if (rodando || mia) return;
     setRodando(true);
     setError(null);
+    // El sonido arranca con la animación, no con la respuesta del servidor: los
+    // dados ya están rodando en pantalla y tienen que sonar mientras ruedan.
+    sonar("dados");
     try {
       const r = await fetch("/api/juego", {
         method: "POST",
@@ -91,6 +95,10 @@ export function DadosMesa({
             setSuya(r.suya);
             setRondas(r.rondas ?? null);
             setResultado(r.resultado);
+            // Los dados del rival suenan cuando aparecen, y el desenlace
+            // después, para que no se pisen.
+            sonar("dados");
+            setTimeout(() => sonar(r.resultado === "ganaste" ? "gana" : "pierde"), 750);
             onCambio?.();
           }, 700);
         }

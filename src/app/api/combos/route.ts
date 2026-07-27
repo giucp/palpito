@@ -15,6 +15,15 @@ import { crearClienteAdmin } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
 
+// Los combos del día están **congelados**: se arman una vez y no cambian hasta
+// mañana. Lo único que se mueve es si acertaron, y eso pasa de noche.
+//
+// Aun así se servían sin cachear, así que cada visita hacía su consulta a la
+// base para leer lo mismo que la anterior. Un minuto de caché lo vuelve
+// instantáneo para todos menos para el primero, y sigue siendo mucho más rápido
+// de lo que cambian los datos.
+const CACHE = "public, s-maxage=60, stale-while-revalidate=600";
+
 const ZONA = "America/Caracas";
 const hoyEnCaracas = () => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(new Date());
 
@@ -67,14 +76,17 @@ export async function GET() {
       const i = ORDEN_COMBOS.indexOf(id);
       return i === -1 ? ORDEN_COMBOS.length : i;
     };
-    return NextResponse.json({
-      ok: true,
-      fecha,
-      historial,
-      combos: (guardados as FilaCombo[])
-        .map(aCombo)
-        .sort((a, b) => puesto(a.id) - puesto(b.id)),
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        fecha,
+        historial,
+        combos: (guardados as FilaCombo[])
+          .map(aCombo)
+          .sort((a, b) => puesto(a.id) - puesto(b.id)),
+      },
+      { headers: { "Cache-Control": CACHE } }
+    );
   }
 
   // Todavía no están: se arman una sola vez.

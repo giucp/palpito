@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CartaVista } from "./carta";
 import { Volver } from "./volver";
 import { fmt } from "@/lib/dinero";
+import { sonar } from "@/lib/sonido";
 import type { Carta } from "@/lib/carta";
 
 // La mesa de Carta más alta.
@@ -69,12 +70,17 @@ export function CartaMesa({
       }
 
       setMia(r.mia);
+      sonar("carta");
       if (r.estado === "resuelto") {
         // Un respiro antes de dar vuelta la del rival: si se voltean las dos a
-        // la vez no se entiende cuál es cuál.
+        // la vez no se entiende cuál es cuál. El sonido acompaña a cada carta,
+        // no al conjunto: son dos cartas y suenan dos veces.
         setTimeout(() => {
           setSuya(r.suya);
           setResultado(r.resultado);
+          sonar("carta");
+          // El desenlace va después, para que no se pise con el roce.
+          setTimeout(() => sonar(r.resultado === "ganaste" ? "gana" : "pierde"), 420);
           onCambio?.();
         }, 700);
       }
