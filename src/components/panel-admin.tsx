@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Icono, IconosDefs } from "./iconos";
+import { PanelSenales } from "./panel-senales";
 import { fmt } from "@/lib/dinero";
 
 type Resumen = {
@@ -78,6 +79,7 @@ export function PanelAdmin({ correo }: { correo: string }) {
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [orden, setOrden] = useState<"balance" | "saldo" | "jugado" | "reciente">("jugado");
+  const [pestana, setPestana] = useState<"cuentas" | "senales">("cuentas");
 
   const cargar = useCallback(async (q = "") => {
     const [r, u] = await Promise.all([
@@ -176,7 +178,25 @@ export function PanelAdmin({ correo }: { correo: string }) {
         <span className="adm-yo">{correo}</span>
       </header>
 
-      <main className="adm-main">
+      {/* Dos pestañas: las cuentas y el motor de señales. El motor vive acá
+          adentro y no en la app mientras se afina: un score de 91 sin meses de
+          resultados detrás es una opinión con pinta de dato. */}
+      <nav className="adm-pestanas">
+        <button className={pestana === "cuentas" ? "on" : ""} onClick={() => setPestana("cuentas")}>
+          Cuentas
+        </button>
+        <button className={pestana === "senales" ? "on" : ""} onClick={() => setPestana("senales")}>
+          Señales
+        </button>
+      </nav>
+
+      {pestana === "senales" && (
+        <main className="adm-main">
+          <PanelSenales />
+        </main>
+      )}
+
+      <main className="adm-main" hidden={pestana !== "cuentas"}>
         {/* La cifra que manda: una sola, grande, arriba a la izquierda */}
         <section className="adm-hero">
           <div className="hero-num">

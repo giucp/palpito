@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { cerrarResultados } from "@/lib/sincronizacion";
 import { resolverCombosPendientes } from "@/lib/combos-resultado";
+import { guardarSenales, resolverSenales, mercadoDelDia } from "@/lib/senales/guardar";
 
 export const maxDuration = 300;
+
+const ZONA = "America/Caracas";
+const hoyEnCaracas = () => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(new Date());
 
 // En local el cierre de resultados corre solo (src/lib/automatizacion.ts).
 // En Vercel lo dispara el cron de vercel.json; también sirve para depurar a mano.
@@ -30,5 +34,21 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     console.error("[combos] resolver:", e instanceof Error ? e.message : e);
   }
-  return NextResponse.json({ ...resultados, combos });
+
+  // Las señales, también pegadas acá. Guardar la jornada es caro —unas ciento
+  // treinta consultas a la MLB— pero pasa **una vez al día**: `guardarSenales`
+  // se corta sola si ya hay filas de hoy, y también si todavía no se anunciaron
+  // los abridores, porque una foto sin ellos quedaría guardada para siempre.
+  //
+  // Resolver, en cambio, es barato y corre en cada vuelta.
+  let senales = null;
+  try {
+    const guardado = await guardarSenales(hoyEnCaracas(), await mercadoDelDia(hoyEnCaracas()));
+    const resuelto = await resolverSenales();
+    senales = { ...guardado, ...resuelto };
+  } catch (e) {
+    console.error("[senales]", e instanceof Error ? e.message : e);
+  }
+
+  return NextResponse.json({ ...resultados, combos, senales });
 }

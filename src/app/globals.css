@@ -427,6 +427,86 @@ button {
 .adm-yo { margin-left: auto; font-size: 12px; color: var(--mist); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .adm-main { max-width: 1240px; margin: 0 auto; padding: 20px 20px 60px; }
+
+/* ---- Pestañas del panel ---- */
+.adm-pestanas { max-width: 1240px; margin: 0 auto; padding: 14px 20px 0; display: flex; gap: 6px; }
+.adm-pestanas button { padding: 9px 16px; border-radius: 100px; font-size: 13.5px; font-weight: 650;
+  color: var(--mist); background: none; border: 1px solid transparent; transition: 0.18s; }
+.adm-pestanas button:hover { color: var(--ink); }
+.adm-pestanas button.on { background: var(--panel2); border-color: var(--line); color: var(--ink); }
+
+/* ---- Motor de señales ---- */
+.sn { display: flex; flex-direction: column; gap: 9px; }
+.sn-vacio { color: var(--mist); font-size: 13px; padding: 30px 0; text-align: center; }
+
+/* El balance va arriba de todo porque es lo único que dice si el motor sirve. */
+.sn-balance { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.sn-b { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 2px; }
+.sn-b span { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mist); }
+.sn-b b { font-size: 27px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.sn-b i { font-style: normal; font-size: 11.5px; color: var(--mist); }
+.sn-b.dif.bien b { color: var(--sube); }
+.sn-b.dif.mal b { color: var(--baja); }
+.sn-b.dif.nada b { color: var(--mist); }
+.sn-aviso { font-size: 11.5px; color: var(--mist); line-height: 1.5; margin-bottom: 6px; }
+
+.sn-barra { display: flex; align-items: center; gap: 10px; margin: 4px 0 2px; flex-wrap: wrap; }
+.sn-barra select { background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
+  padding: 7px 10px; color: var(--ink); font-size: 13px; }
+.sn-cuenta { font-size: 12.5px; color: var(--mist); }
+.sn-barra button { margin-left: auto; padding: 7px 13px; border-radius: 100px; font-size: 12.5px;
+  border: 1px solid var(--line); background: var(--panel2); color: var(--ink2); }
+.sn-barra button.on { background: var(--lima); border-color: var(--lima); color: var(--lima-ink); }
+
+.sn-fila { background: var(--panel); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
+/* Solo los recomendados llevan el borde lima: el resto son el grupo de
+   comparación y no tienen que competir visualmente. */
+.sn-fila.entra { border-color: color-mix(in srgb, var(--lima) 45%, var(--line)); }
+.sn-cab { width: 100%; display: flex; align-items: center; gap: 13px; padding: 12px 15px;
+  text-align: left; background: none; color: inherit; }
+.sn-score { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 11px; display: flex;
+  align-items: center; justify-content: center; font-family: var(--font-jetbrains), monospace;
+  font-size: 16px; font-weight: 800; background: var(--panel3); color: var(--mist); }
+.sn-score.entra { background: var(--lima); color: var(--lima-ink); }
+.sn-quien { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sn-quien b { font-size: 14.5px; font-weight: 700; }
+.sn-quien i { font-style: normal; font-size: 11.5px; color: var(--mist); }
+.sn-acuerdo { flex: 0 0 auto; text-align: right; font-family: var(--font-jetbrains), monospace;
+  font-size: 13px; color: var(--ink2); display: flex; flex-direction: column; }
+.sn-acuerdo i { font-style: normal; font-size: 10px; color: var(--mist); font-family: inherit; }
+.sn-res { flex: 0 0 auto; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px; }
+.sn-res.gano { background: color-mix(in srgb, var(--sube) 16%, transparent); color: var(--sube); }
+.sn-res.perdio { background: color-mix(in srgb, var(--baja) 14%, transparent); color: var(--baja); }
+.sn-descarte { padding: 0 15px 11px 70px; font-size: 11.5px; color: var(--mist); margin-top: -4px; }
+
+.sn-detalle { border-top: 1px solid var(--line); padding: 12px 15px; background: var(--panel2); }
+.sn-modelo { display: grid; grid-template-columns: 120px 1fr 34px; gap: 9px; align-items: center;
+  padding: 5px 0; }
+.sn-m-nombre { font-size: 12px; color: var(--ink2); }
+.sn-m-barra { height: 7px; border-radius: 100px; background: var(--panel3); overflow: hidden; }
+.sn-m-barra i { display: block; height: 100%; background: var(--lima); border-radius: 100px; }
+/* El modelo que contradice al resto se pinta distinto: es la razón del descarte. */
+.sn-m-barra i.contra { background: var(--baja); }
+.sn-m-score { font-family: var(--font-jetbrains), monospace; font-size: 12px; text-align: right;
+  color: var(--ink2); }
+.sn-modelo ul { grid-column: 2 / -1; margin: 0 0 4px; padding-left: 14px; }
+.sn-modelo li { font-size: 11px; color: var(--mist); line-height: 1.45; }
+
+.sn-curar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-top: 10px;
+  padding-top: 11px; border-top: 1px solid var(--line); }
+.sn-curar span { font-size: 12px; color: var(--mist); margin-right: 2px; }
+.sn-curar button { padding: 6px 12px; border-radius: 100px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--line); background: var(--panel); color: var(--mist); transition: 0.16s; }
+.sn-curar button.on { color: var(--ink); border-color: var(--line2); }
+.sn-curar button.on.si { background: color-mix(in srgb, var(--sube) 18%, transparent); color: var(--sube); }
+.sn-curar button.on.no { background: color-mix(in srgb, var(--baja) 15%, transparent); color: var(--baja); }
+
+@media (max-width: 560px) {
+  .sn-modelo { grid-template-columns: 92px 1fr 30px; }
+  .sn-cab { gap: 10px; padding: 11px 12px; }
+  .sn-descarte { padding-left: 12px; }
+}
 .adm-recargar { width: 32px; height: 32px; border-radius: 9px; background: var(--panel2);
   border: 1px solid var(--line); color: var(--ink2); display: flex; align-items: center;
   justify-content: center; margin-left: auto; transition: 0.18s; flex: 0 0 auto; }

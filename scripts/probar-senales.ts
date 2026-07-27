@@ -10,21 +10,7 @@
 import { traerJornada } from "../src/lib/senales/datos.ts";
 import { MODELOS, candidatosDe, nombreDe } from "../src/lib/senales/modelos.ts";
 import { juzgar, REGLAS } from "../src/lib/senales/motor.ts";
-import { traerPartidosDelDia, clavePartido } from "../src/lib/combos.ts";
-
-/** Los precios de Polymarket, que son el voto del mercado. */
-async function mercadoDelDia(fecha: string) {
-  const mapa = new Map<string, { local: number; visita: number }>();
-  try {
-    for (const p of await traerPartidosDelDia(fecha)) {
-      if (p.ganaLocal === null || p.ganaVisita === null) continue;
-      mapa.set(clavePartido(p.visita, p.local), { local: p.ganaLocal, visita: p.ganaVisita });
-    }
-  } catch {
-    // Sin mercado el motor sigue: es un modelo menos, y se ve en la cobertura.
-  }
-  return mapa;
-}
+import { mercadoDelDia, balanceSenales } from "../src/lib/senales/guardar.ts";
 
 const fecha = process.argv[2]?.match(/^\d{4}-\d{2}-\d{2}$/)
   ? process.argv[2]
@@ -91,4 +77,43 @@ for (const m of MODELOS) {
   const n = veredictos.filter((x) => x.v.detalle.find((d) => d.id === m.id)?.score !== null).length;
   const pct = Math.round((n / veredictos.length) * 100);
   console.log(`  ${m.nombre.padEnd(16)} ${String(pct).padStart(3)}%  (peso ${m.peso})`);
+}
+
+// ---- Cómo le va al motor con lo ya guardado ----
+//
+// La comparación entre elegidos y descartados es LO ÚNICO que dice si el motor
+// sirve. Un 62% de acierto entre los elegidos no significa nada si los
+// descartados también ganaron el 62%.
+try {
+  const b = await balanceSenales();
+  const pct = (g: { n: number; aciertos: number }) =>
+    g.n === 0 ? "—" : `${((g.aciertos / g.n) * 100).toFixed(1)}%`;
+
+  console.log("\n" + "─".repeat(72));
+  if (b.elegidos.n + b.descartados.n === 0) {
+    console.log("Todavía no hay señales resueltas: la comparación empieza mañana.");
+  } else {
+    console.log("Historial guardado:");
+    console.log(`  elegidos     ${pct(b.elegidos)}  (${b.elegidos.aciertos} de ${b.elegidos.n})`);
+    console.log(`  descartados  ${pct(b.descartados)}  (${b.descartados.aciertos} de ${b.descartados.n})`);
+    const dif =
+      b.elegidos.n && b.descartados.n
+        ? (b.elegidos.aciertos / b.elegidos.n - b.descartados.aciertos / b.descartados.n) * 100
+        : null;
+    if (dif !== null) {
+      console.log(
+        `  diferencia   ${dif >= 0 ? "+" : ""}${dif.toFixed(1)} puntos` +
+          (Math.abs(dif) < 5 ? "  ← todavía no dice nada" : "")
+      );
+    }
+    const modelos = Object.entries(b.porModelo).sort((a, c) => c[1].n - a[1].n);
+    if (modelos.length) {
+      console.log("\n  Cuánto acierta cada modelo cuando se moja (score ≥ 65):");
+      for (const [id, m] of modelos) {
+        console.log(`    ${id.padEnd(16)} ${pct(m)}  (${m.aciertos} de ${m.n})`);
+      }
+    }
+  }
+} catch {
+  console.log("\n(sin historial: falta correr el SQL de senales_dia)");
 }
