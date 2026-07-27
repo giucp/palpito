@@ -177,27 +177,51 @@ export async function resolverSenales(): Promise<{ resueltos: number; pendientes
 export async function balanceSenales(): Promise<{
   elegidos: { n: number; aciertos: number };
   descartados: { n: number; aciertos: number };
+  curados: { n: number; aciertos: number };
+  /** Donde el humano y el motor no coincidieron, y quién tenía razón. */
+  discrepancias: { n: number; ganoElHumano: number; ganoElMotor: number };
   porModelo: Record<string, { n: number; aciertos: number }>;
 }> {
   const supabase = crearClienteAdmin();
   const { data } = await supabase
     .from("senales_dia")
-    .select("entra, gano, detalle")
+    .select("entra, curado, gano, detalle")
     .not("gano", "is", null)
     .limit(10000);
 
   const elegidos = { n: 0, aciertos: 0 };
   const descartados = { n: 0, aciertos: 0 };
+  const curados = { n: 0, aciertos: 0 };
+  const discrepancias = { n: 0, ganoElHumano: 0, ganoElMotor: 0 };
   const porModelo: Record<string, { n: number; aciertos: number }> = {};
 
   for (const f of (data ?? []) as Array<{
     entra: boolean;
+    curado: boolean | null;
     gano: boolean;
     detalle: Array<{ id: string; score: number | null }>;
   }>) {
     const grupo = f.entra ? elegidos : descartados;
     grupo.n++;
     if (f.gano) grupo.aciertos++;
+
+    // La serie manual, aparte.
+    if (f.curado === true) {
+      curados.n++;
+      if (f.gano) curados.aciertos++;
+    }
+
+    // Donde los dos no coincidieron: quién acertó.
+    //
+    // Es la comparación que de verdad enseña algo. Que las dos series acierten
+    // parecido no dice nada si eligen casi lo mismo; lo que importa es qué pasa
+    // justo donde se separan.
+    if (f.curado !== null && f.curado !== f.entra) {
+      discrepancias.n++;
+      // El humano quiso tomarla: acierta si ganó. El humano la sacó: acierta si perdió.
+      if (f.curado === f.gano) discrepancias.ganoElHumano++;
+      else discrepancias.ganoElMotor++;
+    }
 
     // Cuánto acierta cada modelo por su cuenta, cuando se moja de verdad
     // (por encima de 65). Es lo que dice si un modelo aporta o solo hace ruido.
@@ -209,5 +233,5 @@ export async function balanceSenales(): Promise<{
     }
   }
 
-  return { elegidos, descartados, porModelo };
+  return { elegidos, descartados, curados, discrepancias, porModelo };
 }

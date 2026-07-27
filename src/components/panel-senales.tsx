@@ -41,6 +41,8 @@ type Senal = {
 type Balance = {
   elegidos: { n: number; aciertos: number };
   descartados: { n: number; aciertos: number };
+  curados: { n: number; aciertos: number };
+  discrepancias: { n: number; ganoElHumano: number; ganoElMotor: number };
   porModelo: Record<string, { n: number; aciertos: number }>;
 };
 
@@ -64,6 +66,7 @@ export function PanelSenales() {
   const [balance, setBalance] = useState<Balance | null>(null);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [soloEntran, setSoloEntran] = useState(false);
+  const [vista, setVista] = useState<"motor" | "curado">("motor");
 
   const cargar = useCallback(async (f?: string) => {
     const r = await fetch(`/api/admin/senales${f ? `?fecha=${f}` : ""}`).then((x) => x.json());
@@ -93,6 +96,10 @@ export function PanelSenales() {
 
   const visibles = soloEntran ? senales.filter((s) => s.entra) : senales;
   const entran = senales.filter((s) => s.entra).length;
+  // Las curadas primero las tomadas, que son la serie que se compara.
+  const curadas = senales
+    .filter((s) => s.curado !== null)
+    .sort((a, b) => Number(b.curado) - Number(a.curado));
   const dif =
     balance && balance.elegidos.n > 0 && balance.descartados.n > 0
       ? (balance.elegidos.aciertos / balance.elegidos.n -
@@ -113,6 +120,24 @@ export function PanelSenales() {
           <span>Descartados</span>
           <b>{balance ? pct(balance.descartados) : "—"}</b>
           <i>{balance ? `${balance.descartados.aciertos} de ${balance.descartados.n}` : ""}</i>
+        </div>
+        <div className="sn-b">
+          <span>Curado (manual)</span>
+          <b>{balance ? pct(balance.curados) : "—"}</b>
+          <i>{balance ? `${balance.curados.aciertos} de ${balance.curados.n}` : ""}</i>
+        </div>
+        <div className="sn-b">
+          <span>Donde difieren</span>
+          <b>
+            {balance && balance.discrepancias.n > 0
+              ? `${balance.discrepancias.ganoElHumano}–${balance.discrepancias.ganoElMotor}`
+              : "—"}
+          </b>
+          <i>
+            {balance && balance.discrepancias.n > 0
+              ? "manual – motor"
+              : "sin desacuerdos resueltos"}
+          </i>
         </div>
         <div className={`sn-b dif ${dif === null ? "" : dif >= 5 ? "bien" : dif <= -5 ? "mal" : "nada"}`}>
           <span>Diferencia</span>
@@ -144,12 +169,52 @@ export function PanelSenales() {
           ))}
         </select>
         <span className="sn-cuenta">
-          {entran} de {senales.length} recomendados
+          {entran} de {senales.length} recomendados · {curadas.length} curados
         </span>
         <button className={soloEntran ? "on" : ""} onClick={() => setSoloEntran((v) => !v)}>
           {soloEntran ? "Ver todos" : "Solo los que entran"}
         </button>
       </div>
+
+      {/* Motor y curado, uno al lado del otro. La gracia está en dónde se
+          separan: si eligieran lo mismo, no habría nada que comparar. */}
+      <div className="sn-vistas">
+        <button className={vista === "motor" ? "on" : ""} onClick={() => setVista("motor")}>
+          Motor
+        </button>
+        <button className={vista === "curado" ? "on" : ""} onClick={() => setVista("curado")}>
+          Curado {curadas.length > 0 && <i>{curadas.length}</i>}
+        </button>
+      </div>
+
+      {vista === "curado" && (
+        <div className="sn-curado">
+          {curadas.length === 0 ? (
+            <p className="sn-vacio">Este día todavía no tiene decisiones manuales.</p>
+          ) : (
+            curadas.map((s) => (
+              <article key={s.id} className={`sn-cfila ${s.curado ? "tomo" : "paso"}`}>
+                <div className="sn-ccab">
+                  <span className={`sn-cmarca ${s.curado ? "tomo" : "paso"}`}>
+                    {s.curado ? "La tomo" : "Paso"}
+                  </span>
+                  <b>{s.equipo}</b>
+                  <span className="sn-cmotor">
+                    el motor {s.entra ? "la recomendó" : "la descartó"}
+                    {s.curado !== s.entra && <i> · difieren</i>}
+                  </span>
+                  {s.gano !== null && (
+                    <span className={`sn-res ${s.curado === s.gano ? "gano" : "perdio"}`}>
+                      {s.curado === s.gano ? "acerté" : "fallé"}
+                    </span>
+                  )}
+                </div>
+                <p className="sn-cnota">{s.curado_nota}</p>
+              </article>
+            ))
+          )}
+        </div>
+      )}
 
       {visibles.length === 0 && (
         <p className="sn-vacio">
@@ -159,7 +224,8 @@ export function PanelSenales() {
       )}
 
       {/* ---- Los candidatos ---- */}
-      {visibles.map((s) => {
+      {vista === "motor" &&
+      visibles.map((s) => {
         const abre = abierto === s.id;
         return (
           <article key={s.id} className={`sn-fila ${s.entra ? "entra" : ""}`}>

@@ -43,3 +43,29 @@ jobs:
           cat respuesta.json || true
           echo
           test "$code" = "200"
+
+      # El motor de señales va en su propia llamada y DESPUÉS de liquidar.
+      #
+      # Calcular la jornada son unas ciento treinta consultas a la MLB y tarda
+      # unos veinte segundos; junto con lo de arriba la petición llegaba a 51
+      # segundos contra un límite de 60. Separadas, cada una tiene su tiempo.
+      #
+      # Y en este orden a propósito: si esta falla, la liquidación de las
+      # apuestas —que sí mueve dinero— ya terminó.
+      #
+      # `continue-on-error` porque las señales no mueven nada: que un fallo acá
+      # no pinte de rojo una corrida en la que el dinero se movió bien. Es
+      # idempotente, así que la vuelta siguiente lo reintenta.
+      - name: Llamar a /api/senales
+        continue-on-error: true
+        env:
+          PALPITO_URL: ${{ vars.PALPITO_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$PALPITO_URL" ]; then exit 0; fi
+          code=$(curl -sS -o senales.json -w "%{http_code}" --max-time 280 \
+            "${PALPITO_URL%/}/api/senales" \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "HTTP $code"
+          cat senales.json || true
+          echo
