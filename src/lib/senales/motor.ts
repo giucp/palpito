@@ -54,13 +54,29 @@ export const REGLAS = {
 };
 
 /**
+ * La banda donde un modelo **se abstiene** en vez de votar en contra.
+ *
+ * Hace falta en los totales y no en el ganador, y la diferencia es de fondo:
+ *
+ *   · En el ganador, un modelo en 50 dice "los dos equipos están igualados", y
+ *     eso **sí** es un argumento en contra de elegir a uno de los dos.
+ *   · En los totales, un 50 dice "esto no empuja ni hacia arriba ni hacia
+ *     abajo". Eso no es estar en contra: es no tener opinión.
+ *
+ * Sin esta banda, un partido con dos abridores horribles, dos ofensivas buenas y
+ * calor —tres señales fuertes hacia arriba— se caía porque otros tres modelos
+ * estaban en 47 diciendo "yo de esto no sé".
+ */
+export type Opciones = { neutral?: number };
+
+/**
  * Pasa un partido por todos los modelos y decide.
  *
  * Los pesos se **renormalizan** entre los modelos que sí tuvieron datos: si el
  * de clima no pudo medir, su 10% se reparte entre los demás en vez de contarse
  * como un cero, que sería castigar al partido por una falta nuestra.
  */
-export function juzgar<T>(partido: T, modelos: Modelo<T>[]): Veredicto {
+export function juzgar<T>(partido: T, modelos: Modelo<T>[], opciones: Opciones = {}): Veredicto {
   const medidos: Array<{ m: Modelo<T>; s: Senal }> = [];
   const detalle: Veredicto["detalle"] = [];
 
@@ -95,6 +111,11 @@ export function juzgar<T>(partido: T, modelos: Modelo<T>[]): Veredicto {
 
   const scores = medidos.map((x) => x.s.score);
   const acuerdo = scores.filter((s) => s >= REGLAS.umbralAcuerdo).length;
+  // Los que se abstienen no cuentan ni de un lado ni del otro: salen del
+  // denominador en vez de arrastrar el acuerdo hacia abajo.
+  const opinaron = opciones.neutral
+    ? scores.filter((s) => s >= REGLAS.umbralAcuerdo || s <= opciones.neutral!).length
+    : medidos.length;
   const med = mediana(scores) ?? score;
 
   // El más bajo, y si está tan lejos del resto como para desautorizarlos.
@@ -113,8 +134,10 @@ export function juzgar<T>(partido: T, modelos: Modelo<T>[]): Veredicto {
     motivoDescarte = `${peor.m.nombre} está en ${peor.s.score}, por debajo del piso`;
   } else if (contradice) {
     motivoDescarte = `${contradice.nombre} (${contradice.score}) contradice al resto`;
-  } else if (acuerdo / medidos.length < REGLAS.acuerdoMinimo) {
-    motivoDescarte = `Solo ${acuerdo} de ${medidos.length} modelos a favor`;
+  } else if (opinaron === 0) {
+    motivoDescarte = "Ningún modelo se moja: todos neutrales";
+  } else if (acuerdo / opinaron < REGLAS.acuerdoMinimo) {
+    motivoDescarte = `Solo ${acuerdo} de ${opinaron} modelos con opinión están a favor`;
   } else if (score < REGLAS.scoreMinimo) {
     motivoDescarte = `Score ${score}, por debajo de ${REGLAS.scoreMinimo}`;
   }

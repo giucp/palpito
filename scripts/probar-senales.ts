@@ -11,6 +11,12 @@ import { traerJornada } from "../src/lib/senales/datos.ts";
 import { MODELOS, candidatosDe, nombreDe } from "../src/lib/senales/modelos.ts";
 import { juzgar, REGLAS } from "../src/lib/senales/motor.ts";
 import { mercadoDelDia, balanceSenales } from "../src/lib/senales/guardar.ts";
+import {
+  MODELOS_TOTALES,
+  candidatosTotalDe,
+  nombreTotalDe,
+  OPCIONES_TOTALES,
+} from "../src/lib/senales/modelos-totales.ts";
 
 const fecha = process.argv[2]?.match(/^\d{4}-\d{2}-\d{2}$/)
   ? process.argv[2]
@@ -23,8 +29,9 @@ console.log(
     `piso ${REGLAS.pisoCritico} · contradice a ${REGLAS.distanciaContradice} de la mediana\n`
 );
 
-const partidos = await traerJornada(fecha, await mercadoDelDia(fecha));
-console.log(`${partidos.length} partidos\n`);
+const m = await mercadoDelDia(fecha);
+const partidos = await traerJornada(fecha, m.ganador, m.totales);
+console.log(`${partidos.length} partidos · ${m.totales.size} con línea de carreras\n`);
 
 const barra = (n: number | null) => {
   if (n === null) return "  —  sin datos";
@@ -54,7 +61,37 @@ for (const { c, v } of veredictos) {
 }
 
 console.log("─".repeat(72));
-console.log(`Entran ${entran.length} de ${veredictos.length} candidatos.`);
+console.log(`Entran ${entran.length} de ${veredictos.length} candidatos de ganador.`);
+
+// ---- Más o menos carreras ----
+const totales = partidos
+  .flatMap(candidatosTotalDe)
+  .map((c) => ({ c, v: juzgar(c, MODELOS_TOTALES, OPCIONES_TOTALES) }))
+  .sort((a, b) => b.v.score - a.v.score);
+
+console.log(`\n${"═".repeat(72)}\nMÁS O MENOS CARRERAS\n`);
+for (const { c, v } of totales) {
+  if (!v.entra && !todos) continue;
+  console.log(
+    `${v.entra ? "🟢" : "  "} ${nombreTotalDe(c).padEnd(16)} ${String(v.score).padStart(3)}/100   ` +
+      `${v.acuerdo}/${v.midieron} a favor   ${c.partido.titulo.replace(" vs. ", " · ")}`
+  );
+  for (const d of v.detalle) {
+    console.log(`      ${d.nombre.padEnd(12)} ${barra(d.score)}`);
+    if (d.score !== null) for (const m2 of d.motivos) console.log(`         ${m2}`);
+  }
+  if (!v.entra) console.log(`   ✗ ${v.motivoDescarte}`);
+  console.log();
+}
+console.log(`Entran ${totales.filter((x) => x.v.entra).length} de ${totales.length} candidatos de total.`);
+
+console.log("\nCobertura de los modelos de total:");
+for (const m2 of MODELOS_TOTALES) {
+  const n = totales.filter((x) => x.v.detalle.find((d) => d.id === m2.id)?.score !== null).length;
+  const pct2 = totales.length ? Math.round((n / totales.length) * 100) : 0;
+  console.log(`  ${m2.nombre.padEnd(12)} ${String(pct2).padStart(3)}%  (peso ${m2.peso})`);
+}
+console.log("\n" + "─".repeat(72));
 
 // El reparto de motivos de descarte dice si los umbrales están donde deben.
 // Si todo se cae por "faltan datos", el problema no son las reglas.

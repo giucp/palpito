@@ -1,8 +1,14 @@
 import { crearClienteAdmin } from "../supabase/admin.ts";
 import { traerResultados } from "../combos-resultado.ts";
 import { traerPartidosDelDia, clavePartido } from "../combos.ts";
-import { traerJornada } from "./datos.ts";
+import { traerJornada, type TotalMercado } from "./datos.ts";
 import { MODELOS, candidatosDe, nombreDe } from "./modelos.ts";
+import {
+  MODELOS_TOTALES,
+  candidatosTotalDe,
+  nombreTotalDe,
+  OPCIONES_TOTALES,
+} from "./modelos-totales.ts";
 import { juzgar } from "./motor.ts";
 
 // Guardar lo que dijo el motor cada día, y comprobarlo después.
@@ -48,23 +54,33 @@ export type ResumenSenales = {
  * preferible una jornada con siete modelos a no guardar nada: el día no se
  * repite.
  */
-export async function mercadoDelDia(
-  fecha: string
-): Promise<Map<string, { local: number; visita: number }>> {
-  const mapa = new Map<string, { local: number; visita: number }>();
+export async function mercadoDelDia(fecha: string): Promise<{
+  ganador: Map<string, { local: number; visita: number }>;
+  totales: Map<string, TotalMercado>;
+}> {
+  const ganador = new Map<string, { local: number; visita: number }>();
+  const totales = new Map<string, TotalMercado>();
   try {
     for (const p of await traerPartidosDelDia(fecha)) {
-      if (p.ganaLocal === null || p.ganaVisita === null) continue;
-      mapa.set(clavePartido(p.visita, p.local), { local: p.ganaLocal, visita: p.ganaVisita });
+      const clave = clavePartido(p.visita, p.local);
+      if (p.ganaLocal !== null && p.ganaVisita !== null) {
+        ganador.set(clave, { local: p.ganaLocal, visita: p.ganaVisita });
+      }
+      // `traerPartidosDelDia` ya se queda con la línea principal y ya filtra los
+      // totales de primeras cinco entradas, que es la trampa clásica de estos
+      // datos: parecen del juego completo y no lo son.
+      if (p.over && p.under) {
+        totales.set(clave, { linea: p.over.linea, mas: p.over.p, menos: p.under.p });
+      }
     }
   } catch {}
-  return mapa;
+  return { ganador, totales };
 }
 
 /** Calcula la jornada y la guarda. Si ya estaba guardada, no hace nada. */
 export async function guardarSenales(
   fecha: string,
-  mercado?: Map<string, { local: number; visita: number }>
+  mercado?: { ganador: Map<string, { local: number; visita: number }>; totales: Map<string, TotalMercado> }
 ): Promise<ResumenSenales> {
   const supabase = crearClienteAdmin();
 
@@ -74,7 +90,7 @@ export async function guardarSenales(
     .eq("fecha", fecha);
   if ((count ?? 0) > 0) return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
 
-  const partidos = await traerJornada(fecha, mercado);
+  const partidos = await traerJornada(fecha, mercado?.ganador, mercado?.totales);
   if (partidos.length === 0) return { fecha, guardados: 0, entran: 0, motivo: "sin_jornada" };
 
   const conAbridores = partidos.filter((p) => p.abridorLocal && p.abridorVisita).length;
@@ -82,14 +98,21 @@ export async function guardarSenales(
     return { fecha, guardados: 0, entran: 0, motivo: "faltan_abridores" };
   }
 
-  const filas = partidos.flatMap((p) =>
+  const comun = (p: (typeof partidos)[number]) => ({
+    fecha,
+    juego: p.juego,
+    partido: p.titulo,
+    hora: p.hora || null,
+  });
+
+  // Quién gana
+  const deGanador = partidos.flatMap((p) =>
     candidatosDe(p).map((c) => {
       const v = juzgar(c, MODELOS);
       return {
-        fecha,
-        juego: p.juego,
-        partido: p.titulo,
-        hora: p.hora || null,
+        ...comun(p),
+        mercado: "ganador",
+        linea: null as number | null,
         lado: c.lado,
         equipo: nombreDe(c),
         score: v.score,
@@ -103,6 +126,32 @@ export async function guardarSenales(
       };
     })
   );
+
+  // Más o menos carreras. Solo donde el mercado publicó una línea: sin línea no
+  // hay apuesta que juzgar, e inventarnos una sería medirnos contra nosotros
+  // mismos.
+  const deTotales = partidos.flatMap((p) =>
+    candidatosTotalDe(p).map((c) => {
+      const v = juzgar(c, MODELOS_TOTALES, OPCIONES_TOTALES);
+      return {
+        ...comun(p),
+        mercado: "total",
+        linea: c.linea,
+        lado: c.tipo,
+        equipo: nombreTotalDe(c),
+        score: v.score,
+        midieron: v.midieron,
+        total_modelos: v.total,
+        acuerdo: v.acuerdo,
+        entra: v.entra,
+        motivo_descarte: v.motivoDescarte,
+        contradice: v.contradice ? v.contradice.id : null,
+        detalle: v.detalle,
+      };
+    })
+  );
+
+  const filas = [...deGanador, ...deTotales];
 
   const { error } = await supabase.from("senales_dia").insert(filas);
   // Si dos corridas coinciden, la segunda choca con la clave única y no pasa
@@ -125,7 +174,7 @@ export async function resolverSenales(): Promise<{ resueltos: number; pendientes
   const supabase = crearClienteAdmin();
   const { data } = await supabase
     .from("senales_dia")
-    .select("id, fecha, juego, lado")
+    .select("id, fecha, juego, lado, mercado, linea")
     .is("resuelto_at", null)
     .order("fecha", { ascending: true })
     .limit(500);
@@ -150,11 +199,27 @@ export async function resolverSenales(): Promise<{ resueltos: number; pendientes
       }
       // Un partido que no se jugó no acertó ni falló: se cierra sin resultado
       // para que no vuelva a mirarse, pero queda fuera de la estadística.
-      const gano = r.cancelado
-        ? null
-        : f.lado === "local"
-          ? r.carrerasLocal > r.carrerasVisita
-          : r.carrerasVisita > r.carrerasLocal;
+      let gano: boolean | null = null;
+      if (!r.cancelado) {
+        if (f.mercado === "total") {
+          const total = r.carrerasLocal + r.carrerasVisita;
+          const linea = Number(f.linea);
+          // Empate exacto con la línea: ni acierta ni falla, como en cualquier
+          // casa. Las líneas de Polymarket son de media carrera, así que casi
+          // nunca pasa, pero "casi nunca" no es "nunca".
+          gano =
+            !Number.isFinite(linea) || total === linea
+              ? null
+              : f.lado === "mas"
+                ? total > linea
+                : total < linea;
+        } else {
+          gano =
+            f.lado === "local"
+              ? r.carrerasLocal > r.carrerasVisita
+              : r.carrerasVisita > r.carrerasLocal;
+        }
+      }
 
       await supabase
         .from("senales_dia")

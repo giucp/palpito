@@ -122,6 +122,30 @@ export type Estadio = {
   techo: string | null;
 };
 
+/**
+ * El clima a la hora del partido.
+ *
+ * `empuja` es el dato que hace útil al viento y el que faltaba hasta ahora: va
+ * de −1 a +1 y dice si sopla **hacia el jardín** (empuja la pelota, +1) o
+ * **hacia home** (la frena, −1). Se calcula cruzando la dirección del viento con
+ * el `azimuthAngle` del estadio, que es el rumbo de home al jardín central.
+ *
+ * Ojo con la convención: en meteorología la dirección del viento es **de dónde
+ * viene**, no hacia dónde va. Así que soplar hacia el jardín central es venir
+ * desde el rumbo contrario, `azimut + 180`.
+ */
+export type Clima = {
+  temperatura: number;
+  viento: number;
+  direccion: number;
+  lluvia: number;
+  empuja: number | null;
+  bajoTecho: boolean;
+};
+
+/** El total que pone el mercado, y a cómo paga cada lado. */
+export type TotalMercado = { linea: number; mas: number; menos: number };
+
 export type Partido = {
   juego: string;
   titulo: string;
@@ -131,8 +155,11 @@ export type Partido = {
   abridorLocal: Abridor | null;
   abridorVisita: Abridor | null;
   estadio: Estadio | null;
+  clima: Clima | null;
   /** Lo que paga el mercado, si se pudo casar con Polymarket. */
   mercado: { local: number; visita: number } | null;
+  /** La línea de carreras del mercado y sus dos precios. */
+  total: TotalMercado | null;
   /** El contexto de la jornada, para poder normalizar por posición. */
   jornada: Jornada;
 };
@@ -150,6 +177,11 @@ export type Jornada = {
   carrerasOfensivas: number[];
   opsOfensivas: number[];
   difCarreras: number[];
+  /** Para los totales: cada partido comparado contra los demás del día. */
+  fipsSumados: number[];
+  erasBullpenSumadas: number[];
+  carrerasSumadas: number[];
+  elevaciones: number[];
 };
 
 // ---------------------------------------------------------------- el FIP
@@ -409,6 +441,72 @@ async function bajasDe(equipos: number[]): Promise<Map<number, Bajas>> {
   return mapa;
 }
 
+/**
+ * El clima en el estadio, a la hora del partido.
+ *
+ * Open-Meteo, gratis y sin clave. Es la única fuente de fuera de la MLB que
+ * necesita el motor de totales, y entró porque da **dirección** de viento: ESPN
+ * da ráfagas y sin dirección el viento no sirve para nada, porque 20 km/h hacia
+ * el jardín y 20 km/h hacia home son lo contrario el uno del otro.
+ */
+async function climaDe(e: Estadio, horaISO: string): Promise<Clima | null> {
+  // Bajo techo cerrado el clima da igual. "Retractable" no dice si hoy estará
+  // abierto o cerrado, así que se trata como abierto: es lo más frecuente.
+  const bajoTecho = /dome|fixed/i.test(e.techo ?? "");
+  if (bajoTecho) {
+    return { temperatura: 22, viento: 0, direccion: 0, lluvia: 0, empuja: 0, bajoTecho: true };
+  }
+
+  const j = obj(
+    await pedir(
+      `https://api.open-meteo.com/v1/forecast?latitude=${e.lat}&longitude=${e.lon}` +
+        `&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation_probability` +
+        `&forecast_days=2&timezone=UTC`
+    )
+  );
+  const h = obj(j.hourly);
+  const horas = Array.isArray(h.time) ? (h.time as string[]) : [];
+  if (horas.length === 0) return null;
+
+  // La hora del pronóstico más cercana al primer lanzamiento.
+  const objetivo = new Date(horaISO).getTime();
+  let i = 0;
+  let mejor = Infinity;
+  for (let k = 0; k < horas.length; k++) {
+    const d = Math.abs(new Date(`${horas[k]}Z`).getTime() - objetivo);
+    if (d < mejor) {
+      mejor = d;
+      i = k;
+    }
+  }
+
+  const lee = (campo: string) => {
+    const a = h[campo];
+    return Array.isArray(a) ? num(a[i]) : NaN;
+  };
+  const direccion = lee("wind_direction_10m");
+
+  // Cuánto empuja: +1 sopla hacia el jardín central, −1 hacia home.
+  //
+  // La dirección meteorológica es de dónde VIENE el viento, así que soplar hacia
+  // el jardín es venir desde `azimut + 180`.
+  let empuja: number | null = null;
+  if (e.azimut !== null && Number.isFinite(direccion)) {
+    const desdeQueEmpuja = (e.azimut + 180) % 360;
+    const angulo = (((direccion - desdeQueEmpuja) % 360) + 360) % 360;
+    empuja = Math.cos((angulo * Math.PI) / 180);
+  }
+
+  return {
+    temperatura: lee("temperature_2m"),
+    viento: lee("wind_speed_10m"),
+    direccion,
+    lluvia: lee("precipitation_probability"),
+    empuja,
+    bajoTecho: false,
+  };
+}
+
 /** El estadio del partido, con lo que hace falta para el clima. */
 function estadioDe(g: Crudo): Estadio | null {
   const v = obj(g.venue);
@@ -437,7 +535,8 @@ function estadioDe(g: Crudo): Estadio | null {
  */
 export async function traerJornada(
   fecha: string,
-  mercado?: Map<string, { local: number; visita: number }>
+  mercado?: Map<string, { local: number; visita: number }>,
+  totales?: Map<string, TotalMercado>
 ): Promise<Partido[]> {
   const temporada = Number(fecha.slice(0, 4));
   const [{ juegos, porJuego }, ofe, bull, form] = await Promise.all([
@@ -494,7 +593,9 @@ export async function traerJornada(
       abridorLocal: par?.local ?? null,
       abridorVisita: par?.visita ?? null,
       estadio: estadioDe(g),
+      clima: null, // se pide abajo, ya sabiendo el estadio y la hora
       mercado: mercado?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
+      total: totales?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
       // Se rellena abajo, cuando ya están todos los partidos.
       jornada: {
         fipsAbridores: [],
@@ -503,9 +604,33 @@ export async function traerJornada(
         carrerasOfensivas: [],
         opsOfensivas: [],
         difCarreras: [],
+        fipsSumados: [],
+        erasBullpenSumadas: [],
+        carrerasSumadas: [],
+        elevaciones: [],
       },
     });
   }
+
+  // El clima, uno por estadio y a la hora de su partido.
+  await Promise.all(
+    partidos.map(async (p) => {
+      if (!p.estadio || !p.hora) return;
+      p.clima = await climaDe(p.estadio, p.hora);
+    })
+  );
+
+  const sumaFip = (p: Partido) =>
+    p.abridorLocal?.fip !== null && p.abridorLocal?.fip !== undefined &&
+    p.abridorVisita?.fip !== null && p.abridorVisita?.fip !== undefined
+      ? p.abridorLocal.fip + p.abridorVisita.fip
+      : NaN;
+  const sumaBullpen = (p: Partido) =>
+    p.local.bullpen && p.visita.bullpen ? p.local.bullpen.era + p.visita.bullpen.era : NaN;
+  const sumaCarreras = (p: Partido) =>
+    p.local.ofensiva && p.visita.ofensiva
+      ? p.local.ofensiva.carrerasPorJuego + p.visita.ofensiva.carrerasPorJuego
+      : NaN;
 
   // El contexto contra el que se mide todo. Se arma una vez y lo comparten
   // todos los partidos: es el mismo reparto para los treinta equipos.
@@ -520,6 +645,12 @@ export async function traerJornada(
     carrerasOfensivas: [...ofe.values()].map((o) => o.carrerasPorJuego),
     opsOfensivas: [...ofe.values()].map((o) => o.ops),
     difCarreras: [...form.values()].map((f) => f.difPorJuego).filter(Number.isFinite),
+    fipsSumados: partidos.map(sumaFip).filter(Number.isFinite),
+    erasBullpenSumadas: partidos.map(sumaBullpen).filter(Number.isFinite),
+    carrerasSumadas: partidos.map(sumaCarreras).filter(Number.isFinite),
+    elevaciones: partidos
+      .map((p) => p.estadio?.elevacion ?? NaN)
+      .filter((x): x is number => Number.isFinite(x)),
   };
   for (const p of partidos) p.jornada = jornada;
 
