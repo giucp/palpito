@@ -20,7 +20,7 @@ const pct = (p: number) => `${Math.round(p * 100)}%`;
 
 const diaISO = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(d);
 
-// "Hoy 19:00", "Mañana 15:30", "Lun 14:00"
+// "Hoy 19:00", "Mañana 15:30", "Lun 14:00", "20 ago 14:10"
 function cuando(iso: string, hoy: Date): string {
   const f = new Date(iso);
   const hora = new Intl.DateTimeFormat("es", {
@@ -33,6 +33,15 @@ function cuando(iso: string, hoy: Date): string {
   const dia = diaISO(f);
   if (dia === diaISO(hoy)) return `Hoy ${hora}`;
   if (dia === diaISO(new Date(hoy.getTime() + 86_400_000))) return `Mañana ${hora}`;
+
+  // Pasada la semana, el día de la semana engaña: "Jue 14:10" para algo que es
+  // dentro de tres semanas hace pensar en el jueves que viene. Ahí va la fecha.
+  const dias = (f.getTime() - hoy.getTime()) / 86_400_000;
+  if (dias > 6 || dias < 0) {
+    return `${new Intl.DateTimeFormat("es", { day: "numeric", month: "short", timeZone: ZONA })
+      .format(f)
+      .replace(".", "")} ${hora}`;
+  }
 
   const nombre = new Intl.DateTimeFormat("es", { weekday: "short", timeZone: ZONA })
     .format(f)

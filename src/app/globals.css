@@ -548,7 +548,6 @@ button {
   max-width: 700px; }
 .jcard { display: flex; flex-direction: column; gap: 0; background: var(--panel); border: 1px solid var(--line);
   border-radius: 14px; overflow: hidden; text-align: left; color: inherit; transition: 0.18s; padding: 0; }
-.jcard:hover { border-color: var(--lima); transform: translateY(-2px); }
 .jcard-arte { height: 96px; position: relative; overflow: hidden; }
 /* Apuntaba solo a `canvas`, de cuando las portadas se dibujaban asi. Como
    ahora son <svg>, no recibian altura y se desbordaban del recorte: se veia
@@ -1061,7 +1060,6 @@ button {
 .am-partido { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left;
   background: var(--panel2); border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px;
   transition: 0.18s; }
-.am-partido:hover { border-color: var(--lima); }
 .am-partido .liga { color: var(--mist); font-size: 11px; }
 .am-partido b { font-size: 14px; font-weight: 600; color: var(--ink); }
 .am-partido .hora { color: var(--mist); font-size: 11.5px; }
@@ -1189,7 +1187,6 @@ button {
 .rt-item { display: flex; align-items: center; gap: 11px; background: var(--panel);
   border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; margin-bottom: 8px;
   transition: 0.18s; }
-.rt-item:hover { border-color: var(--line2); }
 .rt-item.urgente { border-color: var(--lima); background: var(--panel3); }
 .rt-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .rt-txt b { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
@@ -1482,11 +1479,9 @@ button {
 .tb-partido { display: block; width: 100%; text-align: left; background: var(--panel);
   border: 1px solid var(--line); border-radius: 14px; margin-bottom: 9px; overflow: hidden;
   color: inherit; transition: border-color 0.18s; }
-.tb-partido:hover { border-color: var(--line2); }
 .tb-ver { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px;
   color: var(--mist); font-weight: 600; }
 .tb-ver svg { width: 13px; height: 13px; }
-.tb-partido:hover .tb-ver { color: var(--lima-txt); }
 .tb-lado { display: grid; grid-template-columns: 1fr repeat(3, 62px); gap: 6px; align-items: center;
   padding: 9px 12px; }
 .tb-lado + .tb-lado { border-top: 1px solid var(--line); }
@@ -1633,7 +1628,6 @@ button {
 .am-ver-retos { display: flex; align-items: center; gap: 11px; width: 100%; background: var(--panel);
   border: 1px solid var(--line); border-radius: 12px; padding: 13px; color: var(--ink2);
   font-size: 13.5px; font-weight: 600; transition: 0.18s; }
-.am-ver-retos:hover { border-color: var(--lima); color: var(--ink); }
 .am-ver-retos svg { width: 17px; height: 17px; color: var(--mist); }
 .am-ver-retos .ir { margin-left: auto; }
 
@@ -1771,6 +1765,26 @@ button {
 .dp-d { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }
 .dp-d > span { color: var(--mist); flex: 0 0 auto; }
 .dp-d b { font-weight: 650; text-align: right; }
+
+/* ============================================================
+   Hover solo donde hay puntero de verdad
+   ============================================================
+   En un teléfono no hay puntero, pero el navegador igual deja el estado de
+   hover pegado en lo último que tocaste, o en la fila donde pasó el dedo al
+   desplazar. El 2026-07-27 el dueño mandó un capture con "Ver" pintado de lima
+   en el segundo partido de la cartelera, marcado como si estuviera señalado,
+   sin haberlo tocado.
+   `@media (hover: hover)` pregunta por el dispositivo, no por el ancho: en un
+   monitor con mouse el efecto sigue igual, y en un teléfono no existe. Van acá
+   las filas que se tocan, que son donde la marca pegada se nota. */
+@media (hover: hover) {
+  .tb-partido:hover { border-color: var(--line2); }
+  .tb-partido:hover .tb-ver { color: var(--lima-txt); }
+  .jcard:hover { border-color: var(--lima); transform: translateY(-2px); }
+  .am-partido:hover { border-color: var(--lima); }
+  .rt-item:hover { border-color: var(--line2); }
+  .am-ver-retos:hover { border-color: var(--lima); color: var(--ink); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

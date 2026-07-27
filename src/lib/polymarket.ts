@@ -76,15 +76,30 @@ type CrudoEvento = {
 
 // En qué está el evento, con lo que Polymarket ya dice de sí mismo.
 //
-// La única regla nuestra es la última: los mercados acompañantes ("— More
+// Con una salvedad: **la marca de "en vivo" no se cree sola**. Polymarket la
+// deja pegada. El 2026-07-27 el Atlanta–White Sox del 11 de junio, suspendido en
+// la primera entrada y reprogramado para el 20 de agosto, seguía diciendo
+// `live: true` con "Top 1st · 0-0" — y como lo en vivo va primero, llevaba un
+// día entero clavado arriba de la lista.
+//
+// Así que la hora tiene que acompañar: un partido no puede estar en vivo si
+// todavía no empezó, ni si empezó hace ocho horas.
+//
+// La otra regla nuestra es la última línea: los mercados acompañantes ("— More
 // Markets", "— Player Props") traen hora pero no la marca de terminado, así que
-// si la hora ya pasó se los cuenta como terminados. Falla del lado seguro: como
-// mucho, un mercado queda un rato más abajo de lo que le tocaba.
+// si la hora ya pasó se los cuenta como terminados. Falla del lado seguro.
+const DURACION_MAXIMA_MS = 8 * 3600_000;
+
 function estadoDe(e: CrudoEvento): EstadoPoly {
-  if (e.live === true) return "en_juego";
+  const inicio = e.startTime ? new Date(e.startTime).getTime() : null;
+  const ahora = Date.now();
+  const enHorario =
+    inicio === null || (inicio <= ahora && ahora - inicio < DURACION_MAXIMA_MS);
+
+  if (e.live === true && enHorario) return "en_juego";
   if (e.ended === true) return "terminado";
-  if (!e.startTime) return "temporada";
-  return new Date(e.startTime).getTime() > Date.now() ? "por_jugar" : "terminado";
+  if (inicio === null) return "temporada";
+  return inicio > ahora ? "por_jugar" : "terminado";
 }
 
 // El mismo patrón que la cartelera de Deportes: primero lo que está pasando, al
