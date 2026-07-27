@@ -81,17 +81,6 @@ export function PanelSenales() {
     void cargar();
   }, [cargar]);
 
-  async function curar(s: Senal, valor: boolean | null) {
-    setSenales((prev) =>
-      (prev ?? []).map((x) => (x.id === s.id ? { ...x, curado: valor } : x))
-    );
-    await fetch("/api/admin/senales", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: s.id, curado: valor }),
-    });
-  }
-
   if (senales === null) return <p className="sn-vacio">Cargando…</p>;
 
   const visibles = soloEntran ? senales.filter((s) => s.entra) : senales;
@@ -274,19 +263,16 @@ export function PanelSenales() {
                   </div>
                 ))}
 
-                {/* ---- Tu decisión, aparte de la del motor ---- */}
-                <div className="sn-curar">
-                  <span>Tu decisión:</span>
-                  <button className={s.curado === true ? "on si" : ""} onClick={() => void curar(s, true)}>
-                    La tomo
-                  </button>
-                  <button className={s.curado === false ? "on no" : ""} onClick={() => void curar(s, false)}>
-                    No la tomo
-                  </button>
-                  <button className={s.curado === null ? "on" : ""} onClick={() => void curar(s, null)}>
-                    Sin opinión
-                  </button>
-                </div>
+                {/* La decisión manual **no se edita desde acá**, a propósito.
+                    Son dos series independientes que se comparan entre sí; si
+                    esta pantalla pudiera tocar una de las dos, dejaría de ser
+                    una comparación y pasaría a ser una opinión mezclada con
+                    otra. Lo que se ve acá es el resultado, no un formulario. */}
+                {s.curado !== null && (
+                  <p className={`sn-yacurado ${s.curado ? "tomo" : "paso"}`}>
+                    {s.curado ? "En la serie manual: se toma" : "En la serie manual: se pasa"}
+                  </p>
+                )}
               </div>
             )}
           </article>

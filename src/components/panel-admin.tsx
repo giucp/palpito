@@ -6,28 +6,40 @@ import { Icono, IconosDefs } from "./iconos";
 import { PanelSenales } from "./panel-senales";
 import { fmt } from "@/lib/dinero";
 
+// Lo que mide el panel hoy.
+//
+// Antes medía el producto viejo: "margen de la casa" y parleys de la tabla
+// `apuestas`, que lleva meses sin recibir una fila. **Hoy la casa no juega**:
+// dos amigos ponen lo mismo, el ganador se lleva el pozo y Pálpito cobra el
+// 0,5%. Así que el número que manda es la comisión, no el margen.
 type Resumen = {
   usuarios: number;
   usuarios_con_saldo: number;
+  usuarios_jugando: number;
+  amistades: number;
   repartidas: number;
-  retiradas_admin: number;
   circulacion: number;
-  apostado_deportes: number;
-  pagado_deportes: number;
-  apostado_juegos: number;
-  pagado_juegos: number;
-  apuestas_abiertas: number;
-  apuestas_total: number;
-  apuestas_ganadas: number;
-  apuestas_perdidas: number;
-  rondas_juegos: number;
+  comision: number;
+  volumen: number;
+  retos_total: number;
+  retos_deportivos: number;
+  retos_carta: number;
+  retos_dados: number;
+  retos_jugados: number;
+  retos_cancelados: number;
+  retenido: number;
+  esperando_respuesta: number;
+  esperando_jugada: number;
   eventos_abiertos: number;
   eventos_finalizados: number;
+  combos_resueltos: number;
+  combos_acertados: number;
 };
 
 type Usuario = {
   id: string;
   correo: string;
+  alias: string | null;
   creado: string;
   ultimo_acceso: string | null;
   admin: boolean;
@@ -35,11 +47,11 @@ type Usuario = {
   recibido: number;
   apostado: number;
   cobrado: number;
-  apuestas: number;
-  ganadas: number;
-  perdidas: number;
-  abiertas: number;
-  jugadas: number;
+  amigos: number;
+  retos: number;
+  retos_juego: number;
+  ganados: number;
+  perdidos: number;
 };
 
 type Movimiento = { id: number; tipo: string; monto: number; nota: string | null; fecha: string };
@@ -78,7 +90,7 @@ export function PanelAdmin({ correo }: { correo: string }) {
   const [movs, setMovs] = useState<Record<string, Movimiento[]>>({});
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [orden, setOrden] = useState<"balance" | "saldo" | "jugado" | "reciente">("jugado");
+  const [orden, setOrden] = useState<"balance" | "saldo" | "jugado" | "retos" | "reciente">("jugado");
   const [pestana, setPestana] = useState<"cuentas" | "senales">("cuentas");
 
   const cargar = useCallback(async (q = "") => {
@@ -143,19 +155,21 @@ export function PanelAdmin({ correo }: { correo: string }) {
     }
   };
 
-  const jugadoDep = resumen?.apostado_deportes ?? 0;
-  const pagadoDep = resumen?.pagado_deportes ?? 0;
-  const jugadoJue = resumen?.apostado_juegos ?? 0;
-  const pagadoJue = resumen?.pagado_juegos ?? 0;
-  const volumen = jugadoDep + jugadoJue;
-  const margen = volumen - pagadoDep - pagadoJue;
+  const comision = resumen?.comision ?? 0;
+  const volumen = resumen?.volumen ?? 0;
   const circulacion = resumen?.circulacion ?? 0;
   const repartidas = resumen?.repartidas ?? 0;
+  const retosJuego = (resumen?.retos_carta ?? 0) + (resumen?.retos_dados ?? 0);
+  // La comisión es del 0,5% por diseño. Si el porcentaje real se aleja de ahí,
+  // no es un dato de negocio: es un error en alguna función de liquidación.
+  const pctComision = volumen > 0 ? (comision / volumen) * 100 : 0;
+  const comisionSana = volumen === 0 || Math.abs(pctComision - 0.5) < 0.05;
 
   const ordenadas = usuarios
     ? [...usuarios].sort((a, b) => {
         if (orden === "saldo") return b.saldo - a.saldo;
         if (orden === "jugado") return b.apostado - a.apostado;
+        if (orden === "retos") return b.retos - a.retos;
         if (orden === "balance") return b.cobrado - b.apostado - (a.cobrado - a.apostado);
         return (b.creado ?? "").localeCompare(a.creado ?? "");
       })
@@ -197,47 +211,55 @@ export function PanelAdmin({ correo }: { correo: string }) {
       )}
 
       <main className="adm-main" hidden={pestana !== "cuentas"}>
-        {/* La cifra que manda: una sola, grande, arriba a la izquierda */}
+        {/* La cifra que manda.
+            Ya no es "margen de la casa": la casa no juega. Lo que Pálpito gana
+            es la comisión del 0,5% de cada pozo que se resuelve. */}
         <section className="adm-hero">
           <div className="hero-num">
-            <span className="t">Margen de la casa</span>
-            <b className={margen >= 0 ? "bien" : "mal"}>
-              {margen >= 0 ? "+" : "−"}
-              {compacto(Math.abs(margen))}
-            </b>
+            <span className="t">Comisión cobrada</span>
+            <b className="bien">{compacto(comision)}</b>
             <span className="p">
               {volumen > 0 ? (
                 <>
-                  <strong>{((margen / volumen) * 100).toFixed(1)}%</strong> de las{" "}
-                  {compacto(volumen)} fichas jugadas
+                  <strong>{pctComision.toFixed(2)}%</strong> de las {compacto(volumen)} fichas
+                  que pasaron por la mesa
                 </>
               ) : (
-                "todavía sin actividad"
+                "todavía sin retos resueltos"
               )}
             </span>
+            {/* Debe dar 0,5% exacto. Si no, el error no está en el negocio:
+                está en alguna función de liquidación. */}
+            {!comisionSana && (
+              <span className="p mal">Debería ser 0,50% · revisar la liquidación</span>
+            )}
           </div>
 
-          {/* De dónde sale ese margen. Barras apiladas: de lo jugado, cuánto se
-              devolvió y cuánto se quedó la casa. */}
           <div className="hero-desglose">
             <div className="hd-cab">
-              <span>De dónde sale</span>
+              <span>Qué se juega</span>
               <div className="hd-leyenda">
-                <i className="ly casa" /> Se queda la casa
-                <i className="ly pagado" /> Devuelto
+                <i className="ly casa" /> Resueltos
+                <i className="ly pagado" /> Sin resolver
               </div>
             </div>
             <Barra
-              etiqueta="Deportes"
-              jugado={jugadoDep}
-              pagado={pagadoDep}
-              maximo={Math.max(jugadoDep, jugadoJue, 1)}
+              etiqueta="Deportivos"
+              jugado={resumen?.retos_deportivos ?? 0}
+              pagado={Math.max(0, (resumen?.retos_deportivos ?? 0) - (resumen?.retos_jugados ?? 0))}
+              maximo={Math.max(resumen?.retos_deportivos ?? 0, retosJuego, 1)}
             />
             <Barra
-              etiqueta="Juegos"
-              jugado={jugadoJue}
-              pagado={pagadoJue}
-              maximo={Math.max(jugadoDep, jugadoJue, 1)}
+              etiqueta="Carta más alta"
+              jugado={resumen?.retos_carta ?? 0}
+              pagado={0}
+              maximo={Math.max(resumen?.retos_deportivos ?? 0, retosJuego, 1)}
+            />
+            <Barra
+              etiqueta="Dados"
+              jugado={resumen?.retos_dados ?? 0}
+              pagado={0}
+              maximo={Math.max(resumen?.retos_deportivos ?? 0, retosJuego, 1)}
             />
           </div>
         </section>
@@ -253,25 +275,45 @@ export function PanelAdmin({ correo }: { correo: string }) {
           <Kpi
             titulo="Usuarios"
             valor={String(resumen?.usuarios ?? 0)}
-            detalle={`${resumen?.usuarios_con_saldo ?? 0} con fichas`}
+            detalle={`${resumen?.usuarios_jugando ?? 0} han jugado · ${resumen?.amistades ?? 0} amistades`}
           />
           <Kpi
-            titulo="Apuestas"
-            valor={String(resumen?.apuestas_total ?? 0)}
-            detalle={`${resumen?.apuestas_abiertas ?? 0} sin resolver`}
+            titulo="Retos"
+            valor={String(resumen?.retos_total ?? 0)}
+            detalle={`${resumen?.retos_jugados ?? 0} jugados · ${resumen?.retos_cancelados ?? 0} sin jugar`}
             reparto={
-              resumen && resumen.apuestas_ganadas + resumen.apuestas_perdidas > 0
-                ? {
-                    ganadas: resumen.apuestas_ganadas,
-                    perdidas: resumen.apuestas_perdidas,
-                  }
+              resumen && resumen.retos_deportivos + retosJuego > 0
+                ? { ganadas: resumen.retos_deportivos, perdidas: retosJuego }
                 : undefined
             }
           />
+          {/* Lo que hay que vigilar: fichas retenidas ahora mismo. Los dos
+              vencimientos existen justamente porque esto se quedaba trabado. */}
           <Kpi
-            titulo="Partidas de juegos"
-            valor={String(resumen?.rondas_juegos ?? 0)}
-            detalle={`${resumen?.eventos_abiertos ?? 0} eventos en cartelera`}
+            titulo="Retenido ahora"
+            valor={compacto(resumen?.retenido ?? 0)}
+            detalle={
+              `${resumen?.esperando_respuesta ?? 0} sin aceptar · ` +
+              `${resumen?.esperando_jugada ?? 0} sin jugar`
+            }
+          />
+          <Kpi
+            titulo="Cartelera"
+            valor={String(resumen?.eventos_abiertos ?? 0)}
+            detalle={`${resumen?.eventos_finalizados ?? 0} partidos ya cerrados`}
+          />
+          <Kpi
+            titulo="Combos del día"
+            valor={
+              resumen && resumen.combos_resueltos > 0
+                ? `${resumen.combos_acertados}/${resumen.combos_resueltos}`
+                : "—"
+            }
+            detalle={
+              resumen && resumen.combos_resueltos > 0
+                ? "pegados de los resueltos"
+                : "todavía sin resolver ninguno"
+            }
           />
         </section>
 
@@ -282,8 +324,9 @@ export function PanelAdmin({ correo }: { correo: string }) {
             <div className="adm-orden">
               {(
                 [
-                  ["jugado", "Más apostado", "Quién ha puesto más fichas en juego"],
-                  ["balance", "Mejor balance", "Quién va ganando más (cobrado menos apostado)"],
+                  ["jugado", "Más jugado", "Quién ha puesto más fichas en retos y juegos"],
+                  ["retos", "Más retos", "Quién juega más seguido, sin importar el monto"],
+                  ["balance", "Mejor balance", "Quién va ganando más (cobrado menos jugado)"],
                   ["saldo", "Más saldo", "Quién tiene más fichas ahora mismo"],
                   ["reciente", "Más nuevos", "Los últimos en registrarse"],
                 ] as const
@@ -340,19 +383,20 @@ export function PanelAdmin({ correo }: { correo: string }) {
               {ordenadas.map((u) => {
                 const balance = u.cobrado - u.apostado;
                 const abre = abierto === u.id;
-                const resueltas = u.ganadas + u.perdidas;
+                const resueltas = u.ganados + u.perdidos;
                 return (
                   <div key={u.id} className={`adm-bloque ${abre ? "abierto" : ""}`}>
                     <div className="adm-fila">
                       <button className="adm-usuario" onClick={() => verMovimientos(u.id)}>
                         <span className="correo">
-                          {u.correo}
+                          {u.alias ? `@${u.alias}` : u.correo}
                           {u.admin && <i className="chip">admin</i>}
                         </span>
                         <span className="meta">
-                          {u.apuestas} apuestas
-                          {resueltas > 0 && ` · ${Math.round((u.ganadas / resueltas) * 100)}% acierto`}
-                          {u.jugadas > 0 && ` · ${u.jugadas} partidas`}
+                          {u.retos} retos
+                          {resueltas > 0 && ` · ${Math.round((u.ganados / resueltas) * 100)}% ganados`}
+                          {u.retos_juego > 0 && ` · ${u.retos_juego} de juego`}
+                          {u.amigos > 0 && ` · ${u.amigos} amigos`}
                         </span>
                       </button>
                       <span className="num mono" data-t="Saldo">

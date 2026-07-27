@@ -57,37 +57,11 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ ok: true, fecha, fechas, senales: senales ?? [], balance });
 }
 
-/** La curación a mano: se guarda aparte de lo que decidió el motor. */
-export async function POST(req: NextRequest) {
-  if (!(await esAdmin())) {
-    return NextResponse.json({ ok: false, motivo: "no_autorizado" }, { status: 403 });
-  }
-
-  let cuerpo: { id?: string; curado?: boolean | null; nota?: string };
-  try {
-    cuerpo = await req.json();
-  } catch {
-    return NextResponse.json({ ok: false, motivo: "cuerpo_invalido" }, { status: 400 });
-  }
-  if (typeof cuerpo.id !== "string") {
-    return NextResponse.json({ ok: false, motivo: "cuerpo_invalido" }, { status: 400 });
-  }
-
-  // Nunca se toca `entra`: esa es la decisión del motor y tiene que quedar tal
-  // como fue, o se pierde la comparación entre las dos series.
-  const admin = crearClienteAdmin();
-  const { error } = await admin
-    .from("senales_dia")
-    .update({
-      curado: cuerpo.curado ?? null,
-      curado_nota: cuerpo.nota ?? null,
-      curado_at: cuerpo.curado === null || cuerpo.curado === undefined ? null : new Date().toISOString(),
-    })
-    .eq("id", cuerpo.id);
-
-  if (error) {
-    console.error("[admin:senales]", error.message);
-    return NextResponse.json({ ok: false, motivo: "error_interno" }, { status: 500 });
-  }
-  return NextResponse.json({ ok: true });
-}
+// **No hay POST a propósito.** La curación manual se escribe con la clave de
+// servicio, fuera de la aplicación, y esta pantalla solo la muestra.
+//
+// Son dos series independientes que existen para compararse entre sí: la del
+// motor y la del análisis a mano. Si el panel pudiera editar una de las dos,
+// dejaría de ser una comparación y pasaría a ser una opinión mezclada con otra,
+// y ya pasó una vez: una decisión hecha desde acá se metió en la serie manual y
+// hubo que sacarla.
