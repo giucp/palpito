@@ -9,7 +9,7 @@
 
 import { traerJornada } from "../src/lib/senales/datos.ts";
 import { MODELOS, candidatosDe, nombreDe } from "../src/lib/senales/modelos.ts";
-import { juzgar, REGLAS } from "../src/lib/senales/motor.ts";
+import { juzgar, puertaDeScore, REGLAS } from "../src/lib/senales/motor.ts";
 import { mercadoDelDia, balanceSenales } from "../src/lib/senales/guardar.ts";
 import {
   MODELOS_TOTALES,
@@ -30,9 +30,29 @@ const todos = process.argv.includes("--todos");
 
 console.log(`Jornada del ${fecha}\n`);
 console.log(
-  `Reglas: score ≥ ${REGLAS.scoreMinimo} · ${Math.round(REGLAS.acuerdoMinimo * 100)}% de acuerdo · ` +
-    `piso ${REGLAS.pisoCritico} · contradice a ${REGLAS.distanciaContradice} de la mediana\n`
+  `Reglas: puesto ≥ ${REGLAS.scoreMinimo} del día · ${Math.round(REGLAS.acuerdoMinimo * 100)}% de acuerdo · ` +
+    `${REGLAS.bajosParaDescartar} modelos bajo ${REGLAS.pisoCritico} descartan · ` +
+    `${REGLAS.lejosParaDescartar} a ${REGLAS.distanciaContradice} de la mediana contradicen\n`
 );
+
+/**
+ * Juzga una familia entera, en las mismas dos pasadas que `guardar.ts`.
+ *
+ * La segunda pasada (`puertaDeScore`) hace falta acá también: si el script
+ * juzgara candidato por candidato mostraría más señales de las que el motor
+ * guarda de verdad, y este script existe justamente para ver lo que el motor va
+ * a hacer.
+ */
+function juzgarFamilia<C>(
+  candidatos: C[],
+  modelos: Parameters<typeof juzgar<C>>[1],
+  opciones?: Parameters<typeof juzgar<C>>[2]
+) {
+  const vs = puertaDeScore(candidatos.map((c) => juzgar(c, modelos, opciones)));
+  return candidatos
+    .map((c, i) => ({ c, v: vs[i] }))
+    .sort((a, b) => b.v.score - a.v.score);
+}
 
 const m = await mercadoDelDia(fecha);
 const partidos = await traerJornada(fecha, m.ganador, m.totales, m.palizas);
@@ -44,10 +64,7 @@ const barra = (n: number | null) => {
   return `${String(n).padStart(3)}  ${"█".repeat(llenos)}${"·".repeat(10 - llenos)}`;
 };
 
-const veredictos = partidos
-  .flatMap(candidatosDe)
-  .map((c) => ({ c, v: juzgar(c, MODELOS) }))
-  .sort((a, b) => b.v.score - a.v.score);
+const veredictos = juzgarFamilia(partidos.flatMap(candidatosDe), MODELOS);
 
 const entran = veredictos.filter((x) => x.v.entra);
 
@@ -69,10 +86,11 @@ console.log("─".repeat(72));
 console.log(`Entran ${entran.length} de ${veredictos.length} candidatos de ganador.`);
 
 // ---- Más o menos carreras ----
-const totales = partidos
-  .flatMap(candidatosTotalDe)
-  .map((c) => ({ c, v: juzgar(c, MODELOS_TOTALES, OPCIONES_TOTALES) }))
-  .sort((a, b) => b.v.score - a.v.score);
+const totales = juzgarFamilia(
+  partidos.flatMap(candidatosTotalDe),
+  MODELOS_TOTALES,
+  OPCIONES_TOTALES
+);
 
 console.log(`\n${"═".repeat(72)}\nMÁS O MENOS CARRERAS\n`);
 for (const { c, v } of totales) {
@@ -97,10 +115,7 @@ for (const m2 of MODELOS_TOTALES) {
   console.log(`  ${m2.nombre.padEnd(12)} ${String(pct2).padStart(3)}%  (peso ${m2.peso})`);
 }
 // ---- Ganar por dos o más ----
-const lineas = partidos
-  .flatMap(candidatoLineaDe)
-  .map((c) => ({ c, v: juzgar(c, MODELOS_LINEA) }))
-  .sort((a, b) => b.v.score - a.v.score);
+const lineas = juzgarFamilia(partidos.flatMap(candidatoLineaDe), MODELOS_LINEA);
 
 console.log(`\n${"═".repeat(72)}\nGANAR POR DOS O MÁS (run line)\n`);
 for (const { c, v } of lineas) {

@@ -10,7 +10,7 @@ import {
   OPCIONES_TOTALES,
 } from "./modelos-totales.ts";
 import { MODELOS_LINEA, candidatoLineaDe, nombreLineaDe } from "./modelos-linea.ts";
-import { juzgar } from "./motor.ts";
+import { juzgar, puertaDeScore } from "./motor.ts";
 
 // Guardar lo que dijo el motor cada día, y comprobarlo después.
 //
@@ -122,74 +122,82 @@ export async function guardarSenales(
     hora: p.hora || null,
   });
 
+  // Las tres familias se arman igual, en **dos pasadas**: primero se juzga cada
+  // candidato por su cuenta, y después `puertaDeScore` mira la jornada completa
+  // y decide cuáles están entre los mejores del día. Esa última puerta no se
+  // puede contestar de a un partido.
+  const juzgarFamilia = <C>(
+    pares: Array<{ p: (typeof partidos)[number]; c: C }>,
+    modelos: Parameters<typeof juzgar<C>>[1],
+    opciones?: Parameters<typeof juzgar<C>>[2]
+  ) => {
+    const veredictos = puertaDeScore(pares.map(({ c }) => juzgar(c, modelos, opciones)));
+    return pares.map(({ p, c }, i) => ({ p, c, v: veredictos[i] }));
+  };
+
   // Quién gana
-  const deGanador = partidos.flatMap((p) =>
-    candidatosDe(p).map((c) => {
-      const v = juzgar(c, MODELOS);
-      return {
-        ...comun(p),
-        mercado: "ganador",
-        linea: null as number | null,
-        lado: c.lado,
-        equipo: nombreDe(c),
-        score: v.score,
-        midieron: v.midieron,
-        total_modelos: v.total,
-        acuerdo: v.acuerdo,
-        entra: v.entra,
-        motivo_descarte: v.motivoDescarte,
-        contradice: v.contradice ? v.contradice.id : null,
-        detalle: v.detalle,
-      };
-    })
-  );
+  const deGanador = juzgarFamilia(
+    partidos.flatMap((p) => candidatosDe(p).map((c) => ({ p, c }))),
+    MODELOS
+  ).map(({ p, c, v }) => ({
+    ...comun(p),
+    mercado: "ganador",
+    linea: null as number | null,
+    lado: c.lado,
+    equipo: nombreDe(c),
+    score: v.score,
+    midieron: v.midieron,
+    total_modelos: v.total,
+    acuerdo: v.acuerdo,
+    entra: v.entra,
+    motivo_descarte: v.motivoDescarte,
+    contradice: v.contradice ? v.contradice.id : null,
+    detalle: v.detalle,
+  }));
 
   // Más o menos carreras. Solo donde el mercado publicó una línea: sin línea no
   // hay apuesta que juzgar, e inventarnos una sería medirnos contra nosotros
   // mismos.
-  const deTotales = partidos.flatMap((p) =>
-    candidatosTotalDe(p).map((c) => {
-      const v = juzgar(c, MODELOS_TOTALES, OPCIONES_TOTALES);
-      return {
-        ...comun(p),
-        mercado: "total",
-        linea: c.linea,
-        lado: c.tipo,
-        equipo: nombreTotalDe(c),
-        score: v.score,
-        midieron: v.midieron,
-        total_modelos: v.total,
-        acuerdo: v.acuerdo,
-        entra: v.entra,
-        motivo_descarte: v.motivoDescarte,
-        contradice: v.contradice ? v.contradice.id : null,
-        detalle: v.detalle,
-      };
-    })
-  );
+  const deTotales = juzgarFamilia(
+    partidos.flatMap((p) => candidatosTotalDe(p).map((c) => ({ p, c }))),
+    MODELOS_TOTALES,
+    OPCIONES_TOTALES
+  ).map(({ p, c, v }) => ({
+    ...comun(p),
+    mercado: "total",
+    linea: c.linea,
+    lado: c.tipo,
+    equipo: nombreTotalDe(c),
+    score: v.score,
+    midieron: v.midieron,
+    total_modelos: v.total,
+    acuerdo: v.acuerdo,
+    entra: v.entra,
+    motivo_descarte: v.motivoDescarte,
+    contradice: v.contradice ? v.contradice.id : null,
+    detalle: v.detalle,
+  }));
 
   // Ganar por dos o más: la run line. Un solo candidato por partido, el que el
   // mercado publica con −1.5.
-  const deLinea = partidos.flatMap((p) =>
-    candidatoLineaDe(p).map((c) => {
-      const v = juzgar(c, MODELOS_LINEA);
-      return {
-        ...comun(p),
-        mercado: "linea",
-        linea: 1.5,
-        lado: c.lado,
-        equipo: nombreLineaDe(c),
-        score: v.score,
-        midieron: v.midieron,
-        total_modelos: v.total,
-        acuerdo: v.acuerdo,
-        entra: v.entra,
-        motivo_descarte: v.motivoDescarte,
-        contradice: v.contradice ? v.contradice.id : null,
-        detalle: v.detalle,
-      };
-    })
-  );
+  const deLinea = juzgarFamilia(
+    partidos.flatMap((p) => candidatoLineaDe(p).map((c) => ({ p, c }))),
+    MODELOS_LINEA
+  ).map(({ p, c, v }) => ({
+    ...comun(p),
+    mercado: "linea",
+    linea: 1.5,
+    lado: c.lado,
+    equipo: nombreLineaDe(c),
+    score: v.score,
+    midieron: v.midieron,
+    total_modelos: v.total,
+    acuerdo: v.acuerdo,
+    entra: v.entra,
+    motivo_descarte: v.motivoDescarte,
+    contradice: v.contradice ? v.contradice.id : null,
+    detalle: v.detalle,
+  }));
 
   const filas = [
     ...(guardadas.has("ganador") ? [] : deGanador),
