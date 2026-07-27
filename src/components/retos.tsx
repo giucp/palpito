@@ -42,6 +42,16 @@ type Accion = { texto: string; urgente: boolean };
 const RESUELTOS = new Set(["ganado_creador", "ganado_rival", "empate", "cancelado"]);
 
 const esJuego = (r: Reto) => Boolean(r.tipo && r.tipo !== "deportivo");
+
+// Cómo se llama cada juego y qué le toca hacer al jugador. Se dice con el verbo
+// del juego —"sacá tu carta", "tirá tus dados"— porque es una instrucción, no
+// una etiqueta: el que entra tiene que saber qué va a pasar cuando toque.
+const JUEGOS: Record<string, { nombre: string; hacer: string; suyo: string }> = {
+  carta: { nombre: "Carta más alta", hacer: "Sacá tu carta", suyo: "la carta" },
+  dados: { nombre: "Dados", hacer: "Tirá tus dados", suyo: "los dados" },
+};
+const delJuego = (r: Reto) =>
+  JUEGOS[r.tipo ?? ""] ?? { nombre: "Reto", hacer: "Jugá tu turno", suyo: "la jugada" };
 // Una apuesta publicada al tablero es un desafío sin rival: mientras está
 // esperando, y también después si venció o se retiró sin que nadie la tomara.
 const sinRival = (r: Reto) => !esJuego(r) && r.rival_id === null;
@@ -53,14 +63,14 @@ function queHacer(r: Reto): Accion {
   if (r.estado === "pendiente") {
     if (esPublicada(r)) return { texto: "Publicada · esperando quien la tome", urgente: false };
     if (!r.soyCreador) return { texto: `Te retó @${otro} · aceptá`, urgente: true };
-    if (esJuego(r) && !r.yaJugue) return { texto: "Sacá tu carta", urgente: true };
+    if (esJuego(r) && !r.yaJugue) return { texto: delJuego(r).hacer, urgente: true };
     return { texto: `Esperando que @${otro} acepte`, urgente: false };
   }
 
   if (r.estado === "aceptado") {
     if (!esJuego(r)) return { texto: "En juego · se resuelve al terminar el partido", urgente: false };
-    if (!r.yaJugue) return { texto: "Sacá tu carta", urgente: true };
-    return { texto: `Esperando la carta de @${otro}`, urgente: false };
+    if (!r.yaJugue) return { texto: delJuego(r).hacer, urgente: true };
+    return { texto: `Esperando ${delJuego(r).suyo} de @${otro}`, urgente: false };
   }
 
   if (r.estado === "empate") return { texto: "Empataron · se devolvió lo puesto", urgente: false };
@@ -74,7 +84,7 @@ function queHacer(r: Reto): Accion {
 }
 
 function titulo(r: Reto): string {
-  if (esJuego(r)) return r.tipo === "carta" ? "Carta más alta" : "Despegue a dos";
+  if (esJuego(r)) return delJuego(r).nombre;
   return `${r.eventos?.equipo_a ?? "?"} vs ${r.eventos?.equipo_b ?? "?"}`;
 }
 

@@ -2,20 +2,23 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { Icono } from "./iconos";
-import { RetoCarta } from "./reto-carta";
+import { RetoJuego, type JuegoDef } from "./reto-juego";
 import { alternarSonido, sonidoActivo, suscribirSonido } from "@/lib/sonido";
 
 // Juegos de Pálpito: **siempre contra un amigo, nunca contra la casa**.
 //
 // Acá solo se elige el juego. Los retos —los que esperan algo tuyo y los ya
-// jugados— viven en Apuestas → Retos (palpito_guia.md §6.e): son lo mismo que
-// una apuesta con otra persona, así que están todos juntos en un solo lugar.
+// jugados— viven en Cuenta → Retos: son lo mismo que una apuesta con otra
+// persona, así que están todos juntos en un solo lugar.
 //
 // El Muelle y Despegue contra la casa se retiraron el 2026-07-26. La idea del
 // producto es que dos amigos jueguen entre ellos y Pálpito cobre una comisión
 // mínima de cada partida. Sin casa del otro lado no hace falta inclinar la
 // matemática: los dos tienen la misma probabilidad y el jugador recupera el
 // 99,5% de lo que pone, contra el 97% de un juego de casino.
+//
+// Para agregar un juego: una entrada acá, su rama en `/api/juego` y su mesa.
+// El resto del camino —crear, aceptar, vencer, cobrar— ya está hecho.
 
 type Props = {
   usuario: { email: string } | null;
@@ -24,19 +27,31 @@ type Props = {
   onEntrar: () => void;
 };
 
-type Juego = "carta";
-
-const CATALOGO: Array<{ id: Juego; nombre: string; resumen: string; tag: string }> = [
+const CATALOGO: JuegoDef[] = [
   {
     id: "carta",
     nombre: "Carta más alta",
     resumen: "Cada uno saca una carta. La más alta se lleva el pozo.",
     tag: "contra un amigo",
+    comoSeGana:
+      "Cada uno saca una carta y la más alta se lleva el pozo. Nadie ve la carta del otro hasta que sacan los dos.",
+    invitacion: "Te reto a una carta en Pálpito.\nEl que saque la más alta se lleva el pozo.",
+    queHacer: "Cuando acepte, el reto te aparece en Juegos para sacar tu carta.",
+  },
+  {
+    id: "dados",
+    nombre: "Dados",
+    resumen: "Dos dados cada uno. El que sume más se lleva el pozo.",
+    tag: "contra un amigo",
+    comoSeGana:
+      "Dos dados cada uno y gana el que sume más. Si empatan, se vuelve a tirar. Nadie ve los dados del otro hasta que tiran los dos.",
+    invitacion: "Te reto a los dados en Pálpito.\nDos dados cada uno, el que sume más se lleva el pozo.",
+    queHacer: "Cuando acepte, el reto te aparece en Juegos para tirar tus dados.",
   },
 ];
 
 export function Juegos(props: Props) {
-  const [abierto, setAbierto] = useState<Juego | null>(null);
+  const [abierto, setAbierto] = useState<string | null>(null);
 
   // La preferencia vive en `localStorage`, que en el servidor no existe. Se lee
   // así —y no copiándola a un estado dentro de un efecto— para que el servidor
@@ -55,7 +70,9 @@ export function Juegos(props: Props) {
     </button>
   );
 
-  if (abierto === "carta") {
+  const juego = CATALOGO.find((j) => j.id === abierto);
+
+  if (juego) {
     return (
       <>
         <div className="jbarra">
@@ -64,7 +81,7 @@ export function Juegos(props: Props) {
           </button>
           {botonSonido}
         </div>
-        <RetoCarta {...props} />
+        <RetoJuego juego={juego} {...props} />
       </>
     );
   }
@@ -98,10 +115,42 @@ export function Juegos(props: Props) {
   );
 }
 
-// Portada dibujada con formas, sin imágenes: nítida en cualquier pantalla y
-// pesa unos pocos kilobytes.
-function PortadaJuego({ id }: { id: Juego }) {
-  if (id !== "carta") return null;
+// Portadas dibujadas con formas, sin imágenes: nítidas en cualquier pantalla y
+// pesan unos pocos kilobytes.
+function PortadaJuego({ id }: { id: string }) {
+  if (id === "dados") {
+    return (
+      <svg viewBox="0 0 100 48" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="jp-dados" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#16342a" />
+            <stop offset="100%" stopColor="#0a1712" />
+          </linearGradient>
+        </defs>
+        <rect width="100" height="48" fill="url(#jp-dados)" />
+        {/* Dos dados apoyados, uno lima y uno hueso: el 5 y el 3 */}
+        <g transform="translate(36 25) rotate(-11)">
+          <rect x="-13" y="-13" width="26" height="26" rx="6" fill="#b6ff3d" />
+          <g fill="#0f1a12">
+            <circle cx="-6.5" cy="-6.5" r="2.4" />
+            <circle cx="6.5" cy="-6.5" r="2.4" />
+            <circle cx="0" cy="0" r="2.4" />
+            <circle cx="-6.5" cy="6.5" r="2.4" />
+            <circle cx="6.5" cy="6.5" r="2.4" />
+          </g>
+        </g>
+        <g transform="translate(63 26) rotate(13)">
+          <rect x="-12" y="-12" width="24" height="24" rx="5.5" fill="#f7f5ef" />
+          <g fill="#1b2230">
+            <circle cx="-6" cy="-6" r="2.2" />
+            <circle cx="0" cy="0" r="2.2" />
+            <circle cx="6" cy="6" r="2.2" />
+          </g>
+        </g>
+      </svg>
+    );
+  }
+
   return (
     <svg viewBox="0 0 100 48" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <defs>

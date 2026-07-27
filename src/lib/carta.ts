@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { numeroDe } from "./azar.ts";
 
 // Carta más alta: cada uno saca una carta del mismo mazo y gana la más alta.
 //
@@ -40,8 +40,10 @@ export const cartaDe = (indice: number): Carta => ({
 export function barajar(semilla: string): number[] {
   const mazo = Array.from({ length: 52 }, (_, i) => i);
   for (let i = mazo.length - 1; i > 0; i--) {
-    const hex = createHash("sha256").update(`${semilla}:${i}`).digest("hex").slice(0, 13);
-    const j = parseInt(hex, 16) % (i + 1);
+    // La etiqueta es el índice, igual que siempre: el barajado de las partidas
+    // ya jugadas tiene que seguir dando exactamente lo mismo, o dejarían de ser
+    // comprobables.
+    const j = numeroDe(semilla, String(i), i + 1);
     [mazo[i], mazo[j]] = [mazo[j], mazo[i]];
   }
   return mazo;
@@ -53,5 +55,4 @@ export function repartir(semilla: string): { creador: Carta; rival: Carta } {
   return { creador: cartaDe(mazo[0]), rival: cartaDe(mazo[1]) };
 }
 
-export const nuevaSemilla = () => randomBytes(24).toString("hex");
-export const hashDe = (semilla: string) => createHash("sha256").update(semilla).digest("hex");
+export { nuevaSemilla, hashDe } from "./azar.ts";

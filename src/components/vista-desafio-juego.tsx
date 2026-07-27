@@ -5,11 +5,24 @@ import Link from "next/link";
 import { Icono } from "./iconos";
 import { Volver } from "./volver";
 import { CartaMesa } from "./carta-mesa";
+import { DadosMesa } from "./dados-mesa";
 import { fmt } from "@/lib/dinero";
 import { cartaDe } from "@/lib/carta";
+import type { Tirada } from "@/lib/dados";
 
 // La pantalla de un desafío de juego: la que abre tu amigo desde WhatsApp y la
 // que ves vos al volver a jugar la tuya.
+//
+// Sirve para cualquiera de los juegos: lo único propio de cada uno es la mesa y
+// la línea que explica qué pasa si empatan.
+
+const NOMBRES: Record<string, string> = { carta: "Carta más alta", dados: "Dados" };
+
+// Qué se le dice al jugador sobre los empates, que no funcionan igual en los dos.
+const EMPATES: Record<string, string> = {
+  carta: "Si sale la misma figura, cada uno recupera lo suyo menos la mitad de la comisión.",
+  dados: "Si los dos suman lo mismo, se vuelve a tirar hasta que se separen.",
+};
 
 type Props = {
   desafio: {
@@ -25,8 +38,13 @@ type Props = {
   soyRival: boolean;
   soyCreador: boolean;
   entrado: boolean;
-  miIndice: number | null;
-  suIndice: number | null;
+  // La jugada tal como está guardada. Su forma depende del juego, y solo llega
+  // la del otro si la partida ya se resolvió.
+  miJugada: { indice?: number; dados?: [number, number]; suma?: number } | null;
+  suJugada: { indice?: number; dados?: [number, number]; suma?: number } | null;
+  // Solo en dados y solo al final: el camino completo, con las tiradas que
+  // empataron antes de la que decidió.
+  rondas: { mia: Tirada; suya: Tirada }[] | null;
   gano: "ganaste" | "perdiste" | "empate" | null;
 };
 
@@ -46,8 +64,9 @@ export function VistaDesafioJuego({
   soyRival,
   soyCreador,
   entrado,
-  miIndice,
-  suIndice,
+  miJugada,
+  suJugada,
+  rondas,
   gano,
 }: Props) {
   const [estado, setEstado] = useState(d.estado);
@@ -100,23 +119,36 @@ export function VistaDesafioJuego({
       </div>
 
       <div className="dsf-card">
-        <div className="dsf-liga">Carta más alta</div>
+        <div className="dsf-liga">{NOMBRES[d.tipo] ?? "Reto"}</div>
         <h1 className="dsf-partido">
           @{d.aliasCreador} <span>vs</span> @{d.aliasRival}
         </h1>
 
         {/* La mesa solo aparece cuando hay algo que jugar o que mirar */}
-        {jugable && (soyCreador || soyRival) && (
-          <CartaMesa
-            desafioId={d.id}
-            monto={d.monto}
-            comisionBps={d.comisionBps}
-            aliasRival={rival}
-            miCartaInicial={miIndice !== null ? cartaDe(miIndice) : null}
-            suCartaInicial={suIndice !== null ? cartaDe(suIndice) : null}
-            resultadoInicial={gano}
-          />
-        )}
+        {jugable &&
+          (soyCreador || soyRival) &&
+          (d.tipo === "dados" ? (
+            <DadosMesa
+              desafioId={d.id}
+              monto={d.monto}
+              comisionBps={d.comisionBps}
+              aliasRival={rival}
+              miTiradaInicial={miJugada?.dados ? (miJugada as Tirada) : null}
+              suTiradaInicial={suJugada?.dados ? (suJugada as Tirada) : null}
+              rondasIniciales={rondas}
+              resultadoInicial={gano}
+            />
+          ) : (
+            <CartaMesa
+              desafioId={d.id}
+              monto={d.monto}
+              comisionBps={d.comisionBps}
+              aliasRival={rival}
+              miCartaInicial={miJugada?.indice !== undefined ? cartaDe(miJugada.indice) : null}
+              suCartaInicial={suJugada?.indice !== undefined ? cartaDe(suJugada.indice) : null}
+              resultadoInicial={gano}
+            />
+          ))}
 
         <div className="dsf-pozo">
           <div className="dsf-fila">
@@ -133,9 +165,7 @@ export function VistaDesafioJuego({
           </div>
         </div>
 
-        <p className="dsf-empate">
-          Si sale la misma figura, cada uno recupera lo suyo menos la mitad de la comisión.
-        </p>
+        <p className="dsf-empate">{EMPATES[d.tipo] ?? ""}</p>
 
         {error && <div className="dsf-error">{error}</div>}
 

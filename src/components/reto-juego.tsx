@@ -4,23 +4,41 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icono } from "./iconos";
 import { CartaVista } from "./carta";
+import { ParDados } from "./dado";
 import { fmt } from "@/lib/dinero";
 
-// Crear un reto de Carta más alta: elegís un amigo, ponés el monto y se lo
-// mandás. El enlace vive una hora.
+// Crear un reto contra un amigo: elegís a quién, ponés el monto y se lo mandás.
+// El enlace vive una hora.
 //
-// Al crearlo se te retienen las fichas, pero **la carta no se ve todavía**:
+// Al crearlo se te retienen las fichas, pero **tu jugada no se ve todavía**:
 // recién cuando tu amigo acepta. Es la única protección contra la trampa
-// evidente — si vieras tu carta antes de mandar el enlace, no mandarías las
-// malas, dejarías vencer el reto y repetirías hasta que saliera buena.
+// evidente — si vieras tu carta (o tus dados) antes de mandar el enlace, no
+// mandarías las malas, dejarías vencer el reto y repetirías hasta que saliera
+// buena.
 //
-// Cuando acepte, el reto aparece arriba de Juegos diciendo "Sacá tu carta".
+// Esto era `reto-carta.tsx` y valía solo para un juego. Ahora el flujo es el
+// mismo para todos y lo único que cambia es el texto y el dibujo de arriba:
+// agregar un juego no obliga a copiar estas 250 líneas.
 
 const RAPIDOS = [10, 25, 50, 100];
 
 type Amigo = { id: string; alias: string };
 
+export type JuegoDef = {
+  id: string;
+  nombre: string;
+  resumen: string;
+  tag: string;
+  // Cómo se gana, en una línea. Va debajo de "¿A quién retás?".
+  comoSeGana: string;
+  // El reto tal como llega por WhatsApp.
+  invitacion: string;
+  // Qué va a tener que hacer cuando acepte.
+  queHacer: string;
+};
+
 type Props = {
+  juego: JuegoDef;
   usuario: { email: string } | null;
   saldo: number | null;
   onAviso: (msg: string) => void;
@@ -29,7 +47,27 @@ type Props = {
 
 type Paso = "amigo" | "monto" | "listo";
 
-export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
+/** El dibujo de arriba: dos jugadas tapadas, del juego que sea. */
+function Anticipo({ juego, alias }: { juego: string; alias: string }) {
+  const lados = (contenido: React.ReactNode) => (
+    <div className="cma-mesa" style={{ marginBottom: 4 }}>
+      <div className="cma-lado yo">
+        <span className="cma-quien">Vos</span>
+        {contenido}
+      </div>
+      <span className="cma-vs">VS</span>
+      <div className="cma-lado">
+        <span className="cma-quien">@{alias}</span>
+        {contenido}
+      </div>
+    </div>
+  );
+  return juego === "dados"
+    ? lados(<ParDados tirada={null} />)
+    : lados(<CartaVista carta={null} volteada={false} />);
+}
+
+export function RetoJuego({ juego, usuario, saldo, onAviso, onEntrar }: Props) {
   const router = useRouter();
   const [amigos, setAmigos] = useState<Amigo[] | null>(null);
   const [paso, setPaso] = useState<Paso>("amigo");
@@ -71,7 +109,7 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
       const r = await fetch("/api/juego", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accion: "crear", tipo: "carta", rival: amigo.id, monto }),
+        body: JSON.stringify({ accion: "crear", tipo: juego.id, rival: amigo.id, monto }),
       }).then((x) => x.json());
 
       if (!r.ok) {
@@ -95,8 +133,8 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
   function compartir() {
     if (!enlace || !amigo) return;
     const texto =
-      `Te reto a una carta en Pálpito.\n` +
-      `El que saque la más alta se lleva el pozo. Ponemos ${monto} fichas cada uno.\n` +
+      `${juego.invitacion}\n` +
+      `Ponemos ${monto} fichas cada uno.\n` +
       `Tenés una hora para aceptar.\n\n${enlace}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
   }
@@ -118,24 +156,14 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
     return (
       <div className="am-flujo">
         <div className="am-listo">
-          <div className="cma-mesa" style={{ marginBottom: 4 }}>
-            <div className="cma-lado yo">
-              <span className="cma-quien">Vos</span>
-              <CartaVista carta={null} volteada={false} />
-            </div>
-            <span className="cma-vs">VS</span>
-            <div className="cma-lado">
-              <span className="cma-quien">@{amigo?.alias}</span>
-              <CartaVista carta={null} volteada={false} />
-            </div>
-          </div>
+          <Anticipo juego={juego.id} alias={amigo?.alias ?? "?"} />
 
           <h3 className="am-titulo">Reto listo</h3>
           <p className="am-sub">
             Se te retuvieron {fmt(monto)}. Mandáselo a @{amigo?.alias}: tiene una hora para
             aceptar, y si no acepta se te devuelven enteras.
             <br />
-            Cuando acepte, el reto te aparece en Juegos para sacar tu carta.
+            {juego.queHacer}
           </p>
 
           <button className="bapostar am-wa" onClick={compartir}>
@@ -177,10 +205,7 @@ export function RetoCarta({ usuario, saldo, onAviso, onEntrar }: Props) {
       {paso === "amigo" && (
         <>
           <h3 className="am-titulo">¿A quién retás?</h3>
-          <p className="am-sub">
-            Cada uno saca una carta y la más alta se lleva el pozo. Nadie ve la carta del otro
-            hasta que sacan los dos.
-          </p>
+          <p className="am-sub">{juego.comoSeGana}</p>
           {amigos === null ? (
             <p className="am-vacio">Cargando…</p>
           ) : amigos.length === 0 ? (

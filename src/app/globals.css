@@ -947,6 +947,99 @@ button {
 }
 
 /* ============================================================
+   Dados — dos por lado, gana el que suma más
+   ============================================================
+   La mesa es la misma que la de la carta a propósito: mismo fondo,
+   mismo "VS", mismos colores de resultado. Son dos juegos de la
+   misma casa y tienen que sentirse iguales. */
+.dd { width: 46px; flex: 0 0 auto; }
+.dd svg { width: 100%; height: auto; display: block; }
+.dd-cuerpo { fill: #f7f5ef; }
+.dd-borde { fill: none; stroke: rgba(11, 14, 12, 0.18); stroke-width: 2; }
+.dd-punto { fill: #1b2230; }
+/* Sin tirar todavía: el dado está ahí pero apagado, como una carta boca abajo */
+.dd.quieto .dd-cuerpo { fill: var(--panel3); }
+.dd.quieto .dd-punto { fill: var(--mist); opacity: 0.35; }
+.dd.quieto .dd-borde { stroke: var(--line2); }
+.dd.gana .dd-cuerpo { fill: #eaffd0; }
+.dd.gana { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--lima) 45%, transparent)); }
+.dd.pierde { opacity: 0.5; }
+
+/* El dado rodando. Se mueve la caja entera y no los puntos: una sola
+   transformación que corre en la GPU, en vez de repintar el dibujo. */
+@keyframes dd-rueda {
+  0% { transform: rotate(0) translateY(0); }
+  25% { transform: rotate(-18deg) translateY(-7px); }
+  50% { transform: rotate(14deg) translateY(0); }
+  75% { transform: rotate(-9deg) translateY(-4px); }
+  100% { transform: rotate(0) translateY(0); }
+}
+.dd.rueda { animation: dd-rueda 0.32s linear infinite; }
+.dd.rueda .dd-punto { opacity: 0.25; }
+/* Quien pidió no ver animaciones no las ve: el dado aparece y ya. */
+@media (prefers-reduced-motion: reduce) {
+  .dd.rueda { animation: none; }
+}
+
+.dd-par { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.dd-dos { display: flex; gap: 7px; }
+.dd-suma { font-size: 21px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em;
+  line-height: 1; }
+.dd-suma.gana { color: var(--lima-txt); }
+.dd-suma.pierde { color: var(--mist); }
+
+.dma { display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 22px 16px; border-radius: 16px; border: 1px solid var(--line);
+  background: radial-gradient(120% 90% at 50% 0%, #16342a 0%, #0e2019 55%, #0a1712 100%); }
+:root[data-theme="light"] .dma {
+  background: radial-gradient(120% 90% at 50% 0%, #dff0e4 0%, #cfe6d6 55%, #c2dccb 100%); }
+
+.dma-mesa { display: flex; align-items: center; justify-content: center; gap: 18px; width: 100%; }
+.dma-lado { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.dma-quien { font-size: 12px; font-weight: 600; color: var(--mist); }
+.dma-lado.yo .dma-quien { color: var(--lima-txt); }
+.dma-vs { font-size: 12px; font-weight: 700; color: var(--mist); letter-spacing: 0.08em; }
+
+/* Las tiradas que empataron: van arriba, chicas y grises. Son el camino
+   hasta el resultado, no el resultado. */
+.dma-previas { display: flex; flex-direction: column; gap: 3px; width: 100%; max-width: 260px; }
+.dma-previa { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--mist);
+  padding: 4px 10px; border-radius: 100px; background: rgba(255, 255, 255, 0.04); }
+:root[data-theme="light"] .dma-previa { background: rgba(11, 14, 12, 0.05); }
+.dma-previa-n { flex: 0 0 auto; opacity: 0.7; }
+.dma-previa b { color: var(--ink2); font-weight: 700; }
+.dma-previa span:last-child { margin: 0 auto; }
+
+.dma-tirar { background: var(--lima); color: var(--lima-ink); border: none; border-radius: 100px;
+  padding: 13px 30px; font-size: 15px; font-weight: 800; transition: 0.18s; }
+.dma-tirar:hover { filter: brightness(1.06); }
+.dma-tirar:disabled { opacity: 0.45; }
+
+.dma-pista { color: var(--mist); font-size: 12.5px; text-align: center; line-height: 1.5;
+  min-height: 19px; }
+.dma-fallo { color: var(--baja); }
+
+.dma-resultado { text-align: center; }
+.dma-resultado b { display: block; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.dma-resultado.ganaste b { color: var(--lima-txt); }
+.dma-resultado.perdiste b { color: var(--baja); }
+.dma-resultado span { display: block; font-size: 13px; color: var(--mist); margin-top: 3px; }
+.dma-resultado .dsf-volver { margin-top: 12px; color: var(--ink2); border: 1px solid var(--line2);
+  border-radius: 100px; padding: 9px 18px; }
+.dma-resultado .dsf-volver:hover { border-color: var(--lima); color: var(--ink); }
+
+/* La explicación del desempate: separada por una línea, para que se lea como
+   una nota al pie y no compita con la partida. */
+.dma-reglas { font-size: 11.5px; color: var(--mist); text-align: center; line-height: 1.55;
+  border-top: 1px solid var(--line); padding-top: 13px; margin-top: 2px; max-width: 330px; }
+.dma-reglas b { color: var(--ink2); font-weight: 700; }
+
+@media (max-width: 360px) {
+  .dd { width: 40px; }
+  .dma-mesa { gap: 12px; }
+}
+
+/* ============================================================
    Despegue — escena en SVG y CSS (reemplaza al pixel art)
    El cielo cambia por capas segun la altura: eso es lo que da
    sensacion de viaje. Ahora es una transicion entre degradados,

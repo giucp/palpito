@@ -1,7 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/server";
-import { cartaDe, hashDe, nuevaSemilla, repartir } from "@/lib/carta";
+import { cartaDe, repartir } from "@/lib/carta";
+import { jugarDados } from "@/lib/dados";
+import { hashDe, nuevaSemilla } from "@/lib/azar";
+
+// Los juegos que existen. Agregar uno es agregarlo acá y darle su rama en
+// "jugar"; el resto del flujo —crear, aceptar, vencer, pagar— es el mismo para
+// todos y no hay que tocarlo.
+const JUEGOS = ["carta", "dados"] as const;
+type Juego = (typeof JUEGOS)[number];
+const esJuego = (t: unknown): t is Juego => JUEGOS.includes(t as Juego);
 
 // Juegos entre amigos. Todo el dinero se mueve en funciones atómicas de la base;
 // acá se comprueba la sesión, se arma la jugada desde la semilla y —lo más
@@ -41,7 +50,7 @@ export async function POST(req: NextRequest) {
       typeof rival !== "string" ||
       typeof monto !== "number" ||
       !Number.isFinite(monto) ||
-      tipo !== "carta"
+      !esJuego(tipo)
     ) {
       return NextResponse.json({ ok: false, motivo: "cuerpo_invalido" }, { status: 400 });
     }
@@ -86,7 +95,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(r, { status: r.ok ? 200 : r.motivo === "saldo" ? 409 : 400 });
   }
 
-  // ---- Sacar la carta ----
+  // ---- Jugar: sacar la carta o tirar los dados ----
   if (cuerpo.accion === "jugar") {
     if (typeof cuerpo.desafio !== "string") {
       return NextResponse.json({ ok: false, motivo: "cuerpo_invalido" }, { status: 400 });
@@ -97,7 +106,7 @@ export async function POST(req: NextRequest) {
       .select("id, creador_id, rival_id, tipo, semilla, estado")
       .eq("id", cuerpo.desafio)
       .maybeSingle();
-    if (!d || d.tipo !== "carta") {
+    if (!d || !esJuego(d.tipo)) {
       return NextResponse.json({ ok: false, motivo: "no_existe" }, { status: 404 });
     }
     const soyCreador = d.creador_id === user.id;
@@ -105,14 +114,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, motivo: "no_es_tuyo" }, { status: 403 });
     }
 
-    // La carta sale de la semilla, no del navegador: ya estaba decidida.
-    const cartas = repartir(d.semilla as string);
-    const mia = soyCreador ? cartas.creador : cartas.rival;
+    const semilla = d.semilla as string;
+    const quien = soyCreador ? "creador" : "rival";
+
+    // La jugada sale de la semilla, no del navegador: ya estaba decidida.
+    //
+    // En dados, la partida entera —incluidos los desempates— también, así que
+    // acá no se sortea nada: solo se lee la ronda que terminó decidiendo.
+    const partida = d.tipo === "dados" ? jugarDados(semilla) : null;
+    const decisiva = partida ? partida.rondas[partida.rondas.length - 1] : null;
+    const cartas = d.tipo === "carta" ? repartir(semilla) : null;
+
+    const mia = cartas ? cartas[quien] : decisiva![quien];
+    const jugada = cartas
+      ? { indice: cartas[quien].indice, valor: cartas[quien].valor }
+      : { dados: decisiva![quien].dados, suma: decisiva![quien].suma };
 
     const { data, error } = await admin.rpc("jugar_desafio", {
       p_desafio: d.id,
       p_usuario: user.id,
-      p_jugada: { indice: mia.indice, valor: mia.valor },
+      p_jugada: jugada,
     });
     if (error) {
       console.error("[juego:jugar]", error.message);
@@ -129,21 +150,27 @@ export async function POST(req: NextRequest) {
     };
     if (!r.ok) return NextResponse.json(r, { status: 400 });
 
-    // Todavía falta el otro: se devuelve la carta propia y nada más.
+    // Todavía falta el otro: se devuelve lo propio y nada más. Ojo con las
+    // rondas de desempate: tampoco se mandan todavía, porque dejarían ver qué
+    // sacó el otro en ellas.
     if (r.estado === "esperando") {
       return NextResponse.json({ ok: true, estado: "esperando", mia });
     }
 
     // Jugaron los dos: recién ahora se revela todo.
-    const suya = soyCreador
-      ? cartaDe(r.jugada_rival!.indice)
-      : cartaDe(r.jugada_creador!.indice);
+    const otro = soyCreador ? "rival" : "creador";
+    const suya = cartas
+      ? cartaDe((soyCreador ? r.jugada_rival! : r.jugada_creador!).indice)
+      : decisiva![otro];
     const gane = r.gana === (soyCreador ? "creador" : "rival");
+
     return NextResponse.json({
       ok: true,
       estado: "resuelto",
       mia,
       suya,
+      // El camino completo, para poder mostrar los empates que hubo antes.
+      rondas: partida?.rondas.map((x) => ({ mia: x[quien], suya: x[otro] })),
       resultado: r.gana === "empate" ? "empate" : gane ? "ganaste" : "perdiste",
       semilla: r.semilla,
     });

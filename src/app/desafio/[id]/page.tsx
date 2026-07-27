@@ -4,6 +4,7 @@ import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { VistaDesafio } from "@/components/vista-desafio";
 import { VistaDesafioJuego } from "@/components/vista-desafio-juego";
+import { jugarDados } from "@/lib/dados";
 
 // La pantalla que abre quien recibe el desafío por WhatsApp.
 //
@@ -19,7 +20,7 @@ async function traerDesafio(id: string) {
   const { data } = await admin
     .from("desafios")
     .select(
-      "id, creador_id, rival_id, tipo, lado_creador, monto, comision_bps, estado, expira_at, jugada_creador, jugada_rival, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
+      "id, creador_id, rival_id, tipo, lado_creador, monto, comision_bps, estado, expira_at, semilla, jugada_creador, jugada_rival, eventos(id, liga, equipo_a, equipo_b, comienza_at, estado, marcador_a, marcador_b)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -60,8 +61,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: `@${d.aliasCreador} te desafía · Pálpito`,
       description:
-        `Carta más alta por ${fichas} fichas cada uno. Sacás una carta, saca la suya, ` +
-        `y la más alta se lleva el pozo. ¿Aceptás?`,
+        d.tipo === "dados"
+          ? `Dados por ${fichas} fichas cada uno. Dos dados cada uno y el que sume más se ` +
+            `lleva el pozo. ¿Aceptás?`
+          : `Carta más alta por ${fichas} fichas cada uno. Sacás una carta, saca la suya, ` +
+            `y la más alta se lleva el pozo. ¿Aceptás?`,
     };
   }
 
@@ -101,11 +105,24 @@ export default async function PaginaDesafio({ params }: Props) {
   const soyRival = user?.id === d.rival_id;
   const soyCreador = user?.id === d.creador_id;
 
-  // ---- Desafío de juego (carta más alta) ----
+  // ---- Desafío de juego (carta más alta, dados) ----
   if (d.tipo !== "deportivo") {
     const mio = soyCreador ? d.jugada_creador : d.jugada_rival;
     const suyo = soyCreador ? d.jugada_rival : d.jugada_creador;
     const resuelto = d.estado === "ganado_creador" || d.estado === "ganado_rival" || d.estado === "empate";
+
+    // Al volver a entrar a una partida de dados ya terminada hay que poder ver
+    // los desempates que hubo, y esos no se guardan: se rehacen desde la
+    // semilla, que es justamente lo que hace comprobable el juego.
+    //
+    // **Solo si ya se resolvió.** Antes de eso la semilla no sale de acá: con
+    // ella se sabría de antemano quién gana.
+    const quien = soyCreador ? "creador" : "rival";
+    const otro = soyCreador ? "rival" : "creador";
+    const rondas =
+      d.tipo === "dados" && resuelto
+        ? jugarDados(d.semilla as string).rondas.map((r) => ({ mia: r[quien], suya: r[otro] }))
+        : null;
 
     return (
       <VistaDesafioJuego
@@ -122,10 +139,11 @@ export default async function PaginaDesafio({ params }: Props) {
         soyRival={soyRival}
         soyCreador={soyCreador}
         entrado={Boolean(user)}
-        // Solo se mandan las cartas que a esta persona le toca ver: la suya
-        // siempre, y la del otro únicamente si la partida ya se resolvió.
-        miIndice={(mio as { indice?: number } | null)?.indice ?? null}
-        suIndice={resuelto ? ((suyo as { indice?: number } | null)?.indice ?? null) : null}
+        // Solo se manda lo que a esta persona le toca ver: lo suyo siempre, y
+        // lo del otro únicamente si la partida ya se resolvió.
+        miJugada={(mio as { indice?: number } | null) ?? null}
+        suJugada={resuelto ? ((suyo as { indice?: number } | null) ?? null) : null}
+        rondas={rondas}
         gano={
           resuelto
             ? d.estado === "empate"
