@@ -191,6 +191,21 @@ export async function resolverCombosPendientes(): Promise<ResumenCombos> {
       });
 
       if (faltan) {
+        // El combo sigue esperando a algún partido, pero las patas que **ya**
+        // terminaron se guardan igual.
+        //
+        // Antes se descartaban: se calculaban acá arriba y este `continue` se
+        // las llevaba puestas, así que la tarjeta no marcaba nada hasta que
+        // terminara el último partido del combo. Con partidos que empiezan a
+        // horas distintas eso son horas mirando un combo sin pintar, con uno de
+        // sus partidos terminado hace rato.
+        //
+        // `resuelto_at` NO se toca: es lo que marca el combo como pendiente, y
+        // así la próxima corrida lo vuelve a mirar.
+        const cambio = resueltas.some((p, i) => p.acerto !== patas[i]?.acerto);
+        if (cambio) {
+          await supabase.from("combos_dia").update({ patas: resueltas }).eq("id", fila.id);
+        }
         resumen.pendientes++;
         continue;
       }
