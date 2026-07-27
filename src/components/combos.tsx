@@ -23,6 +23,9 @@ type Pata = {
   pick: string;
   probabilidad: number;
   motivo: string | null;
+  // Se llena cuando el partido termina. `null` es "todavía no" o "no se pudo
+  // decidir", que no es lo mismo que fallar.
+  acerto?: boolean | null;
 };
 
 type Combo = {
@@ -35,7 +38,11 @@ type Combo = {
   probabilidad: number;
   armadoAt?: string;
   acerto?: boolean | null;
+  patasAcertadas?: number | null;
 };
+
+// Cuántas veces pegó cada regla desde que se lleva la cuenta.
+type Historial = Record<string, { jugados: number; acertados: number }>;
 
 const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
 
@@ -52,23 +59,12 @@ const hora = (iso?: string) =>
       }).format(new Date(iso))
     : null;
 
-function textoWhatsapp(c: Combo): string {
-  const patas = c.patas
-    .map((p) => `• ${p.partido}\n   ${p.pick}${p.motivo ? `\n   ${p.motivo}` : ""}`)
-    .join("\n");
-  return (
-    `⚾ ${c.nombre} · ${c.patas.length} picks\n` +
-    `${c.regla}\n\n` +
-    `${patas}\n\n` +
-    `Paga x${c.multiplicador.toFixed(2)} · pega 1 de cada ${unaDeCada(c.probabilidad)} veces\n` +
-    `Armado con los precios de Polymarket.\n` +
-    `Pálpito · ${typeof window !== "undefined" ? window.location.origin : ""}`
-  );
-}
-
 export function Combos() {
   const [combos, setCombos] = useState<Combo[] | null>(null);
   const [motivo, setMotivo] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<Historial>({});
+  const [fecha, setFecha] = useState<string>("");
+  const [compartiendo, setCompartiendo] = useState<string | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -78,6 +74,8 @@ export function Combos() {
         if (!vivo) return;
         setCombos(r.ok ? (r.combos as Combo[]) : []);
         setMotivo(r.motivo ?? null);
+        setHistorial((r.historial as Historial) ?? {});
+        setFecha(r.fecha ?? "");
       } catch {
         if (vivo) setCombos([]);
       }
@@ -86,6 +84,43 @@ export function Combos() {
       vivo = false;
     };
   }, []);
+
+  // Compartir el combo **como imagen**.
+  //
+  // La imagen se dibuja en el servidor desde lo guardado y se adjunta con la
+  // API de compartir del teléfono, que es la única forma de que WhatsApp
+  // reciba un archivo y no un enlace. El mensaje que la acompaña es solo el
+  // nombre: todo lo demás ya está escrito adentro de la imagen, y repetirlo en
+  // el texto es ruido.
+  //
+  // En escritorio no existe compartir archivos, así que ahí se abre WhatsApp
+  // con el nombre y el enlace, que es lo único que se puede mandar.
+  async function compartir(c: Combo) {
+    setCompartiendo(c.id);
+    try {
+      const res = await fetch(
+        `/api/combos/imagen?combo=${encodeURIComponent(c.id)}&fecha=${encodeURIComponent(fecha)}`
+      );
+      if (res.ok && typeof navigator !== "undefined" && navigator.canShare) {
+        const blob = await res.blob();
+        const archivo = new File([blob], `palpito-${c.id}.png`, { type: "image/png" });
+        if (navigator.canShare({ files: [archivo] })) {
+          await navigator.share({ files: [archivo], text: c.nombre });
+          return;
+        }
+      }
+      const enlace = typeof window !== "undefined" ? window.location.origin : "";
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(`${c.nombre}\n${enlace}`)}`,
+        "_blank",
+        "noopener"
+      );
+    } catch {
+      // Cancelar el diálogo de compartir también entra por acá: no es un error.
+    } finally {
+      setCompartiendo(null);
+    }
+  }
 
   if (combos === null) {
     return (
@@ -118,8 +153,11 @@ export function Combos() {
           cada combo es una unidad y se pasa con el pulgar. La siguiente asoma
           por el borde a propósito: es lo que avisa que hay más. */}
       <div className="cb-carrusel">
-        {combos.map((c) => (
-          <article key={c.id} className="cb-combo">
+        {combos.map((c) => {
+          const h = historial[c.id];
+          const resuelto = c.acerto === true || c.acerto === false;
+          return (
+          <article key={c.id} className={`cb-combo${resuelto ? (c.acerto ? " pego" : " fallo") : ""}`}>
             <header className="cb-cab">
               <div className="cb-titulo">
                 <h3>{c.nombre}</h3>
@@ -128,11 +166,21 @@ export function Combos() {
                 </span>
               </div>
               <p className="cb-regla">{c.regla}</p>
+              {/* El historial de la regla. Sin él, la regla es una promesa; con
+                  él, es un dato que se puede discutir. */}
+              {h && h.jugados > 0 && (
+                <p className="cb-historial">
+                  Esta regla pegó <b>{h.acertados}</b> de {h.jugados}
+                </p>
+              )}
             </header>
 
             <div className="cb-patas">
               {c.patas.map((p, i) => (
-                <div key={i} className="cb-pata">
+                <div
+                  key={i}
+                  className={`cb-pata${p.acerto === true ? " pego" : p.acerto === false ? " fallo" : ""}`}
+                >
                   <span className="cb-partido">
                     {p.partido.replace(" vs. ", " · ")}
                     {p.hora && <i className="mono">{p.hora}</i>}
@@ -146,6 +194,14 @@ export function Combos() {
               ))}
             </div>
 
+            {resuelto && (
+              <p className={`cb-desenlace ${c.acerto ? "pego" : "fallo"}`}>
+                {c.acerto
+                  ? "Pegó completo"
+                  : `No pegó · ${c.patasAcertadas ?? 0} de ${c.patas.length}`}
+              </p>
+            )}
+
             <div className="cb-pie">
               <div className="cb-numeros">
                 <span className="cb-mult mono">x{c.multiplicador.toFixed(2)}</span>
@@ -154,19 +210,19 @@ export function Combos() {
                   <i className="mono">{pct(c.probabilidad)}</i>
                 </span>
               </div>
-              <a
+              <button
                 className="cb-wa"
-                href={`https://wa.me/?text=${encodeURIComponent(textoWhatsapp(c))}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Enviar ${c.nombre} por WhatsApp`}
+                onClick={() => compartir(c)}
+                disabled={compartiendo === c.id}
+                aria-label={`Compartir ${c.nombre}`}
               >
-                <Icono id="i-arr" />
-                Enviar
-              </a>
+                <Icono id="i-compartir" />
+                {compartiendo === c.id ? "Armando…" : "Compartir"}
+              </button>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
 
       <p className="tb-fuente">

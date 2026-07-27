@@ -52,18 +52,31 @@ const CONSTANTE_FIP = 3.15;
 function partirJornada(partidos: PartidoDelDia[]) {
   const peorDeLosDos = (p: PartidoDelDia) =>
     Math.max(p.abridorVisita?.fip ?? 0, p.abridorLocal?.fip ?? 0);
-  const mejorDeLosDos = (p: PartidoDelDia) =>
-    Math.min(p.abridorVisita?.fip ?? 99, p.abridorLocal?.fip ?? 99);
 
   const ordenados = [...partidos].sort((a, b) => peorDeLosDos(a) - peorDeLosDos(b));
   const mitad = Math.ceil(ordenados.length / 2);
   return {
     peorDeLosDos,
-    mejorDeLosDos,
     buenPitcheo: ordenados.slice(0, mitad),
     malPitcheo: ordenados.slice(mitad),
   };
 }
+
+// Qué hay que mirar del resultado para saber si la pata pegó.
+//
+// Va guardado junto al combo y **no se deduce después del texto del pick**. El
+// pick es una frase para leer ("Menos de 8.5 carreras") y mañana se puede
+// redactar distinto; si la resolución dependiera de esa frase, cambiar una
+// palabra en la pantalla rompería la estadística de meses.
+//
+// `lado` en vez del nombre del equipo a propósito: "Boston Red Sox" y "Chicago
+// White Sox" comparten apodo, y comparar nombres es justo donde se rompen estas
+// cosas. El lado no se presta a confusión.
+export type Apuesta =
+  | { mercado: "gana"; lado: "local" | "visita"; equipo: string }
+  | { mercado: "paliza"; lado: "local" | "visita"; equipo: string }
+  | { mercado: "total"; mas: boolean; linea: number }
+  | { mercado: "primera"; anota: boolean };
 
 export type Pata = {
   partido: string; // "Seattle Mariners vs. Texas Rangers"
@@ -72,6 +85,13 @@ export type Pata = {
   probabilidad: number; // la que paga Polymarket
   // Por qué está en este combo. En los de mercado va vacío.
   motivo: string | null;
+  // El `gamePk` de MLB StatsAPI. Con esto la resolución es exacta: se pide el
+  // partido por id y no hay que emparejar nada por nombre.
+  juego: string | null;
+  apuesta: Apuesta;
+  // Se llena cuando el partido termina. `null` significa que no se pudo
+  // decidir: partido suspendido, o el total cayó justo en la línea.
+  acerto?: boolean | null;
 };
 
 export type Combo = {
@@ -121,6 +141,12 @@ const normalizar = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const apodo = (nombre: string) => normalizar(nombre).split(" ").pop() ?? "";
 
+// Con qué se casa un partido de Polymarket con el de la cartelera de la MLB.
+// Se exporta porque la resolución de los combos viejos —los que se guardaron
+// antes de que se anotara el `gamePk`— la necesita para encontrar el partido.
+export const clavePartido = (visita: string, local: string) =>
+  `${apodo(visita)}|${apodo(local)}`;
+
 // --------------------------------------------------------- los datos de un día
 
 type Abridor = { nombre: string; fip: number | null };
@@ -130,12 +156,15 @@ type PartidoDelDia = {
   visita: string;
   local: string;
   hora: string;
+  // `gamePk` de MLB StatsAPI, cuando el partido de Polymarket se pudo casar con
+  // la cartelera oficial. Es lo que después permite resolver sin adivinar.
+  juego: string | null;
   // Mercados, con la probabilidad que paga Polymarket
   ganaLocal: number | null;
   ganaVisita: number | null;
   under: { linea: number; p: number } | null;
   over: { linea: number; p: number } | null;
-  paliza: { equipo: string; p: number } | null; // -1.5
+  paliza: { equipo: string; lado: "local" | "visita"; p: number } | null; // -1.5
   carreraPrimera: number | null;
   sinCarreraPrimera: number | null;
   abridorVisita: Abridor | null;
@@ -143,8 +172,13 @@ type PartidoDelDia = {
   fipPromedio: number | null;
 };
 
-async function abridoresDelDia(fecha: string): Promise<Map<string, [Abridor, Abridor]>> {
-  const mapa = new Map<string, [Abridor, Abridor]>();
+// Devuelve, por partido, quiénes abren y el id oficial del juego. El id se
+// aprovecha de acá porque esta consulta ya trae la cartelera del día entera: no
+// cuesta nada llevárselo y es lo que después resuelve los combos sin adivinar.
+async function abridoresDelDia(
+  fecha: string
+): Promise<Map<string, { juego: string; abridores: [Abridor, Abridor] }>> {
+  const mapa = new Map<string, { juego: string; abridores: [Abridor, Abridor] }>();
   const j = obj(
     await pedir(`${MLB}/schedule?sportId=1&date=${fecha}&hydrate=probablePitcher,team`)
   );
@@ -174,7 +208,12 @@ async function abridoresDelDia(fecha: string): Promise<Map<string, [Abridor, Abr
       }
       const visita = txt(obj(obj(equipos.away).team).name);
       const local = txt(obj(obj(equipos.home).team).name);
-      if (visita && local) mapa.set(`${apodo(visita)}|${apodo(local)}`, [salida[0], salida[1]]);
+      if (visita && local) {
+        mapa.set(`${apodo(visita)}|${apodo(local)}`, {
+          juego: String(g.gamePk ?? ""),
+          abridores: [salida[0], salida[1]],
+        });
+      }
     })
   );
 
@@ -195,7 +234,9 @@ async function mercadosDelDia(fecha: string): Promise<Crudo[]> {
 }
 
 // Saca de un evento de Polymarket todos los mercados que sabemos leer.
-function leerMercados(ev: Crudo): Omit<PartidoDelDia, "abridorVisita" | "abridorLocal" | "fipPromedio"> | null {
+function leerMercados(
+  ev: Crudo
+): Omit<PartidoDelDia, "abridorVisita" | "abridorLocal" | "fipPromedio" | "juego"> | null {
   const equipos = lista(ev.teams);
   if (equipos.length !== 2) return null;
   const visita = txt(obj(equipos[0]).name);
@@ -211,7 +252,7 @@ function leerMercados(ev: Crudo): Omit<PartidoDelDia, "abridorVisita" | "abridor
     ganaVisita: null as number | null,
     under: null as { linea: number; p: number } | null,
     over: null as { linea: number; p: number } | null,
-    paliza: null as { equipo: string; p: number } | null,
+    paliza: null as { equipo: string; lado: "local" | "visita"; p: number } | null,
     carreraPrimera: null as number | null,
     sinCarreraPrimera: null as number | null,
   };
@@ -256,7 +297,10 @@ function leerMercados(ev: Crudo): Omit<PartidoDelDia, "abridorVisita" | "abridor
       const equipo = spread[1];
       const i = nombres.findIndex((n) => n.includes(equipo));
       if (i >= 0 && (!salida.paliza || precios[i] > salida.paliza.p)) {
-        salida.paliza = { equipo, p: precios[i] };
+        // Polymarket a veces nombra al equipo corto ("Phillies") y a veces
+        // largo. Se guarda de qué lado está, que es lo que no se presta a duda.
+        const esLocal = normalizar(local).includes(normalizar(equipo));
+        salida.paliza = { equipo, lado: esLocal ? "local" : "visita", p: precios[i] };
       }
       continue;
     }
@@ -290,11 +334,12 @@ export async function traerPartidosDelDia(fecha: string): Promise<PartidoDelDia[
     const base = leerMercados(ev);
     if (!base) continue;
     const par = abridores.get(`${apodo(base.visita)}|${apodo(base.local)}`);
-    const av = par?.[0] ?? null;
-    const al = par?.[1] ?? null;
+    const av = par?.abridores[0] ?? null;
+    const al = par?.abridores[1] ?? null;
     const fips = [av?.fip, al?.fip].filter((x): x is number => typeof x === "number");
     partidos.push({
       ...base,
+      juego: par?.juego || null,
       abridorVisita: av,
       abridorLocal: al,
       // Solo hay promedio si se conoce el FIP de los dos. Con uno solo no se
@@ -354,16 +399,41 @@ function armar(
   };
 }
 
+// El orden en que se muestran, que es el de abajo: primero los cuatro de
+// mercado y después los cuatro de abridores.
+//
+// Hace falta escrito porque la base devuelve las filas sin orden garantizado, y
+// al resolverse los combos se reescriben: sin esto, el carrusel se barajaría
+// solo entre una visita y otra. Un id que no esté acá va al final.
+export const ORDEN_COMBOS = [
+  "favoritos",
+  "bombazo",
+  "paliza",
+  "arranque",
+  "duelo",
+  "lluvia",
+  "temprano",
+  "perros",
+];
+
 export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
   const combos: (Combo | null)[] = [];
   const conFip = partidos.filter((p) => p.fipPromedio !== null);
 
-  const pata = (p: PartidoDelDia, pick: string, prob: number, motivo: string | null): Pata => ({
+  const pata = (
+    p: PartidoDelDia,
+    pick: string,
+    prob: number,
+    motivo: string | null,
+    apuesta: Apuesta
+  ): Pata => ({
     partido: p.titulo,
     hora: hora(p.hora),
     pick,
     probabilidad: prob,
     motivo,
+    juego: p.juego,
+    apuesta,
   });
 
   const duelo = (p: PartidoDelDia) =>
@@ -381,14 +451,22 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
 
   // ---- Por mercado: lo que cualquiera armaría ordenando por precio ----
 
+  type Lado = "local" | "visita";
   const favoritos = partidos
     .flatMap((p) =>
       [
-        p.ganaLocal !== null ? { p, equipo: p.local, prob: p.ganaLocal } : null,
-        p.ganaVisita !== null ? { p, equipo: p.visita, prob: p.ganaVisita } : null,
-      ].filter((x): x is { p: PartidoDelDia; equipo: string; prob: number } => x !== null)
+        p.ganaLocal !== null ? { p, equipo: p.local, lado: "local" as Lado, prob: p.ganaLocal } : null,
+        p.ganaVisita !== null ? { p, equipo: p.visita, lado: "visita" as Lado, prob: p.ganaVisita } : null,
+      ].filter((x): x is { p: PartidoDelDia; equipo: string; lado: Lado; prob: number } => x !== null)
     )
     .sort((a, b) => b.prob - a.prob);
+
+  const ganador = (f: { p: PartidoDelDia; equipo: string; lado: Lado; prob: number }) =>
+    pata(f.p, `Gana ${f.equipo}`, f.prob, null, {
+      mercado: "gana",
+      lado: f.lado,
+      equipo: f.equipo,
+    });
 
   combos.push(
     armar(
@@ -396,7 +474,7 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
       "Favoritos",
       "Los cuatro equipos con más probabilidad de ganar según el mercado.",
       "mercado",
-      favoritos.map((f) => pata(f.p, `Gana ${f.equipo}`, f.prob, null)),
+      favoritos.map(ganador),
       4
     )
   );
@@ -407,7 +485,7 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
       "El bombazo",
       "Los seis favoritos más marcados del día. Para divertirse, no para ganar.",
       "mercado",
-      favoritos.map((f) => pata(f.p, `Gana ${f.equipo}`, f.prob, null)),
+      favoritos.map(ganador),
       6
     )
   );
@@ -421,7 +499,13 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
       partidos
         .filter((p) => p.paliza)
         .sort((a, b) => b.paliza!.p - a.paliza!.p)
-        .map((p) => pata(p, `${p.paliza!.equipo} gana por 2 o más`, p.paliza!.p, null)),
+        .map((p) =>
+          pata(p, `${p.paliza!.equipo} gana por 2 o más`, p.paliza!.p, null, {
+            mercado: "paliza",
+            lado: p.paliza!.lado,
+            equipo: p.paliza!.equipo,
+          })
+        ),
       4
     )
   );
@@ -435,7 +519,12 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
       partidos
         .filter((p) => p.carreraPrimera !== null)
         .sort((a, b) => b.carreraPrimera! - a.carreraPrimera!)
-        .map((p) => pata(p, "Se anota en la 1ª entrada", p.carreraPrimera!, null)),
+        .map((p) =>
+          pata(p, "Se anota en la 1ª entrada", p.carreraPrimera!, null, {
+            mercado: "primera",
+            anota: true,
+          })
+        ),
       4
     )
   );
@@ -446,7 +535,7 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
   // importa. Un FIP de 2.62 contra uno de 5.36 promedia 3.99 y se colaba en
   // "peor pitcheo" teniendo al mejor lanzador del día. Para que sea un duelo
   // tienen que ser buenos **los dos**, así que manda el peor de los dos.
-  const { peorDeLosDos, mejorDeLosDos, buenPitcheo, malPitcheo } = partirJornada(conFip);
+  const { peorDeLosDos, buenPitcheo, malPitcheo } = partirJornada(conFip);
 
   combos.push(
     armar(
@@ -457,7 +546,13 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
       buenPitcheo
         .filter((p) => p.under)
         .sort((a, b) => peorDeLosDos(a) - peorDeLosDos(b))
-        .map((p) => pata(p, `Menos de ${p.under!.linea} carreras`, p.under!.p, duelo(p))),
+        .map((p) =>
+          pata(p, `Menos de ${p.under!.linea} carreras`, p.under!.p, duelo(p), {
+            mercado: "total",
+            mas: false,
+            linea: p.under!.linea,
+          })
+        ),
       4
     )
   );
@@ -478,7 +573,13 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
       malPitcheo
         .filter((p) => p.over)
         .sort((a, b) => peorDeLosDos(b) - peorDeLosDos(a))
-        .map((p) => pata(p, `Más de ${p.over!.linea} carreras`, p.over!.p, elFlojo(p))),
+        .map((p) =>
+          pata(p, `Más de ${p.over!.linea} carreras`, p.over!.p, elFlojo(p), {
+            mercado: "total",
+            mas: true,
+            linea: p.over!.linea,
+          })
+        ),
       4
     )
   );
@@ -492,7 +593,12 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
       buenPitcheo
         .filter((p) => p.sinCarreraPrimera !== null)
         .sort((a, b) => peorDeLosDos(a) - peorDeLosDos(b))
-        .map((p) => pata(p, "Sin carreras en la 1ª entrada", p.sinCarreraPrimera!, duelo(p))),
+        .map((p) =>
+          pata(p, "Sin carreras en la 1ª entrada", p.sinCarreraPrimera!, duelo(p), {
+            mercado: "primera",
+            anota: false,
+          })
+        ),
       4
     )
   );
@@ -522,7 +628,8 @@ export function armarCombos(partidos: PartidoDelDia[]): Combo[] {
           `Gana ${x.equipo}`,
           x.prob as number,
           `${x.equipo === x.p.local ? x.p.abridorLocal?.nombre : x.p.abridorVisita?.nombre} ` +
-            `${unaCifra(x.fip as number)} contra ${unaCifra(x.rival as number)}`
+            `${unaCifra(x.fip as number)} contra ${unaCifra(x.rival as number)}`,
+          { mercado: "gana", lado: x.equipo === x.p.local ? "local" : "visita", equipo: x.equipo }
         )
       ),
       4

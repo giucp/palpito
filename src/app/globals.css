@@ -1822,6 +1822,25 @@ button {
   background: var(--lima); color: var(--lima-ink); border-radius: 100px;
   padding: 9px 15px; font-size: 13px; font-weight: 700; transition: 0.18s; }
 .cb-wa svg { width: 13px; height: 13px; }
+.cb-wa:disabled { opacity: 0.55; }
+
+/* ---- Cómo salió ----
+   Lo que hace que la regla de la tarjeta valga algo es que después se pueda
+   comprobar. El color va en el borde izquierdo de cada pata y no en el fondo:
+   una tarjeta entera pintada de rojo se lee como un error de la app. */
+.cb-historial { font-size: 11px; color: var(--mist); margin-top: 6px; }
+.cb-historial b { color: var(--ink2); font-weight: 700; }
+
+.cb-pata.pego { box-shadow: inset 3px 0 0 var(--sube); }
+.cb-pata.fallo { box-shadow: inset 3px 0 0 var(--baja); }
+.cb-pata.fallo .cb-pick { color: var(--mist); text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--baja) 60%, transparent); }
+
+.cb-desenlace { padding: 9px 15px; font-size: 12px; font-weight: 700;
+  border-top: 1px solid var(--line); }
+.cb-desenlace.pego { color: var(--sube);
+  background: color-mix(in srgb, var(--sube) 12%, transparent); }
+.cb-desenlace.fallo { color: var(--mist); }
 
 /* ============================================================
    Hover solo donde hay puntero de verdad

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { armarCombos, traerPartidosDelDia, type Combo } from "@/lib/combos";
+import { armarCombos, ORDEN_COMBOS, traerPartidosDelDia, type Combo } from "@/lib/combos";
+import { historialDeReglas } from "@/lib/combos-resultado";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 
 // Los combos del día.
@@ -30,7 +31,7 @@ type FilaCombo = {
   patas_acertadas: number | null;
 };
 
-const aCombo = (f: FilaCombo): Combo & { armadoAt: string; acerto: boolean | null } => ({
+const aCombo = (f: FilaCombo) => ({
   id: f.combo,
   nombre: f.nombre,
   regla: f.regla,
@@ -40,30 +41,51 @@ const aCombo = (f: FilaCombo): Combo & { armadoAt: string; acerto: boolean | nul
   probabilidad: Number(f.probabilidad),
   armadoAt: f.armado_at,
   acerto: f.acerto,
+  patasAcertadas: f.patas_acertadas,
 });
 
 export async function GET() {
   const fecha = hoyEnCaracas();
   const admin = crearClienteAdmin();
 
-  const { data: guardados } = await admin
-    .from("combos_dia")
-    .select("combo, nombre, regla, tipo, patas, multiplicador, probabilidad, armado_at, acerto, patas_acertadas")
-    .eq("fecha", fecha);
+  // El historial de cada regla viaja siempre: es lo que convierte la regla de
+  // una promesa en un dato. Se pide en paralelo con los combos del día.
+  const [{ data: guardados }, historial] = await Promise.all([
+    admin
+      .from("combos_dia")
+      .select(
+        "combo, nombre, regla, tipo, patas, multiplicador, probabilidad, armado_at, acerto, patas_acertadas"
+      )
+      .eq("fecha", fecha),
+    historialDeReglas(),
+  ]);
 
   if (guardados && guardados.length > 0) {
-    return NextResponse.json({ ok: true, fecha, combos: (guardados as FilaCombo[]).map(aCombo) });
+    // La base no garantiza orden, y al resolverse las filas se reescriben: sin
+    // ordenar acá, el carrusel cambiaría de orden entre una visita y otra.
+    const puesto = (id: string) => {
+      const i = ORDEN_COMBOS.indexOf(id);
+      return i === -1 ? ORDEN_COMBOS.length : i;
+    };
+    return NextResponse.json({
+      ok: true,
+      fecha,
+      historial,
+      combos: (guardados as FilaCombo[])
+        .map(aCombo)
+        .sort((a, b) => puesto(a.id) - puesto(b.id)),
+    });
   }
 
   // Todavía no están: se arman una sola vez.
   const partidos = await traerPartidosDelDia(fecha);
   if (partidos.length === 0) {
-    return NextResponse.json({ ok: true, fecha, combos: [], motivo: "sin_jornada" });
+    return NextResponse.json({ ok: true, fecha, historial, combos: [], motivo: "sin_jornada" });
   }
 
   const combos = armarCombos(partidos);
   if (combos.length === 0) {
-    return NextResponse.json({ ok: true, fecha, combos: [], motivo: "sin_material" });
+    return NextResponse.json({ ok: true, fecha, historial, combos: [], motivo: "sin_material" });
   }
 
   const { error } = await admin.from("combos_dia").insert(
@@ -89,6 +111,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     fecha,
-    combos: combos.map((c) => ({ ...c, armadoAt, acerto: null })),
+    historial,
+    combos: combos.map((c) => ({ ...c, armadoAt, acerto: null, patasAcertadas: null })),
   });
 }
