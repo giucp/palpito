@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Icono } from "./iconos";
 import { fmt } from "@/lib/dinero";
+import { ApuestaLibre } from "./apuesta-libre";
 
 // Tus retos, dentro de Apuestas (palpito_guia.md §6.e).
 //
@@ -128,7 +129,21 @@ function Fila({ r }: { r: Reto }) {
   );
 }
 
-export function Retos({ usuario, onEntrar }: { usuario: { email: string } | null; onEntrar: () => void }) {
+export function Retos({
+  usuario,
+  saldo,
+  onEntrar,
+  onAviso,
+}: {
+  usuario: { email: string } | null;
+  saldo: number | null;
+  onEntrar: () => void;
+  onAviso: (texto: string) => void;
+}) {
+  // Crear una apuesta libre vive acá y no en Juegos: **un juego se juega, una
+  // apuesta se declara**. Juegos es para elegir a qué jugar; esto es una cosa
+  // que tenés con otra persona, igual que el resto de lo que hay en esta lista.
+  const [creando, setCreando] = useState(false);
   // Sin sesión no hay nada que pedir, así que arranca vacío y no en "cargando".
   const [retos, setRetos] = useState<Reto[] | null>(usuario ? null : []);
 
@@ -154,6 +169,18 @@ export function Retos({ usuario, onEntrar }: { usuario: { email: string } | null
       vivo = false;
     };
   }, [usuario, traer]);
+
+  if (creando) {
+    return (
+      <>
+        <button className="am-volver" onClick={() => setCreando(false)}>
+          <Icono id="i-back" />
+          Volver a tus retos
+        </button>
+        <ApuestaLibre usuario={usuario} saldo={saldo} onAviso={onAviso} onEntrar={onEntrar} />
+      </>
+    );
+  }
 
   if (!usuario) {
     return (
@@ -181,7 +208,10 @@ export function Retos({ usuario, onEntrar }: { usuario: { email: string } | null
       <div className="svacio" style={{ padding: "44px 20px" }}>
         <Icono id="i-amigos" />
         <b>Todavía no tenés retos</b>
-        <p>Publicá una apuesta en el tablero, o retá a un amigo desde Juegos o desde tu cuenta.</p>
+        <p>Apostale a un amigo por lo que sea, publicá una en el tablero, o retalo a un juego.</p>
+        <button className="bapostar" style={{ marginTop: 14 }} onClick={() => setCreando(true)}>
+          Apostar por lo que sea
+        </button>
       </div>
     );
   }
@@ -192,6 +222,11 @@ export function Retos({ usuario, onEntrar }: { usuario: { email: string } | null
 
   return (
     <div className="rt">
+      <button className="rt-nueva" onClick={() => setCreando(true)}>
+        <Icono id="i-arr" />
+        Apostarle a un amigo por lo que sea
+      </button>
+
       {teToca.length > 0 && (
         <>
           <div className="pf-titulo">Te toca a vos</div>

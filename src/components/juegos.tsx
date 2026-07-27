@@ -3,7 +3,6 @@
 import { useState, useSyncExternalStore } from "react";
 import { Icono } from "./iconos";
 import { RetoJuego, type JuegoDef } from "./reto-juego";
-import { ApuestaLibre } from "./apuesta-libre";
 import { alternarSonido, sonidoActivo, suscribirSonido } from "@/lib/sonido";
 
 // Juegos de Pálpito: **siempre contra un amigo, nunca contra la casa**.
@@ -17,6 +16,11 @@ import { alternarSonido, sonidoActivo, suscribirSonido } from "@/lib/sonido";
 // mínima de cada partida. Sin casa del otro lado no hace falta inclinar la
 // matemática: los dos tienen la misma probabilidad y el jugador recupera el
 // 99,5% de lo que pone, contra el 97% de un juego de casino.
+//
+// Acá van **juegos**, no apuestas. La apuesta libre —apostar por cualquier
+// cosa y declarar después quién ganó— vive en Cuenta → Retos, que es donde
+// están las cosas que tenés con otra persona. Un juego se juega; una apuesta
+// se declara. No es lo mismo y no van juntos.
 //
 // Para agregar un juego: una entrada acá, su rama en `/api/juego` y su mesa.
 // El resto del camino —crear, aceptar, vencer, cobrar— ya está hecho.
@@ -38,18 +42,6 @@ const CATALOGO: JuegoDef[] = [
       "Cada uno saca una carta y la más alta se lleva el pozo. Nadie ve la carta del otro hasta que sacan los dos.",
     invitacion: "Te reto a una carta en Pálpito.\nEl que saque la más alta se lleva el pozo.",
     queHacer: "Cuando acepte, el reto te aparece en Juegos para sacar tu carta.",
-  },
-  {
-    // No es un juego de azar: es apostar por cualquier cosa y declarar después
-    // quién ganó. Vive acá porque es lo mismo de siempre —retar a un amigo— y es
-    // donde la gente lo va a buscar.
-    id: "libre",
-    nombre: "Apuesta libre",
-    resumen: "Por lo que sea. Ustedes deciden quién ganó.",
-    tag: "contra un amigo",
-    comoSeGana: "",
-    invitacion: "",
-    queHacer: "",
   },
   {
     id: "dados",
@@ -94,9 +86,7 @@ export function Juegos(props: Props) {
           </button>
           {botonSonido}
         </div>
-        {/* La apuesta libre tiene su propio flujo: no hay jugada que sortear,
-            hay una frase que escribir y una forma de decidir que elegir. */}
-        {juego.id === "libre" ? <ApuestaLibre {...props} /> : <RetoJuego juego={juego} {...props} />}
+        <RetoJuego juego={juego} {...props} />
       </>
     );
   }
@@ -133,34 +123,6 @@ export function Juegos(props: Props) {
 // Portadas dibujadas con formas, sin imágenes: nítidas en cualquier pantalla y
 // pesan unos pocos kilobytes.
 function PortadaJuego({ id }: { id: string }) {
-  if (id === "libre") {
-    return (
-      <svg viewBox="0 0 100 48" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <defs>
-          <linearGradient id="jp-libre" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#16342a" />
-            <stop offset="100%" stopColor="#0a1712" />
-          </linearGradient>
-        </defs>
-        <rect width="100" height="48" fill="url(#jp-libre)" />
-        {/* Dos manos que chocan: el apretón que sella una apuesta */}
-        <g stroke="#b6ff3d" strokeWidth="2.6" strokeLinecap="round" fill="none">
-          <path d="M28 30 L42 24" />
-          <path d="M72 30 L58 24" />
-        </g>
-        <g fill="#b6ff3d">
-          <rect x="40" y="19" width="20" height="10" rx="5" />
-        </g>
-        <g fill="#f7f5ef">
-          <circle cx="30" cy="31" r="4.2" />
-          <circle cx="70" cy="31" r="4.2" />
-        </g>
-        <text x="50" y="42" fontSize="6.5" fontWeight="700" fill="#f7f5ef" fontFamily="sans-serif"
-          textAnchor="middle" opacity="0.75">lo que sea</text>
-      </svg>
-    );
-  }
-
   if (id === "dados") {
     return (
       <svg viewBox="0 0 100 48" preserveAspectRatio="xMidYMid slice" aria-hidden="true">

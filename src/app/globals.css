@@ -1760,3 +1760,11 @@ button {
 .al-final span { display: block; font-size: 13px; color: var(--mist); margin-top: 3px; }
 .al-final .dsf-volver { margin-top: 12px; color: var(--ink2); border: 1px solid var(--line2);
   border-radius: 100px; padding: 9px 18px; }
+
+/* Crear una apuesta libre, desde la lista de retos. Va arriba porque es la
+   acción, no un reto más: el resto de la lista son cosas que ya existen. */
+.rt-nueva { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px; border-radius: 13px; border: 1px dashed var(--line2); background: none;
+  color: var(--ink2); font-size: 13.5px; font-weight: 650; transition: 0.16s; margin-bottom: 4px; }
+.rt-nueva:hover { border-color: var(--lima); color: var(--ink); }
+.rt-nueva svg { width: 14px; height: 14px; }

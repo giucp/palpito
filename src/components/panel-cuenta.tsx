@@ -228,7 +228,9 @@ export function PanelCuenta({
         ))}
       </nav>
 
-      {seccion === "retos" && <Retos usuario={usuario} onEntrar={onEntrar} />}
+      {seccion === "retos" && (
+        <Retos usuario={usuario} saldo={saldo} onEntrar={onEntrar} onAviso={onAviso} />
+      )}
 
       {seccion === "amigos" && <PanelAmigos onAviso={onAviso} onCambio={onCambioSaldo} />}
 
