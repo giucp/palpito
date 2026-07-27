@@ -84,11 +84,18 @@ export async function guardarSenales(
 ): Promise<ResumenSenales> {
   const supabase = crearClienteAdmin();
 
-  const { count } = await supabase
+  // Se mira **por familia** y no por día entero. Así, si un día se agrega una
+  // familia nueva —los totales llegaron después que los ganadores— la jornada ya
+  // guardada no bloquea a la que falta, y no hay que borrar lo de antes para
+  // sumar lo nuevo. Borrarlo se llevaría por delante la curación manual.
+  const { data: yaHay } = await supabase
     .from("senales_dia")
-    .select("*", { count: "exact", head: true })
+    .select("mercado")
     .eq("fecha", fecha);
-  if ((count ?? 0) > 0) return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
+  const guardadas = new Set((yaHay ?? []).map((f) => f.mercado as string));
+  if (guardadas.has("ganador") && guardadas.has("total")) {
+    return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
+  }
 
   const partidos = await traerJornada(fecha, mercado?.ganador, mercado?.totales);
   if (partidos.length === 0) return { fecha, guardados: 0, entran: 0, motivo: "sin_jornada" };
@@ -151,7 +158,11 @@ export async function guardarSenales(
     })
   );
 
-  const filas = [...deGanador, ...deTotales];
+  const filas = [
+    ...(guardadas.has("ganador") ? [] : deGanador),
+    ...(guardadas.has("total") ? [] : deTotales),
+  ];
+  if (filas.length === 0) return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
 
   const { error } = await supabase.from("senales_dia").insert(filas);
   // Si dos corridas coinciden, la segunda choca con la clave única y no pasa
