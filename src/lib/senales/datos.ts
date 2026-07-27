@@ -47,7 +47,29 @@ export type Abridor = {
   whip: number | null;
   /** Ponches por boleto. Mide control y dominio a la vez. */
   kbb: number | null;
+  /** "L" o "R". Es lo que permite cruzarlo con el split del rival. */
+  mano: "L" | "R" | null;
 };
+
+/** Lo que rindió un equipo contra lanzadores de cada mano. */
+export type Splits = { vsZurdo: number | null; vsDerecho: number | null };
+
+/**
+ * Cuánto trabajó el bullpen en los últimos días.
+ *
+ * No es lo mismo un bullpen bueno descansado que el mismo bullpen después de
+ * tirar nueve entradas en dos días. Se cuentan solo las entradas de los
+ * relevistas: las del abridor no cansan a nadie más.
+ */
+export type Desgaste = {
+  entradas3dias: number;
+  lanzamientos3dias: number;
+  /** Cuántos relevistas lanzaron ayer. Si fueron muchos, hoy quedan menos. */
+  relevistasAyer: number;
+};
+
+/** Bajas de peso: jugadores en lista de lesionados. */
+export type Bajas = { lesionados: number; nombres: string[] };
 
 export type Bullpen = {
   era: number;
@@ -76,6 +98,28 @@ export type Equipo = {
   ofensiva: Ofensiva | null;
   bullpen: Bullpen | null;
   forma: Forma | null;
+  splits: Splits | null;
+  desgaste: Desgaste | null;
+  bajas: Bajas | null;
+};
+
+/**
+ * El estadio, con lo que hace falta para el clima.
+ *
+ * `azimut` es hacia dónde mira el campo: el rumbo, en grados, de home hacia el
+ * jardín central. Lo publica la propia MLB, así que **no hace falta una tabla
+ * escrita a mano**. Con eso y la dirección del viento se sabe si sopla hacia
+ * afuera (empuja la pelota) o hacia adentro (la frena), que es lo único que
+ * hace útil al viento; la velocidad sola no dice nada.
+ */
+export type Estadio = {
+  nombre: string;
+  lat: number;
+  lon: number;
+  azimut: number | null;
+  elevacion: number | null;
+  /** "Open", "Dome", "Retractable". Bajo techo el clima no importa. */
+  techo: string | null;
 };
 
 export type Partido = {
@@ -86,6 +130,7 @@ export type Partido = {
   visita: Equipo;
   abridorLocal: Abridor | null;
   abridorVisita: Abridor | null;
+  estadio: Estadio | null;
   /** Lo que paga el mercado, si se pudo casar con Polymarket. */
   mercado: { local: number; visita: number } | null;
   /** El contexto de la jornada, para poder normalizar por posición. */
@@ -217,7 +262,11 @@ async function abridores(fecha: string): Promise<{
   juegos: Crudo[];
   porJuego: Map<string, { local: Abridor | null; visita: Abridor | null }>;
 }> {
-  const j = obj(await pedir(`${MLB}/schedule?sportId=1&date=${fecha}&hydrate=probablePitcher,team`));
+  const j = obj(
+    await pedir(
+      `${MLB}/schedule?sportId=1&date=${fecha}&hydrate=probablePitcher,team,venue(location,fieldInfo)`
+    )
+  );
   const juegos = lista(obj(lista(j.dates)[0]).games);
   const porJuego = new Map<string, { local: Abridor | null; visita: Abridor | null }>();
 
@@ -237,6 +286,7 @@ async function abridores(fecha: string): Promise<{
         const s = obj(st);
         const k = num(s.strikeOuts) || 0;
         const bb = num(s.baseOnBalls) || 0;
+        const mano = txt(obj(primero.pitchHand).code);
         salida[lado] = {
           nombre: txt(p.fullName),
           entradas: num(s.inningsPitched) || 0,
@@ -244,6 +294,7 @@ async function abridores(fecha: string): Promise<{
           era: Number.isFinite(num(s.era)) ? num(s.era) : null,
           whip: Number.isFinite(num(s.whip)) ? num(s.whip) : null,
           kbb: bb > 0 ? k / bb : null,
+          mano: mano === "L" || mano === "R" ? mano : null,
         };
       }
       porJuego.set(String(g.gamePk), { local: salida.home, visita: salida.away });
@@ -251,6 +302,129 @@ async function abridores(fecha: string): Promise<{
   );
 
   return { juegos, porJuego };
+}
+
+/**
+ * Cuánto rinde cada equipo contra zurdos y contra derechos.
+ *
+ * Solo para los que juegan hoy: son unas veinticuatro consultas en vez de
+ * treinta, y las otras seis no se usarían.
+ */
+async function splitsDe(equipos: number[], temporada: number): Promise<Map<number, Splits>> {
+  const mapa = new Map<number, Splits>();
+  await Promise.all(
+    equipos.map(async (id) => {
+      const j = obj(
+        await pedir(
+          `${MLB}/teams/${id}/stats?season=${temporada}&group=hitting&stats=statSplits&sitCodes=vl,vr`
+        )
+      );
+      let vsZurdo: number | null = null;
+      let vsDerecho: number | null = null;
+      for (const s of lista(obj(lista(j.stats)[0]).splits)) {
+        const codigo = txt(obj(s.split).code);
+        const ops = num(obj(s.stat).ops);
+        if (!Number.isFinite(ops)) continue;
+        if (codigo === "vl") vsZurdo = ops;
+        if (codigo === "vr") vsDerecho = ops;
+      }
+      if (vsZurdo !== null || vsDerecho !== null) mapa.set(id, { vsZurdo, vsDerecho });
+    })
+  );
+  return mapa;
+}
+
+/**
+ * Cuánto trabajó cada bullpen en los últimos tres días.
+ *
+ * Se recorren los box scores de esos días y se suman las entradas de todos los
+ * lanzadores **menos el que abrió**, que es el primero de la lista. Las entradas
+ * del abridor no cansan al bullpen.
+ */
+async function desgastes(fecha: string, equipos: Set<number>): Promise<Map<number, Desgaste>> {
+  const dias = [1, 2, 3].map((d) => {
+    const t = new Date(`${fecha}T12:00:00Z`);
+    t.setUTCDate(t.getUTCDate() - d);
+    return t.toISOString().slice(0, 10);
+  });
+
+  const acum = new Map<number, Desgaste>();
+  const juegosDe = await Promise.all(
+    dias.map(async (d) => {
+      const j = obj(await pedir(`${MLB}/schedule?sportId=1&date=${d}`));
+      return { dia: d, juegos: lista(obj(lista(j.dates)[0]).games) };
+    })
+  );
+
+  for (const { dia, juegos } of juegosDe) {
+    const relevantes = juegos.filter((g) => {
+      const t = obj(g.teams);
+      return (
+        equipos.has(num(obj(obj(t.home).team).id)) || equipos.has(num(obj(obj(t.away).team).id))
+      );
+    });
+
+    await Promise.all(
+      relevantes.map(async (g) => {
+        const box = obj(await pedir(`${MLB}/game/${g.gamePk}/boxscore`));
+        for (const lado of ["home", "away"] as const) {
+          const eq = obj(obj(box.teams)[lado]);
+          const id = num(obj(obj(eq.team).id ? eq.team : {}).id);
+          if (!equipos.has(id)) continue;
+
+          const ids = Array.isArray(eq.pitchers) ? (eq.pitchers as number[]) : [];
+          // El primero es el abridor: se salta.
+          const relevistas = ids.slice(1);
+          const a = acum.get(id) ?? { entradas3dias: 0, lanzamientos3dias: 0, relevistasAyer: 0 };
+          for (const pid of relevistas) {
+            const jugador = obj(obj(eq.players)[`ID${pid}`]);
+            const st = obj(obj(jugador.stats).pitching);
+            a.entradas3dias += num(st.inningsPitched) || 0;
+            a.lanzamientos3dias += num(st.numberOfPitches) || num(st.pitchesThrown) || 0;
+          }
+          if (dia === dias[0]) a.relevistasAyer += relevistas.length;
+          acum.set(id, a);
+        }
+      })
+    );
+  }
+  return acum;
+}
+
+/** Quiénes están en la lista de lesionados de cada equipo. */
+async function bajasDe(equipos: number[]): Promise<Map<number, Bajas>> {
+  const mapa = new Map<number, Bajas>();
+  await Promise.all(
+    equipos.map(async (id) => {
+      const j = obj(await pedir(`${MLB}/teams/${id}/roster?rosterType=fullSeason`));
+      const lesionados = lista(j.roster).filter((r) =>
+        /injur/i.test(txt(obj(r.status).description))
+      );
+      mapa.set(id, {
+        lesionados: lesionados.length,
+        nombres: lesionados.slice(0, 4).map((r) => txt(obj(r.person).fullName)),
+      });
+    })
+  );
+  return mapa;
+}
+
+/** El estadio del partido, con lo que hace falta para el clima. */
+function estadioDe(g: Crudo): Estadio | null {
+  const v = obj(g.venue);
+  const loc = obj(v.location);
+  const c = obj(loc.defaultCoordinates);
+  const lat = num(c.latitude);
+  const lon = num(c.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return {
+    nombre: txt(v.name),
+    lat,
+    lon,
+    azimut: Number.isFinite(num(loc.azimuthAngle)) ? num(loc.azimuthAngle) : null,
+    elevacion: Number.isFinite(num(loc.elevation)) ? num(loc.elevation) : null,
+    techo: txt(obj(v.fieldInfo).roofType) || null,
+  };
 }
 
 // ------------------------------------------------------------ la jornada
@@ -273,6 +447,22 @@ export async function traerJornada(
     formas(temporada),
   ]);
 
+  // Lo que solo hace falta de los equipos que juegan hoy se pide después, ya
+  // sabiendo quiénes son: unas veinticuatro consultas en vez de treinta, y las
+  // otras seis no se usarían.
+  const queJuegan = new Set<number>();
+  for (const g of juegos) {
+    const t = obj(g.teams);
+    queJuegan.add(num(obj(obj(t.home).team).id));
+    queJuegan.add(num(obj(obj(t.away).team).id));
+  }
+  const listaEquipos = [...queJuegan].filter(Number.isFinite);
+  const [spl, desg, baj] = await Promise.all([
+    splitsDe(listaEquipos, temporada),
+    desgastes(fecha, queJuegan),
+    bajasDe(listaEquipos),
+  ]);
+
   const equipoDe = (t: Crudo): Equipo => {
     const id = num(obj(t).id);
     return {
@@ -281,6 +471,9 @@ export async function traerJornada(
       ofensiva: ofe.get(id) ?? null,
       bullpen: bull.get(id) ?? null,
       forma: form.get(id) ?? null,
+      splits: spl.get(id) ?? null,
+      desgaste: desg.get(id) ?? null,
+      bajas: baj.get(id) ?? null,
     };
   };
 
@@ -300,6 +493,7 @@ export async function traerJornada(
       visita,
       abridorLocal: par?.local ?? null,
       abridorVisita: par?.visita ?? null,
+      estadio: estadioDe(g),
       mercado: mercado?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
       // Se rellena abajo, cuando ya están todos los partidos.
       jornada: {

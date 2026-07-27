@@ -252,7 +252,144 @@ const mercado: Modelo<Candidato> = {
   },
 };
 
-export const MODELOS: Modelo<Candidato>[] = [abridores, bullpen, ofensiva, forma, mercado];
+// ----------------------------------------------------------------- desgaste
+
+/**
+ * Cuánto trabajó el bullpen en los últimos tres días.
+ *
+ * Es distinto del modelo de bullpen y por eso va aparte: uno mide **qué tan
+ * bueno es**, este mide **cómo llega**. Un bullpen de élite que tiró once
+ * entradas en tres días hoy no es un bullpen de élite, y son dos preguntas
+ * independientes — que es justo lo que hace que valga la pena contarlos como dos
+ * votos y no como uno.
+ */
+const desgaste: Modelo<Candidato> = {
+  id: "desgaste",
+  nombre: "Descanso",
+  peso: 8,
+  mirar: (c) => {
+    const mio = yo(c).desgaste;
+    const suyo = rival(c).desgaste;
+    if (!mio || !suyo) return null;
+
+    // Referencia: un bullpen tira unas 3 o 4 entradas por partido, así que nueve
+    // en tres días es normal y catorce es mucho.
+    const score = ventaja(mio.entradas3dias, suyo.entradas3dias, 4, false);
+
+    const motivos: string[] = [];
+    if (mio.entradas3dias >= 13) motivos.push(`Bullpen exigido: ${mio.entradas3dias.toFixed(1)} entradas en tres días`);
+    else if (mio.entradas3dias <= 6) motivos.push(`Bullpen descansado (${mio.entradas3dias.toFixed(1)} entradas en tres días)`);
+    if (mio.relevistasAyer >= 5) motivos.push(`Ayer usaron ${mio.relevistasAyer} relevistas`);
+    const dif = suyo.entradas3dias - mio.entradas3dias;
+    if (dif >= 4) motivos.push(`Llega más entero que el rival (${dif.toFixed(1)} entradas menos)`);
+    else if (dif <= -4) motivos.push(`El rival llega más descansado (${(-dif).toFixed(1)} entradas menos)`);
+    if (motivos.length === 0) motivos.push("Los dos bullpens llegan parecido");
+
+    return {
+      score,
+      motivos,
+      datos: {
+        entradas3dias: Number(mio.entradas3dias.toFixed(1)),
+        entradas3diasRival: Number(suyo.entradas3dias.toFixed(1)),
+        lanzamientos3dias: mio.lanzamientos3dias,
+        relevistasAyer: mio.relevistasAyer,
+      },
+    };
+  },
+};
+
+// ------------------------------------------------------------------- splits
+
+/**
+ * Cómo le pega este equipo a la mano del que abre enfrente.
+ *
+ * Un equipo con OPS .790 contra zurdos y .690 contra derechos no es el mismo
+ * equipo según quién le lance. Es de los pocos modelos que puede contradecir a la
+ * ofensiva general, y por eso está separado de ella.
+ */
+const splits: Modelo<Candidato> = {
+  id: "splits",
+  nombre: "Contra esa mano",
+  peso: 7,
+  mirar: (c) => {
+    const mios = yo(c).splits;
+    const suyos = rival(c).splits;
+    const abreEnfrente = suAbridor(c);
+    const abroYo = miAbridor(c);
+    if (!mios || !suyos || !abreEnfrente?.mano || !abroYo?.mano) return null;
+
+    const mio = abreEnfrente.mano === "L" ? mios.vsZurdo : mios.vsDerecho;
+    const suyo = abroYo.mano === "L" ? suyos.vsZurdo : suyos.vsDerecho;
+    if (mio === null || suyo === null) return null;
+
+    // 60 puntos de OPS es una diferencia que se nota en una temporada.
+    const score = ventaja(mio, suyo, 0.06, true);
+    const mano = abreEnfrente.mano === "L" ? "zurdos" : "derechos";
+    const manoRival = abroYo.mano === "L" ? "zurdos" : "derechos";
+
+    const motivos = [`OPS ${mio.toFixed(3)} contra ${mano}, que es lo que abre enfrente`];
+    const dif = mio - suyo;
+    if (Math.abs(dif) >= 0.05) {
+      motivos.push(
+        dif > 0
+          ? `Le pega mejor a esa mano que el rival a los ${manoRival} (${dif.toFixed(3)} de OPS)`
+          : `El rival le pega mejor a los ${manoRival} (${(-dif).toFixed(3)} de OPS)`
+      );
+    }
+
+    return {
+      score,
+      motivos,
+      datos: { ops: mio, opsRival: suyo, manoDelRival: abreEnfrente.mano },
+    };
+  },
+};
+
+// --------------------------------------------------------------------- bajas
+
+/**
+ * A quién le falta gente.
+ *
+ * Es el modelo más crudo de todos y hay que decirlo: cuenta **cuántos** están
+ * lesionados, no **quiénes**. Perder al mejor bateador no pesa lo mismo que
+ * perder al último del bullpen, y esto no distingue. Está igual porque una
+ * diferencia grande de bajas sí dice algo, pero su peso es bajo a propósito y
+ * mejorarlo pide datos de valor por jugador que hoy no tenemos.
+ */
+const bajas: Modelo<Candidato> = {
+  id: "bajas",
+  nombre: "Bajas",
+  peso: 5,
+  mirar: (c) => {
+    const mias = yo(c).bajas;
+    const suyas = rival(c).bajas;
+    if (!mias || !suyas) return null;
+
+    const score = ventaja(mias.lesionados, suyas.lesionados, 4, false);
+    const motivos: string[] = [];
+    motivos.push(`${mias.lesionados} en lista de lesionados (el rival, ${suyas.lesionados})`);
+    if (mias.nombres.length) motivos.push(`Entre ellos: ${mias.nombres.slice(0, 3).join(", ")}`);
+
+    return {
+      score,
+      motivos,
+      datos: { lesionados: mias.lesionados, lesionadosRival: suyas.lesionados },
+    };
+  },
+};
+
+// Ocho modelos, cada uno mirando una cosa distinta. El acuerdo entre ellos es
+// lo que decide, no el promedio.
+export const MODELOS: Modelo<Candidato>[] = [
+  abridores,
+  bullpen,
+  ofensiva,
+  forma,
+  desgaste,
+  splits,
+  bajas,
+  mercado,
+];
 
 /** Los dos candidatos de un partido: gana el local, o gana el visitante. */
 export const candidatosDe = (p: Partido): Candidato[] => [
