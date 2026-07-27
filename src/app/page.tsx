@@ -18,20 +18,16 @@ export default async function Home() {
 
   if (!user) return <AppApuestas usuario={null} saldo={null} />;
 
-  const { data } = await supabase
-    .from("saldos")
-    .select("saldo")
-    .eq("usuario_id", user.id)
-    .maybeSingle();
-
-  // ¿Es administrador? Solo para mostrarle el acceso al panel; el permiso de
-  // verdad lo comprueba /admin por su cuenta.
+  // El saldo y si es administrador se piden **a la vez**: no dependen uno del
+  // otro y son dos viajes a la base en cada carga de la portada. En fila, el
+  // segundo esperaba al primero para nada.
   const admin = crearClienteAdmin();
-  const { data: esAdmin } = await admin
-    .from("administradores")
-    .select("usuario_id")
-    .eq("usuario_id", user.id)
-    .maybeSingle();
+  const [{ data }, { data: esAdmin }] = await Promise.all([
+    supabase.from("saldos").select("saldo").eq("usuario_id", user.id).maybeSingle(),
+    // ¿Es administrador? Solo para mostrarle el acceso al panel; el permiso de
+    // verdad lo comprueba /admin por su cuenta.
+    admin.from("administradores").select("usuario_id").eq("usuario_id", user.id).maybeSingle(),
+  ]);
 
   return (
     <AppApuestas

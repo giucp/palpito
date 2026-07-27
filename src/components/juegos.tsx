@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Icono } from "./iconos";
 import { RetoCarta } from "./reto-carta";
-import { alternarSonido, sonidoActivo } from "@/lib/sonido";
+import { alternarSonido, sonidoActivo, suscribirSonido } from "@/lib/sonido";
 
 // Juegos de Pálpito: **siempre contra un amigo, nunca contra la casa**.
 //
@@ -37,14 +37,17 @@ const CATALOGO: Array<{ id: Juego; nombre: string; resumen: string; tag: string 
 
 export function Juegos(props: Props) {
   const [abierto, setAbierto] = useState<Juego | null>(null);
-  const [suena, setSuena] = useState(true);
 
-  useEffect(() => setSuena(sonidoActivo()), []);
+  // La preferencia vive en `localStorage`, que en el servidor no existe. Se lee
+  // así —y no copiándola a un estado dentro de un efecto— para que el servidor
+  // dibuje "con sonido" y el navegador corrija en el mismo render si hace falta,
+  // sin un render extra.
+  const suena = useSyncExternalStore(suscribirSonido, sonidoActivo, () => true);
 
   const botonSonido = (
     <button
       className="jsonido"
-      onClick={() => setSuena(alternarSonido())}
+      onClick={() => alternarSonido()}
       aria-label={suena ? "Silenciar" : "Activar sonido"}
       title={suena ? "Silenciar" : "Activar sonido"}
     >

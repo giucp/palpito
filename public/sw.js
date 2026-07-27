@@ -19,7 +19,11 @@ self.addEventListener("activate", (evento) => {
   evento.waitUntil(self.clients.claim());
 });
 
-self.addEventListener("fetch", (evento) => {
-  // Pasar de largo: la red decide, como si no estuviéramos.
-  evento.respondWith(fetch(evento.request));
-});
+// El manejador tiene que existir —es lo que Chrome mira para ofrecer la
+// instalación— pero **está vacío a propósito**.
+//
+// Antes hacía `evento.respondWith(fetch(evento.request))`, que parece lo mismo
+// que no hacer nada y no lo es: obliga a cada petición de la app a dar un rodeo
+// por este hilo y a volver, en vez de dejar que el navegador la resuelva por su
+// camino rápido. Sin `respondWith`, la petición sigue de largo de verdad.
+self.addEventListener("fetch", () => {});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Icono } from "./iconos";
 import { fmt } from "@/lib/dinero";
@@ -15,6 +15,18 @@ type Props = {
   onAviso: (msg: string) => void;
 };
 
+// El tema de verdad es el atributo `data-theme` del <html>: lo pone un script
+// antes de pintar, para que no haya un fogonazo blanco al cargar. La cabecera
+// lo **lee de ahí** en vez de guardar una copia en su propio estado, que era
+// tener el mismo dato en dos sitios y sincronizarlos a mano en un efecto.
+const suscribirTema = (avisar: () => void) => {
+  const obs = new MutationObserver(avisar);
+  obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => obs.disconnect();
+};
+const temaActual = (): "dark" | "light" =>
+  document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+
 const TABS: Array<{ vista: Vista; nombre: string }> = [
   { vista: "lobby", nombre: "Deportes" },
   { vista: "vivo", nombre: "Análisis" },
@@ -24,20 +36,16 @@ const TABS: Array<{ vista: Vista; nombre: string }> = [
 
 export function Cabecera({ vista, onVista, usuario, saldo, onAviso }: Props) {
   const router = useRouter();
-  const [tema, setTema] = useState<"dark" | "light">("dark");
-
-  useEffect(() => {
-    const actual = document.documentElement.getAttribute("data-theme");
-    if (actual === "light") setTema("light");
-  }, []);
+  const tema = useSyncExternalStore(suscribirTema, temaActual, () => "dark" as const);
 
   const cambiarTema = () => {
     const t = tema === "dark" ? "light" : "dark";
+    // Solo se toca el atributo: el observador de arriba se encarga de que la
+    // cabecera se entere y se vuelva a dibujar.
     document.documentElement.setAttribute("data-theme", t);
     try {
       localStorage.setItem("tema", t);
     } catch {}
-    setTema(t);
   };
 
   const salir = async () => {

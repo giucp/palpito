@@ -331,6 +331,15 @@ export async function cerrarResultados(): Promise<ResumenResultados> {
   // retenido sin esperar a que el evento cierre, horas después.
   await supabase.rpc("caducar_desafios");
 
+  // Y los retos de juego que nadie aceptó dentro de su hora.
+  //
+  // Van aparte porque `caducar_desafios` cruza con `eventos` para saber si el
+  // partido empezó, y un reto de Carta más alta no tiene partido: se caía del
+  // cruce y no vencía nunca. La función existía desde el principio pero no la
+  // llamaba nadie, así que las fichas del que retaba se quedaban retenidas para
+  // siempre si el amigo no entraba.
+  await supabase.rpc("vencer_desafios_de_juego");
+
   // Partidos que ya deberían haber terminado.
   const { data: pendientes } = await supabase
     .from("eventos")

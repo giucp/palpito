@@ -24,12 +24,26 @@ export function sonidoActivo(): boolean {
   return preferencia();
 }
 
+// Quién quiere enterarse de que cambió. Es lo que permite que la pantalla lea
+// esta preferencia con `useSyncExternalStore` en vez de copiarla a un estado
+// suyo dentro de un efecto: así no hay un render de más al montar, y si algún
+// día hay dos botones de sonido en pantalla no se contradicen entre ellos.
+const oyentes = new Set<() => void>();
+
+export function suscribirSonido(avisar: () => void): () => void {
+  oyentes.add(avisar);
+  return () => {
+    oyentes.delete(avisar);
+  };
+}
+
 export function alternarSonido(): boolean {
   const nuevo = !preferencia();
   activo = nuevo;
   try {
     localStorage.setItem("sonido", nuevo ? "si" : "no");
   } catch {}
+  for (const avisar of oyentes) avisar();
   return nuevo;
 }
 
