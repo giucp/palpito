@@ -19,9 +19,6 @@ export async function GET(req: NextRequest) {
   if (!autorizado(req)) {
     return NextResponse.json({ error: "Clave incorrecta" }, { status: 401 });
   }
-  // No se exige ODDS_API_KEY: los resultados salen de fuentes propias y
-  // gratuitas, y The Odds API solo entra como plan B si está configurada.
-  //
   // Los combos del día viajan pegados acá en vez de tener su propio cron: usan
   // la misma fuente (statsapi.mlb.com) y el mismo ritmo de 10 minutos. Van
   // aparte en un try porque no mueven dinero: si la MLB falla, que no arrastre
