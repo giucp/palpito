@@ -67,7 +67,12 @@ export async function mercadoDelDia(fecha: string): Promise<{
   const palizas = new Map<string, Paliza>();
   try {
     for (const p of await traerPartidosDelDia(fecha)) {
-      const clave = clavePartido(p.visita, p.local);
+      // **La clave es el `gamePk`**, y solo se cae al par de apodos si no se
+      // pudo casar con la cartelera oficial. En una doble jornada los dos
+      // partidos comparten apodos, así que con la clave vieja el segundo pisaba
+      // al primero: los dos se quedaban con la misma línea de total, que era la
+      // del partido equivocado en uno de los dos casos.
+      const clave = p.juego || clavePartido(p.visita, p.local);
       if (p.ganaLocal !== null && p.ganaVisita !== null) {
         ganador.set(clave, { local: p.ganaLocal, visita: p.ganaVisita });
       }

@@ -139,7 +139,50 @@ function calcularFip(s: Crudo): number | null {
 
 const normalizar = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-const apodo = (nombre: string) => normalizar(nombre).split(" ").pop() ?? "";
+
+/**
+ * El apodo con el que se casa un equipo: la última palabra del nombre.
+ *
+ * **Con una excepción que no es opcional:** los Boston Red Sox y los Chicago
+ * White Sox terminan los dos en "Sox". Con la última palabra sola, un Red
+ * Sox–White Sox daba la clave `sox|sox` y los dos equipos eran el mismo. Por eso
+ * cuando la última palabra es "sox" se usan las dos últimas.
+ */
+const apodo = (nombre: string) => {
+  const partes = normalizar(nombre).split(" ");
+  const ultima = partes[partes.length - 1] ?? "";
+  return ultima === "sox" && partes.length >= 2
+    ? `${partes[partes.length - 2]}${ultima}`
+    : ultima;
+};
+
+/**
+ * ¿Este precio dice algo?
+ *
+ * Un mercado de Polymarket puede devolver un precio que **parece** una
+ * probabilidad y no lo es:
+ *
+ *  · **0 o 1** es un mercado ya resuelto. Aparece en cuanto el partido termina,
+ *    y no es "imposible", es "ya se sabe".
+ *  · **0.5 clavado** es un mercado que **nadie operó**. No es una probabilidad
+ *    del 50%: es la falta de una probabilidad.
+ *
+ * Costó un candidato inventado: en un Orioles–Tigers ya jugado, todas las líneas
+ * normales estaban resueltas a 0 y la única en 0.5 era un "O/U 14.5" que nadie
+ * había tocado. Como la línea principal se elige por cercanía a 0.5, el motor
+ * recomendó "menos de 14.5 carreras", que en béisbol no existe.
+ */
+const precioUtil = (p: number) =>
+  Number.isFinite(p) && p > 0.02 && p < 0.98 && Math.abs(p - 0.5) > 1e-9;
+
+/**
+ * Un total de MLB vive entre 5.5 y 13.5. Fuera de ahí es otro mercado.
+ *
+ * Es un cinturón de seguridad, no la defensa principal —esa es `precioUtil`—
+ * pero atrapa de golpe los props de jugador (O/U 0.5 y 1.5 jonrones) y las
+ * líneas alternativas absurdas, que son las dos formas en que esto se ensució.
+ */
+const LINEA_TOTAL_PLAUSIBLE = (n: number) => n >= 5.5 && n <= 13.5;
 
 // Con qué se casa un partido de Polymarket con el de la cartelera de la MLB.
 // Se exporta porque la resolución de los combos viejos —los que se guardaron
@@ -150,6 +193,9 @@ export const clavePartido = (visita: string, local: string) =>
 // --------------------------------------------------------- los datos de un día
 
 type Abridor = { nombre: string; fip: number | null };
+
+/** Un partido de la cartelera oficial, con su hora, para poder distinguir los de una doble jornada. */
+type JuegoDelDia = { juego: string; empieza: number; abridores: [Abridor, Abridor] };
 
 type PartidoDelDia = {
   titulo: string;
@@ -177,8 +223,13 @@ type PartidoDelDia = {
 // cuesta nada llevárselo y es lo que después resuelve los combos sin adivinar.
 async function abridoresDelDia(
   fecha: string
-): Promise<Map<string, { juego: string; abridores: [Abridor, Abridor] }>> {
-  const mapa = new Map<string, { juego: string; abridores: [Abridor, Abridor] }>();
+): Promise<Map<string, JuegoDelDia[]>> {
+  // **Una lista por clave, no un juego.** En una doble jornada los mismos dos
+  // equipos juegan dos veces el mismo día: con un solo valor por clave, el
+  // segundo partido pisaba al primero y los dos se quedaban con el mismo
+  // `gamePk` —el del que llegara último—, que es la peor forma de fallar,
+  // porque después se resuelve contra el marcador del partido equivocado.
+  const mapa = new Map<string, JuegoDelDia[]>();
   const j = obj(
     await pedir(`${MLB}/schedule?sportId=1&date=${fecha}&hydrate=probablePitcher,team`)
   );
@@ -209,10 +260,15 @@ async function abridoresDelDia(
       const visita = txt(obj(obj(equipos.away).team).name);
       const local = txt(obj(obj(equipos.home).team).name);
       if (visita && local) {
-        mapa.set(`${apodo(visita)}|${apodo(local)}`, {
-          juego: String(g.gamePk ?? ""),
-          abridores: [salida[0], salida[1]],
-        });
+        const clave = `${apodo(visita)}|${apodo(local)}`;
+        mapa.set(clave, [
+          ...(mapa.get(clave) ?? []),
+          {
+            juego: String(g.gamePk ?? ""),
+            empieza: Date.parse(txt(g.gameDate)) || 0,
+            abridores: [salida[0], salida[1]],
+          },
+        ]);
       }
     })
   );
@@ -230,8 +286,23 @@ async function mercadosDelDia(fecha: string): Promise<Crudo[]> {
     acum.push(...lote);
     if (lote.length < 100) break;
   }
-  return acum.filter((e) => txt(e.eventDate) === fecha && e.ended !== true);
+  return acum.filter(
+    (e) => txt(e.eventDate) === fecha && e.ended !== true && esElPartido(txt(e.title))
+  );
 }
+
+/**
+ * ¿Este evento es el partido, o uno de los satélites que Polymarket cuelga de él?
+ *
+ * Del mismo partido salen varios eventos con el mismo par de equipos:
+ * `"… - Player Props"`, `"… - First 5 Innings Winner"`. Todos tienen los mismos
+ * dos `teams`, así que **casaban con la misma clave y se pisaban entre sí**, y
+ * los props traían totales de 0.5 y 1.5 —jonrones de un jugador— que no son
+ * totales de carreras de nada.
+ *
+ * El partido de verdad es el que **no** lleva sufijo tras " - ".
+ */
+const esElPartido = (titulo: string) => !/ - /.test(titulo);
 
 // Saca de un evento de Polymarket todos los mercados que sabemos leer.
 function leerMercados(
@@ -278,8 +349,10 @@ function leerMercados(
     if (nombres.some((n) => n.includes(local)) && nombres.some((n) => n.includes(visita))
         && !/Spread|O\/U/i.test(pregunta)) {
       const iL = nombres.findIndex((n) => n.includes(local));
-      salida.ganaLocal = precios[iL];
-      salida.ganaVisita = precios[1 - iL];
+      if (precioUtil(precios[iL])) {
+        salida.ganaLocal = precios[iL];
+        salida.ganaVisita = precios[1 - iL];
+      }
       continue;
     }
 
@@ -287,7 +360,10 @@ function leerMercados(
     const total = pregunta.match(/O\/U ([\d.]+)/);
     if (total) {
       const iU = nombres.findIndex((n) => /under/i.test(n));
-      if (iU >= 0) totales.push({ linea: Number(total[1]), pU: precios[iU], pO: precios[1 - iU] });
+      const linea = Number(total[1]);
+      if (iU >= 0 && precioUtil(precios[iU]) && LINEA_TOTAL_PLAUSIBLE(linea)) {
+        totales.push({ linea, pU: precios[iU], pO: precios[1 - iU] });
+      }
       continue;
     }
 
@@ -296,7 +372,7 @@ function leerMercados(
     if (spread) {
       const equipo = spread[1];
       const i = nombres.findIndex((n) => n.includes(equipo));
-      if (i >= 0 && (!salida.paliza || precios[i] > salida.paliza.p)) {
+      if (i >= 0 && precioUtil(precios[i]) && (!salida.paliza || precios[i] > salida.paliza.p)) {
         // Polymarket a veces nombra al equipo corto ("Phillies") y a veces
         // largo. Se guarda de qué lado está, que es lo que no se presta a duda.
         const esLocal = normalizar(local).includes(normalizar(equipo));
@@ -308,7 +384,7 @@ function leerMercados(
     // Carrera en la primera entrada
     if (/run scored in the first inning/i.test(pregunta)) {
       const iSi = nombres.findIndex((n) => /^yes$/i.test(n));
-      if (iSi >= 0) {
+      if (iSi >= 0 && precioUtil(precios[iSi])) {
         salida.carreraPrimera = precios[iSi];
         salida.sinCarreraPrimera = precios[1 - iSi];
       }
@@ -330,10 +406,26 @@ export async function traerPartidosDelDia(fecha: string): Promise<PartidoDelDia[
   const [eventos, abridores] = await Promise.all([mercadosDelDia(fecha), abridoresDelDia(fecha)]);
 
   const partidos: PartidoDelDia[] = [];
+  const usados = new Set<string>();
   for (const ev of eventos) {
     const base = leerMercados(ev);
     if (!base) continue;
-    const par = abridores.get(`${apodo(base.visita)}|${apodo(base.local)}`);
+
+    // De los juegos de esos dos equipos hoy, el que empiece más cerca de la hora
+    // que dice Polymarket, y que no se haya usado ya. Con un solo partido esto
+    // da lo mismo de siempre; con una doble jornada es lo que evita que los dos
+    // eventos se lleven el mismo `gamePk`.
+    const candidatos = (abridores.get(`${apodo(base.visita)}|${apodo(base.local)}`) ?? []).filter(
+      (j) => !usados.has(j.juego)
+    );
+    const empieza = Date.parse(base.hora) || 0;
+    const par = candidatos.length
+      ? candidatos.reduce((a, b) =>
+          Math.abs(a.empieza - empieza) <= Math.abs(b.empieza - empieza) ? a : b
+        )
+      : undefined;
+    if (par) usados.add(par.juego);
+
     const av = par?.abridores[0] ?? null;
     const al = par?.abridores[1] ?? null;
     const fips = [av?.fip, al?.fip].filter((x): x is number => typeof x === "number");

@@ -644,10 +644,29 @@ function estadioDe(g: Crudo): Estadio | null {
 // ------------------------------------------------------------ la jornada
 
 /**
+ * Busca un dato de mercado por el id oficial del partido, y si no está, por el
+ * par de apodos.
+ *
+ * El respaldo existe porque no todo partido de la MLB tiene evento en
+ * Polymarket, y porque las filas guardadas de antes usan la clave vieja.
+ */
+function buscar<T>(
+  mapa: Map<string, T> | undefined,
+  gamePk: string,
+  visita: string,
+  local: string
+): T | null {
+  if (!mapa) return null;
+  return mapa.get(gamePk) ?? mapa.get(clavePartido(visita, local)) ?? null;
+}
+
+/**
  * Todo lo de un día, listo para que los modelos opinen.
  *
- * `mercado` es un mapa opcional de `clavePartido()` a los precios de Polymarket:
- * se pasa desde afuera para que esta capa no dependa de nada que no sea la MLB.
+ * `mercado` es un mapa opcional de los precios de Polymarket, **con el `gamePk`
+ * de clave** (o el par de apodos, para los partidos que no se pudieron casar con
+ * la cartelera). Se pasa desde afuera para que esta capa no dependa de nada que
+ * no sea la MLB.
  */
 export async function traerJornada(
   fecha: string,
@@ -711,9 +730,13 @@ export async function traerJornada(
       abridorVisita: par?.visita ?? null,
       estadio: estadioDe(g),
       clima: null, // se pide abajo, ya sabiendo el estadio y la hora
-      mercado: mercado?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
-      total: totales?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
-      paliza: palizas?.get(clavePartido(visita.nombre, local.nombre)) ?? null,
+      // Por `gamePk` primero, que es único, y por apodos solo como respaldo
+      // para los partidos que Polymarket no publicó. En una doble jornada los
+      // apodos son los mismos para los dos juegos y se llevaban la línea del
+      // otro; el id no se confunde.
+      mercado: buscar(mercado, String(g.gamePk), visita.nombre, local.nombre),
+      total: buscar(totales, String(g.gamePk), visita.nombre, local.nombre),
+      paliza: buscar(palizas, String(g.gamePk), visita.nombre, local.nombre),
       // Se rellena abajo, cuando ya están todos los partidos.
       jornada: {
         fipsAbridores: [],
