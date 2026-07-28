@@ -34,5 +34,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Clave incorrecta" }, { status: 401 });
   }
   const fecha = req.nextUrl.searchParams.get("fecha") || hoyEnCaracas();
-  return NextResponse.json(await guardarSenales(fecha, await mercadoDelDia(fecha)));
+  // Sin `await`: se le pasa la función, y `guardarSenales` solo la llama si de
+  // verdad va a calcular la jornada.
+  return NextResponse.json(await guardarSenales(fecha, () => mercadoDelDia(fecha)));
 }

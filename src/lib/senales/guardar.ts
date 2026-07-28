@@ -88,14 +88,24 @@ export async function mercadoDelDia(fecha: string): Promise<{
   return { ganador, totales, palizas };
 }
 
-/** Calcula la jornada y la guarda. Si ya estaba guardada, no hace nada. */
+/**
+ * Calcula la jornada y la guarda. Si ya estaba guardada, no hace nada.
+ *
+ * **`mercado` se pasa como función a propósito, no como valor ya calculado.**
+ * Traerlo son unas treinta consultas a Polymarket y a la MLB, y la jornada se
+ * guarda **una vez al día**: con el valor ya hecho, cada corrida del cron pagaba
+ * esas treinta consultas para descubrir un renglón después que no hacía falta
+ * ninguna. Con el cron cada cinco minutos serían más de ocho mil consultas
+ * diarias tiradas a la basura, a dos servicios gratuitos de los que este
+ * proyecto depende.
+ */
 export async function guardarSenales(
   fecha: string,
-  mercado?: {
+  mercado?: () => Promise<{
     ganador: Map<string, { local: number; visita: number }>;
     totales: Map<string, TotalMercado>;
     palizas: Map<string, Paliza>;
-  }
+  }>
 ): Promise<ResumenSenales> {
   const supabase = crearClienteAdmin();
 
@@ -112,7 +122,10 @@ export async function guardarSenales(
     return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
   }
 
-  const partidos = await traerJornada(fecha, mercado?.ganador, mercado?.totales, mercado?.palizas);
+  // Recién acá se pagan las consultas de mercado: pasada la puerta de arriba,
+  // que es la que corta el 99% de las corridas del día.
+  const m = await mercado?.();
+  const partidos = await traerJornada(fecha, m?.ganador, m?.totales, m?.palizas);
   if (partidos.length === 0) return { fecha, guardados: 0, entran: 0, motivo: "sin_jornada" };
 
   const conAbridores = partidos.filter((p) => p.abridorLocal && p.abridorVisita).length;
