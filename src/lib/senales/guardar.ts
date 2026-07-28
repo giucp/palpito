@@ -33,6 +33,30 @@ import { juzgar, puertaDeScore } from "./motor.ts";
 // tabla.
 
 /**
+ * Las familias que se guardan cada día.
+ *
+ * **Los totales (más o menos carreras) se sacaron el 2026-07-28**, por decisión
+ * del dueño y con razón:
+ *
+ *  · Son los más frágiles de los tres. Dependen de la línea que publica
+ *    Polymarket, que es justo la parte que más problemas dio: totales de
+ *    primeras cinco entradas colándose como del juego completo, líneas
+ *    alternativas absurdas, mercados sin operar con precio de 0.5.
+ *  · No tienen modelo de mercado —la casa mueve la línea para que los dos lados
+ *    paguen igual, así que ese precio no informa nada— y eso les deja una
+ *    medida menos que a las otras dos familias.
+ *  · **Y sobre todo: cada familia necesita su propia muestra.** Con tres, los
+ *    resultados de cada día se reparten en tres y todas tardan el triple en
+ *    decir algo. Sacando la más ruidosa, las otras dos acumulan al doble de
+ *    velocidad.
+ *
+ * **No se borró nada**: ni el código de `modelos-totales.ts`, ni las filas ya
+ * guardadas del 27 y el 28. **Volver es agregar `"total"` a esta lista y nada
+ * más** — el resto sigue en su sitio y se enciende solo.
+ */
+const FAMILIAS: string[] = ["ganador", "linea"];
+
+/**
  * Con menos abridores anunciados que esto no se calcula la jornada.
  *
  * El modelo de abridores pesa el 30% y los anuncios llegan a lo largo de la
@@ -118,7 +142,7 @@ export async function guardarSenales(
     .select("mercado")
     .eq("fecha", fecha);
   const guardadas = new Set((yaHay ?? []).map((f) => f.mercado as string));
-  if (guardadas.has("ganador") && guardadas.has("total") && guardadas.has("linea")) {
+  if (FAMILIAS.every((f) => guardadas.has(f))) {
     return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
   }
 
@@ -217,10 +241,14 @@ export async function guardarSenales(
     detalle: v.detalle,
   }));
 
+  // Cada familia entra si está en `FAMILIAS` y no se guardó ya hoy. Los totales
+  // quedan fuera por la lista, no por estar comentados: el cálculo sigue vivo
+  // arriba y basta con volver a nombrarlos para que entren.
+  const activa = (f: string) => FAMILIAS.includes(f) && !guardadas.has(f);
   const filas = [
-    ...(guardadas.has("ganador") ? [] : deGanador),
-    ...(guardadas.has("total") ? [] : deTotales),
-    ...(guardadas.has("linea") ? [] : deLinea),
+    ...(activa("ganador") ? deGanador : []),
+    ...(activa("total") ? deTotales : []),
+    ...(activa("linea") ? deLinea : []),
   ];
   if (filas.length === 0) return { fecha, guardados: 0, entran: 0, motivo: "ya_estaba" };
 
