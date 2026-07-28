@@ -19,6 +19,19 @@ const ENTRADAS_MINIMAS_ABRIDOR = 40;
 const ENTRADAS_MINIMAS_RELEVISTA = 10;
 const CONSTANTE_FIP = 3.15;
 
+/** Cuántas aperturas mira el modelo de forma. Cinco es lo que se mira en el béisbol. */
+const APERTURAS_RECIENTES = 5;
+/**
+ * Con menos de tres salidas no se habla de forma: una mala tarde no es una racha.
+ *
+ * Es a propósito **más bajo** que el mínimo de la temporada. Todo el sentido de
+ * este modelo es cubrir al abridor que no llega a las 40 entradas del año, así
+ * que exigirle la misma muestra lo dejaría inútil justo donde hace falta.
+ */
+const APERTURAS_MINIMAS = 3;
+/** Y aun con tres salidas, si fueron cortísimas el número no dice nada. */
+const ENTRADAS_MINIMAS_FORMA = 12;
+
 type Crudo = Record<string, unknown>;
 const lista = (v: unknown): Crudo[] => (Array.isArray(v) ? (v as Crudo[]) : []);
 const obj = (v: unknown): Crudo => (v && typeof v === "object" ? (v as Crudo) : {});
@@ -49,7 +62,37 @@ export type Abridor = {
   kbb: number | null;
   /** "L" o "R". Es lo que permite cruzarlo con el split del rival. */
   mano: "L" | "R" | null;
+  /**
+   * El FIP de sus últimas aperturas, que es otra cosa que el de la temporada.
+   *
+   * Existe por dos huecos que dejaba el de temporada, los dos vistos en partidos
+   * reales:
+   *
+   *  · **Un abridor que no llega al mínimo de entradas no se podía medir.** Con
+   *    22 entradas en el año, el modelo de abridores —que pesa 30%— quedaba
+   *    vacío, y el partido perdía su medida más importante. Pero sí tenía cinco
+   *    aperturas, que es muestra suficiente para decir algo.
+   *  · **La temporada tapa la forma.** Alguien con 4.68 en sus últimas cinco y
+   *    K/BB de 0.9 está lanzando mal ahora, aunque su año entero diga otra cosa.
+   */
+  fipReciente: number | null;
+  /** Sobre cuántas aperturas se calculó `fipReciente`. */
+  aperturasRecientes: number;
+  /** Entradas por apertura en esas salidas. Aguantar poco también es forma. */
+  entradasPorApertura: number | null;
 };
+
+/**
+ * El FIP con el que hay que juzgar a un abridor: el de la temporada, y si no
+ * llega al mínimo de entradas, el de sus últimas aperturas.
+ *
+ * El respaldo importa más de lo que parece. Sin él, un abridor con pocas
+ * entradas en el año dejaba **vacío el modelo que pesa 30%**, y el partido
+ * perdía su medida más importante justo cuando el rival podía tener una ventaja
+ * enorme. Con cinco aperturas hay material de sobra para decir algo.
+ */
+export const fipEfectivo = (a: Abridor | null | undefined): number | null =>
+  a ? (a.fip ?? a.fipReciente) : null;
 
 /** Lo que rindió un equipo contra lanzadores de cada mano. */
 export type Splits = { vsZurdo: number | null; vsDerecho: number | null };
@@ -174,6 +217,8 @@ export type Partido = {
  */
 export type Jornada = {
   fipsAbridores: number[];
+  /** Los FIP de las últimas aperturas, para medir la forma contra la del día. */
+  fipsRecientes: number[];
   kbbAbridores: number[];
   erasBullpen: number[];
   carrerasOfensivas: number[];
@@ -191,11 +236,70 @@ export type Jornada = {
 function fipDe(s: Crudo): number | null {
   const entradas = num(s.inningsPitched);
   if (!Number.isFinite(entradas) || entradas < ENTRADAS_MINIMAS_ABRIDOR) return null;
+  return fipCrudo(s, entradas);
+}
+
+/** La fórmula sola, sin el mínimo de entradas. La comparten temporada y forma. */
+function fipCrudo(s: Crudo, entradas: number): number {
   const hr = num(s.homeRuns) || 0;
   const bb = num(s.baseOnBalls) || 0;
   const golpeados = num(s.hitByPitch) || 0;
   const k = num(s.strikeOuts) || 0;
   return (13 * hr + 3 * (bb + golpeados) - 2 * k) / entradas + CONSTANTE_FIP;
+}
+
+/**
+ * El FIP de las últimas aperturas, **sin mirar el partido que se va a predecir**.
+ *
+ * ## La trampa que hay acá, y que se ve con el ojo desnudo
+ *
+ * El `gameLog` que devuelve la MLB **incluye el partido de hoy** en cuanto
+ * empieza a jugarse. Calcular la forma de un abridor para el partido del 27 con
+ * un log que ya trae el 27 es dejar que el motor vea el resultado que tiene que
+ * predecir: el 27/07, la apertura de Kirby de ese mismo día (4 entradas, 7
+ * limpias, 4 jonrones) habría entrado en su propia "forma previa" y el número
+ * habría salido precioso y falso.
+ *
+ * Por eso se filtra por fecha **estricta**: solo aperturas anteriores al día del
+ * partido. Es la misma regla que ya estaba escrita para los backtests, aplicada
+ * acá, que es donde se colaba de verdad.
+ */
+function formaDe(
+  splits: Crudo[],
+  fecha: string
+): { fip: number | null; aperturas: number; entradasPorApertura: number | null } {
+  const previas = splits
+    .filter((s) => obj(s.stat).gamesStarted === 1)
+    .filter((s) => txt(s.date) && txt(s.date) < fecha)
+    .sort((a, b) => txt(b.date).localeCompare(txt(a.date)))
+    .slice(0, APERTURAS_RECIENTES);
+
+  if (previas.length < APERTURAS_MINIMAS) {
+    return { fip: null, aperturas: previas.length, entradasPorApertura: null };
+  }
+
+  // Se suman los totales y se calcula el FIP una vez sobre la suma. Promediar
+  // los FIP de cada salida daría el mismo peso a una salida de 2 entradas que a
+  // una de 8, y son cosas muy distintas.
+  const suma = { homeRuns: 0, baseOnBalls: 0, hitByPitch: 0, strikeOuts: 0 };
+  let entradas = 0;
+  for (const s of previas) {
+    const st = obj(s.stat);
+    entradas += num(st.inningsPitched) || 0;
+    suma.homeRuns += num(st.homeRuns) || 0;
+    suma.baseOnBalls += num(st.baseOnBalls) || 0;
+    suma.hitByPitch += num(st.hitByPitch) || 0;
+    suma.strikeOuts += num(st.strikeOuts) || 0;
+  }
+  if (entradas < ENTRADAS_MINIMAS_FORMA) {
+    return { fip: null, aperturas: previas.length, entradasPorApertura: null };
+  }
+
+  return {
+    fip: fipCrudo(suma as unknown as Crudo, entradas),
+    aperturas: previas.length,
+    entradasPorApertura: entradas / previas.length,
+  };
 }
 
 // -------------------------------------------------------------- las piezas
@@ -312,12 +416,19 @@ async function abridores(fecha: string): Promise<{
       for (const lado of ["away", "home"] as const) {
         const p = obj(obj(equipos[lado]).probablePitcher);
         if (!p.id) continue;
+        // El `gameLog` viaja en el mismo hydrate que la temporada: sigue siendo
+        // **una sola consulta por lanzador**, no dos.
         const info = obj(
-          await pedir(`${MLB}/people/${p.id}?hydrate=stats(group=[pitching],type=[season])`)
+          await pedir(
+            `${MLB}/people/${p.id}?hydrate=stats(group=[pitching],type=[season,gameLog],season=${fecha.slice(0, 4)})`
+          )
         );
         const primero = obj(lista(info.people)[0]);
-        const st = obj(lista(obj(lista(primero.stats)[0]).splits)[0]).stat;
-        const s = obj(st);
+        const bloques = lista(primero.stats);
+        const tipo = (t: string) =>
+          bloques.find((b) => txt(obj(b.type).displayName) === t);
+        const s = obj(obj(lista(obj(tipo("season")).splits)[0]).stat);
+        const forma = formaDe(lista(obj(tipo("gameLog")).splits), fecha);
         const k = num(s.strikeOuts) || 0;
         const bb = num(s.baseOnBalls) || 0;
         const mano = txt(obj(primero.pitchHand).code);
@@ -329,6 +440,9 @@ async function abridores(fecha: string): Promise<{
           whip: Number.isFinite(num(s.whip)) ? num(s.whip) : null,
           kbb: bb > 0 ? k / bb : null,
           mano: mano === "L" || mano === "R" ? mano : null,
+          fipReciente: forma.fip,
+          aperturasRecientes: forma.aperturas,
+          entradasPorApertura: forma.entradasPorApertura,
         };
       }
       porJuego.set(String(g.gamePk), { local: salida.home, visita: salida.away });
@@ -603,6 +717,7 @@ export async function traerJornada(
       // Se rellena abajo, cuando ya están todos los partidos.
       jornada: {
         fipsAbridores: [],
+        fipsRecientes: [],
         kbbAbridores: [],
         erasBullpen: [],
         carrerasOfensivas: [],
@@ -624,11 +739,15 @@ export async function traerJornada(
     })
   );
 
-  const sumaFip = (p: Partido) =>
-    p.abridorLocal?.fip !== null && p.abridorLocal?.fip !== undefined &&
-    p.abridorVisita?.fip !== null && p.abridorVisita?.fip !== undefined
-      ? p.abridorLocal.fip + p.abridorVisita.fip
-      : NaN;
+  // Con `fipEfectivo`, para que la lista contra la que se mide la posición
+  // contenga los mismos partidos que el modelo puede medir. Si acá se usara
+  // `.fip` y allá el efectivo, un partido se compararía contra una jornada que
+  // no lo incluye.
+  const sumaFip = (p: Partido) => {
+    const l = fipEfectivo(p.abridorLocal);
+    const v = fipEfectivo(p.abridorVisita);
+    return l !== null && v !== null ? l + v : NaN;
+  };
   const sumaBullpen = (p: Partido) =>
     p.local.bullpen && p.visita.bullpen ? p.local.bullpen.era + p.visita.bullpen.era : NaN;
   const sumaCarreras = (p: Partido) =>
@@ -640,10 +759,13 @@ export async function traerJornada(
   // todos los partidos: es el mismo reparto para los treinta equipos.
   const jornada: Jornada = {
     fipsAbridores: partidos
-      .flatMap((p) => [p.abridorLocal?.fip, p.abridorVisita?.fip])
+      .flatMap((p) => [fipEfectivo(p.abridorLocal), fipEfectivo(p.abridorVisita)])
       .filter((x): x is number => typeof x === "number"),
     kbbAbridores: partidos
       .flatMap((p) => [p.abridorLocal?.kbb, p.abridorVisita?.kbb])
+      .filter((x): x is number => typeof x === "number"),
+    fipsRecientes: partidos
+      .flatMap((p) => [fipEfectivo(p.abridorLocal), fipEfectivo(p.abridorVisita)])
       .filter((x): x is number => typeof x === "number"),
     erasBullpen: [...bull.values()].map((b) => b.era),
     carrerasOfensivas: [...ofe.values()].map((o) => o.carrerasPorJuego),

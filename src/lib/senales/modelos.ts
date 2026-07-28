@@ -1,6 +1,6 @@
 import { posicion, ventaja } from "./normalizar.ts";
 import type { Modelo, Senal } from "./tipos.ts";
-import type { Partido } from "./datos.ts";
+import { fipEfectivo, type Partido } from "./datos.ts";
 
 // Los modelos. Cada uno mira **una sola cosa** y no sabe nada de los demás.
 //
@@ -48,34 +48,135 @@ const abridores: Modelo<Candidato> = {
   mirar: (c) => {
     const mio = miAbridor(c);
     const suyo = suAbridor(c);
-    if (!mio?.fip || !suyo?.fip) return null;
+    // `fipEfectivo` cae en las últimas aperturas cuando el año no llega al
+    // mínimo de entradas. Antes eso devolvía `null` y el partido se quedaba sin
+    // su medida más pesada — pasó con Max Scherzer, que tenía 22 entradas en la
+    // temporada y cinco aperturas perfectamente medibles.
+    const mif = fipEfectivo(mio);
+    const suf = fipEfectivo(suyo);
+    if (!mio || !suyo || mif === null || suf === null) return null;
 
-    const enLaJornada = posicion(mio.fip, c.partido.jornada.fipsAbridores, false);
+    const enLaJornada = posicion(mif, c.partido.jornada.fipsAbridores, false);
     if (enLaJornada === null) return null;
 
     // Media carrera de FIP es una diferencia que se nota; a una carrera entera
     // la ventaja ya es clara.
-    const contraElOtro = ventaja(mio.fip, suyo.fip, 0.8, false);
+    const contraElOtro = ventaja(mif, suf, 0.8, false);
     const score = Math.round(enLaJornada * 0.5 + contraElOtro * 0.5);
 
     const motivos: string[] = [];
-    const dif = suyo.fip - mio.fip;
+    const dif = suf - mif;
     if (dif >= 0.8) motivos.push(`${mio.nombre} le saca ${unaCifra(dif)} de FIP a ${suyo.nombre}`);
     else if (dif >= 0.3) motivos.push(`Ventaja del abridor, pero no enorme (${unaCifra(dif)} de FIP)`);
     else if (dif <= -0.3) motivos.push(`Abre peor: ${unaCifra(-dif)} de FIP por detrás`);
     else motivos.push("Abridores parejos");
     if (enLaJornada >= 85) motivos.push(`${mio.nombre} es de lo mejor que lanza hoy`);
     if (mio.kbb && mio.kbb >= 4) motivos.push(`Poncha ${unaCifra(mio.kbb)} por cada boleto`);
+    if (mio.fip === null)
+      motivos.push(
+        `Sin año medible (${mio.entradas} entradas): se juzga por sus ${mio.aperturasRecientes} últimas aperturas`
+      );
 
     return {
       score,
       motivos,
       datos: {
         abridor: mio.nombre,
-        fip: Number(unaCifra(mio.fip)),
-        fipRival: Number(unaCifra(suyo.fip)),
+        fip: Number(unaCifra(mif)),
+        fipRival: Number(unaCifra(suf)),
         entradas: mio.entradas,
+        salidoDe: mio.fip !== null ? "temporada" : "últimas aperturas",
         posicionEnLaJornada: enLaJornada,
+      },
+    };
+  },
+};
+
+// -------------------------------------------------------- forma del abridor
+
+/**
+ * No qué tan bueno es, sino **si viene mejor o peor que su año**.
+ *
+ * ## Por qué mide la diferencia y no el FIP reciente a secas
+ *
+ * La primera versión de este modelo comparaba el FIP de las últimas cinco
+ * aperturas, igual que `abridores` compara el de la temporada. Medido: los dos
+ * daban una **correlación de 0,74**, la segunda más alta de todo el motor. Es
+ * lógico —las últimas cinco aperturas están dentro de la temporada, así que en
+ * buena parte es el mismo número dos veces— y era un problema de verdad: entre
+ * los dos sumaban el 42% del peso y votaban juntos, **inflando el acuerdo sin
+ * aportar ninguna medida nueva**. Con ocho modelos que tienen que coincidir, un
+ * modelo que solo repite a otro no es neutral: rompe el criterio.
+ *
+ * Lo que sí es información nueva es el **delta**: 3.90 de temporada con 2.30 en
+ * las últimas cinco no es lo mismo que 3.90 con 5.40, y esa diferencia no está
+ * en ningún otro modelo. Eso es lo que "forma" quiere decir de verdad, y además
+ * es lo que hace falta para que el nombre no mienta.
+ *
+ * El rescate del abridor sin temporada medible —Max Scherzer con 22 entradas—
+ * ya no vive acá: se resolvió mejor, en `fipEfectivo`, para que lo aproveche el
+ * modelo de abridores, que es el que pesa.
+ *
+ * ## Y por eso hace falta el año de los dos
+ *
+ * Sin FIP de temporada no hay contra qué comparar: no se puede decir que alguien
+ * "viene mejor de lo suyo" si no se sabe qué es lo suyo. En ese caso devuelve
+ * `null`, como cualquier modelo sin datos.
+ */
+const formaAbridor: Modelo<Candidato> = {
+  id: "forma-abridor",
+  nombre: "Forma del abridor",
+  peso: 10,
+  mirar: (c) => {
+    const mio = miAbridor(c);
+    const suyo = suAbridor(c);
+    if (!mio?.fip || !mio.fipReciente || !suyo?.fip || !suyo.fipReciente) return null;
+
+    // Negativo = viene mejor que su año (el FIP bajo es bueno).
+    const miDelta = mio.fipReciente - mio.fip;
+    const suDelta = suyo.fipReciente - suyo.fip;
+
+    // La escala es 1.2 y no media carrera, y hubo que medirlo para verlo: con
+    // 0.5 **la mitad de los scores salían 0 o 100**. Acá se restan dos deltas,
+    // así que el rango es el doble de ancho que el de comparar dos niveles —uno
+    // puede venir una carrera mejor y el otro una carrera peor— y una escala
+    // corta satura el tanh. Un modelo que solo dice 0 o 100 no aporta matiz y
+    // encima llena la jornada de extremos, que es justo lo que hace saltar el
+    // piso crítico sin que pase nada raro en el partido.
+    const score = ventaja(miDelta, suDelta, 1.2, false);
+
+    const motivos: string[] = [];
+    const dime = (d: number) => (d <= -0.75 ? "mejor" : d >= 0.75 ? "peor" : "igual");
+    const mio_ = dime(miDelta);
+    const suyo_ = dime(suDelta);
+
+    if (mio_ === "mejor" && suyo_ !== "mejor")
+      motivos.push(
+        `${mio.nombre} viene mejor que su año: ${unaCifra(mio.fipReciente)} contra ${unaCifra(mio.fip)}`
+      );
+    else if (mio_ === "peor" && suyo_ !== "peor")
+      motivos.push(
+        `${mio.nombre} viene peor que su año: ${unaCifra(mio.fipReciente)} contra ${unaCifra(mio.fip)}`
+      );
+    else if (mio_ === "igual" && suyo_ === "peor")
+      motivos.push(`${suyo.nombre} viene cayendo (${unaCifra(suyo.fip)} → ${unaCifra(suyo.fipReciente)})`);
+    else if (mio_ === "igual" && suyo_ === "mejor")
+      motivos.push(`${suyo.nombre} viene subiendo (${unaCifra(suyo.fip)} → ${unaCifra(suyo.fipReciente)})`);
+    else motivos.push("Los dos llegan como venían");
+
+    if (mio.entradasPorApertura !== null && mio.entradasPorApertura < 5)
+      motivos.push(`Aguanta poco: ${unaCifra(mio.entradasPorApertura)} entradas por salida`);
+
+    return {
+      score,
+      motivos,
+      datos: {
+        abridor: mio.nombre,
+        fipTemporada: Number(unaCifra(mio.fip)),
+        fipReciente: Number(unaCifra(mio.fipReciente)),
+        cambio: Number(unaCifra(miDelta)),
+        cambioRival: Number(unaCifra(suDelta)),
+        aperturas: mio.aperturasRecientes,
       },
     };
   },
@@ -382,6 +483,7 @@ const bajas: Modelo<Candidato> = {
 // lo que decide, no el promedio.
 export const MODELOS: Modelo<Candidato>[] = [
   abridores,
+  formaAbridor,
   bullpen,
   ofensiva,
   forma,

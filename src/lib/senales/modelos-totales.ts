@@ -1,6 +1,6 @@
 import { posicion, ventaja } from "./normalizar.ts";
 import type { Modelo } from "./tipos.ts";
-import type { Partido } from "./datos.ts";
+import { fipEfectivo, type Partido } from "./datos.ts";
 
 // Los modelos de totales: más o menos carreras que la línea de la casa.
 //
@@ -48,9 +48,13 @@ const abridores: Modelo<CandidatoTotal> = {
   nombre: "Abridores",
   peso: 30,
   mirar: (c) => {
-    const l = c.partido.abridorLocal?.fip;
-    const v = c.partido.abridorVisita?.fip;
-    if (l === null || l === undefined || v === null || v === undefined) return null;
+    // `fipEfectivo` y no `.fip` a secas: si un abridor no llega al mínimo de
+    // entradas de la temporada se lo juzga por sus últimas salidas. Con `.fip`
+    // directo, un solo abridor con pocas entradas dejaba el partido entero sin
+    // el modelo que más pesa, y eso son dos candidatos de totales perdidos.
+    const l = fipEfectivo(c.partido.abridorLocal);
+    const v = fipEfectivo(c.partido.abridorVisita);
+    if (l === null || v === null) return null;
 
     const suma = l + v;
     // Cuanto MÁS alta la suma de FIP, más carreras: por eso `mayorEsMejor` va en
