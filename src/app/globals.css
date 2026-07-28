@@ -472,6 +472,17 @@ button {
 .sn-quien { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .sn-quien b { font-size: 14.5px; font-weight: 700; }
 .sn-quien i { font-style: normal; font-size: 11.5px; color: var(--mist); }
+
+/* El partido, con cada equipo entero.
+   Era un texto corrido y en un teléfono se partía en medio del nombre: "Seattle
+   Mariners · Los Angeles" arriba y "Dodgers 22:10" abajo, que se lee como si
+   fueran dos equipos distintos y la hora fuera parte del nombre. Con cada
+   equipo en su propio bloque y `white-space: nowrap`, un nombre se va entero a
+   la línea de abajo o no se va. */
+.sn-partido { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.sn-partido span { white-space: nowrap; }
+.sn-partido em { font-style: normal; opacity: 0.5; }
+.sn-partido time { margin-left: 2px; opacity: 0.75; font-variant-numeric: tabular-nums; }
 .sn-acuerdo { flex: 0 0 auto; text-align: right; font-family: var(--font-jetbrains), monospace;
   font-size: 13px; color: var(--ink2); display: flex; flex-direction: column; }
 .sn-acuerdo i { font-style: normal; font-size: 10px; color: var(--mist); font-family: inherit; }

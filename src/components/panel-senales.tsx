@@ -196,7 +196,11 @@ export function PanelSenales() {
                       dice de qué juego se está hablando. */}
                   <span className="sn-cque">
                     <b>{s.equipo}</b>
-                    <i>{s.partido.replace(" vs. ", " · ")}</i>
+                    <i className="sn-partido">
+                      <span>{s.partido.split(" vs. ")[0]}</span>
+                      <em>vs</em>
+                      <span>{s.partido.split(" vs. ")[1] ?? ""}</span>
+                    </i>
                   </span>
                   <span className="sn-cmotor">
                     el motor {s.entra ? "la recomendó" : "la descartó"}
@@ -232,8 +236,17 @@ export function PanelSenales() {
               <span className={`sn-score ${s.entra ? "entra" : ""}`}>{s.score}</span>
               <span className="sn-quien">
                 <b>{s.equipo}</b>
-                <i>
-                  {s.partido.replace(" vs. ", " · ")} {hora(s.hora)}
+                {/* Los dos equipos van cada uno en su bloque, y la hora aparte.
+                    Antes era un solo texto corrido —"Seattle Mariners · Los
+                    Angeles Dodgers 22:10"— y en un teléfono se partía justo en
+                    medio del nombre: se leía "Seattle Mariners · Los Angeles" /
+                    "Dodgers 22:10", como si fueran Los Angeles contra Dodgers.
+                    Reportado con captura, y con razón. */}
+                <i className="sn-partido">
+                  <span>{s.partido.split(" vs. ")[0]}</span>
+                  <em>vs</em>
+                  <span>{s.partido.split(" vs. ")[1] ?? ""}</span>
+                  {hora(s.hora) && <time>{hora(s.hora)}</time>}
                 </i>
               </span>
               <span className="sn-acuerdo">

@@ -221,8 +221,14 @@ export function Combos() {
                   key={i}
                   className={`cb-pata${p.acerto === true ? " pego" : p.acerto === false ? " fallo" : ""}`}
                 >
+                  {/* Cada equipo en su bloque y la hora aparte. Con el texto
+                      corrido, en un teléfono el nombre se partía a la mitad
+                      —"… · Los Angeles" arriba, "Dodgers 22:10" abajo— y se leía
+                      como dos equipos distintos con la hora dentro del nombre. */}
                   <span className="cb-partido">
-                    {p.partido.replace(" vs. ", " · ")}
+                    <span>{p.partido.split(" vs. ")[0]}</span>
+                    <em>vs</em>
+                    <span>{p.partido.split(" vs. ")[1] ?? ""}</span>
                     {p.hora && <i className="mono">{p.hora}</i>}
                   </span>
                   <b className="cb-pick">
