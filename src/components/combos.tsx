@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Icono } from "./iconos";
+import { hoyEnCaracas, nombreDia } from "@/lib/dias";
 
 // Los combos del día: ocho parlays de MLB con su regla escrita.
 //
@@ -64,26 +65,29 @@ export function Combos() {
   const [motivo, setMotivo] = useState<string | null>(null);
   const [historial, setHistorial] = useState<Historial>({});
   const [fecha, setFecha] = useState<string>("");
+  const [fechas, setFechas] = useState<string[]>([]);
   const [compartiendo, setCompartiendo] = useState<string | null>(null);
 
-  useEffect(() => {
-    let vivo = true;
-    (async () => {
-      try {
-        const r = await fetch("/api/combos").then((x) => x.json());
-        if (!vivo) return;
-        setCombos(r.ok ? (r.combos as Combo[]) : []);
-        setMotivo(r.motivo ?? null);
-        setHistorial((r.historial as Historial) ?? {});
-        setFecha(r.fecha ?? "");
-      } catch {
-        if (vivo) setCombos([]);
-      }
-    })();
-    return () => {
-      vivo = false;
-    };
+  // Los combos de hoy están sin resolver hasta que terminan los partidos, o sea
+  // casi todo el día. Sin poder mirar atrás, la sección parece rota justo
+  // cuando más se la mira, y el "pegó 3 de 30" de cada regla no se puede
+  // comprobar contra nada.
+  const cargar = useCallback(async (dia?: string) => {
+    try {
+      const r = await fetch(`/api/combos${dia ? `?fecha=${dia}` : ""}`).then((x) => x.json());
+      setCombos(r.ok ? (r.combos as Combo[]) : []);
+      setMotivo(r.motivo ?? null);
+      setHistorial((r.historial as Historial) ?? {});
+      setFecha(r.fecha ?? "");
+      setFechas((r.fechas as string[]) ?? []);
+    } catch {
+      setCombos([]);
+    }
   }, []);
+
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
 
   // Compartir el combo **como imagen**.
   //
@@ -122,24 +126,59 @@ export function Combos() {
     }
   }
 
+  // El selector va **fuera** de los estados de vacío y de carga, y a propósito:
+  // si solo apareciera cuando hay combos, un día sin resolver dejaría al usuario
+  // encerrado ahí sin forma de volver a un día que sí tenga resultados. Que es
+  // exactamente como se vio rota esta sección.
+  const dias = fechas.length > 1 && (
+    <div className="cb-dias">
+      <label htmlFor="cb-dia">Día</label>
+      <select
+        id="cb-dia"
+        value={fecha}
+        onChange={(e) => {
+          // El "cargando" se pone acá y no dentro de `cargar`: al montar, el
+          // estado ya empieza en null, y ponerlo desde el efecto es un setState
+          // síncrono que dispara un render de más.
+          setCombos(null);
+          void cargar(e.target.value);
+        }}
+      >
+        {fechas.map((f) => (
+          <option key={f} value={f}>
+            {nombreDia(f)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   if (combos === null) {
     return (
-      <div className="svacio" style={{ padding: "44px 20px" }}>
-        <p>Armando los combos del día…</p>
+      <div className="cb">
+        {dias}
+        <div className="svacio" style={{ padding: "44px 20px" }}>
+          <p>Armando los combos del día…</p>
+        </div>
       </div>
     );
   }
 
   if (combos.length === 0) {
     return (
-      <div className="svacio" style={{ padding: "44px 20px" }}>
-        <Icono id="i-slip" />
-        <b>Hoy no hay combos</b>
-        <p>
-          {motivo === "sin_jornada"
-            ? "No hay jornada de MLB hoy."
-            : "No hubo material suficiente para armarlos con sus reglas."}
-        </p>
+      <div className="cb">
+        {dias}
+        <div className="svacio" style={{ padding: "44px 20px" }}>
+          <Icono id="i-slip" />
+          <b>{fecha === hoyEnCaracas() ? "Hoy no hay combos" : `Sin combos · ${nombreDia(fecha)}`}</b>
+          <p>
+            {motivo === "sin_jornada"
+              ? "No hubo jornada de MLB ese día."
+              : motivo === "sin_guardar"
+                ? "Ese día no se guardaron combos. No se arman después: un pick que no estaba escrito antes del partido no cuenta."
+                : "No hubo material suficiente para armarlos con sus reglas."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -148,6 +187,7 @@ export function Combos() {
 
   return (
     <div className="cb">
+      {dias}
       {/* Se deslizan de costado, no hacia abajo. Ocho tarjetas apiladas en
           vertical eran doscientos píxeles de scroll para ver la segunda; así
           cada combo es una unidad y se pasa con el pulgar. La siguiente asoma

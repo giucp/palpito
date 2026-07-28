@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { armarCombos, ORDEN_COMBOS, traerPartidosDelDia, type Combo } from "@/lib/combos";
 import { historialDeReglas } from "@/lib/combos-resultado";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
+import { hoyEnCaracas } from "@/lib/dias";
 
 // Los combos del día.
 //
@@ -24,8 +25,15 @@ export const maxDuration = 60;
 // de lo que cambian los datos.
 const CACHE = "public, s-maxage=60, stale-while-revalidate=600";
 
-const ZONA = "America/Caracas";
-const hoyEnCaracas = () => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(new Date());
+/** Los días que tienen combos guardados, del más nuevo al más viejo. */
+async function diasConCombos(): Promise<string[]> {
+  const { data } = await crearClienteAdmin()
+    .from("combos_dia")
+    .select("fecha")
+    .order("fecha", { ascending: false })
+    .limit(400);
+  return [...new Set((data ?? []).map((f) => String(f.fecha)))];
+}
 
 type FilaCombo = {
   combo: string;
@@ -53,13 +61,20 @@ const aCombo = (f: FilaCombo) => ({
   patasAcertadas: f.patas_acertadas,
 });
 
-export async function GET() {
-  const fecha = hoyEnCaracas();
+export async function GET(req: NextRequest) {
+  const hoy = hoyEnCaracas();
+  // Se puede pedir un día anterior. Hace falta de verdad: los combos de hoy
+  // están sin resolver hasta que terminan los partidos —o sea, casi todo el
+  // día— así que sin poder mirar atrás la sección parece rota justo cuando más
+  // se la mira. Y el historial de cada regla no se puede comprobar contra nada
+  // si no se ven los días que lo formaron.
+  const pedida = req.nextUrl.searchParams.get("fecha");
+  const fecha = pedida && /^\d{4}-\d{2}-\d{2}$/.test(pedida) && pedida <= hoy ? pedida : hoy;
   const admin = crearClienteAdmin();
 
   // El historial de cada regla viaja siempre: es lo que convierte la regla de
   // una promesa en un dato. Se pide en paralelo con los combos del día.
-  const [{ data: guardados }, historial] = await Promise.all([
+  const [{ data: guardados }, historial, fechas] = await Promise.all([
     admin
       .from("combos_dia")
       .select(
@@ -67,6 +82,7 @@ export async function GET() {
       )
       .eq("fecha", fecha),
     historialDeReglas(),
+    diasConCombos(),
   ]);
 
   if (guardados && guardados.length > 0) {
@@ -80,6 +96,7 @@ export async function GET() {
       {
         ok: true,
         fecha,
+        fechas,
         historial,
         combos: (guardados as FilaCombo[])
           .map(aCombo)
@@ -89,15 +106,25 @@ export async function GET() {
     );
   }
 
+  // **Un día pasado sin combos guardados se queda sin combos, y punto.**
+  //
+  // Armarlos ahora sería inventar retroactivamente lo que "se habría dicho" ese
+  // día, con los abridores y los precios de hoy, y guardarlo como si se hubiera
+  // decidido antes de los partidos. Eso destruiría lo único que hace válida la
+  // estadística de cada regla: que el pick estaba guardado antes de jugarse.
+  if (fecha !== hoy) {
+    return NextResponse.json({ ok: true, fecha, fechas, historial, combos: [], motivo: "sin_guardar" });
+  }
+
   // Todavía no están: se arman una sola vez.
   const partidos = await traerPartidosDelDia(fecha);
   if (partidos.length === 0) {
-    return NextResponse.json({ ok: true, fecha, historial, combos: [], motivo: "sin_jornada" });
+    return NextResponse.json({ ok: true, fecha, fechas, historial, combos: [], motivo: "sin_jornada" });
   }
 
   const combos = armarCombos(partidos);
   if (combos.length === 0) {
-    return NextResponse.json({ ok: true, fecha, historial, combos: [], motivo: "sin_material" });
+    return NextResponse.json({ ok: true, fecha, fechas, historial, combos: [], motivo: "sin_material" });
   }
 
   const { error } = await admin.from("combos_dia").insert(
@@ -123,6 +150,10 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     fecha,
+    // Con `fecha` al principio de la lista: los acaba de guardar, así que el
+    // selector tiene que poder volver a hoy aunque la consulta de días se haya
+    // hecho un instante antes de que existieran.
+    fechas: [...new Set([fecha, ...fechas])],
     historial,
     combos: combos.map((c) => ({ ...c, armadoAt, acerto: null, patasAcertadas: null })),
   });

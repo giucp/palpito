@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { guardarSenales, mercadoDelDia } from "@/lib/senales/guardar";
+import { hoyEnCaracas } from "@/lib/dias";
 
 // Calcular y guardar la jornada del motor de señales.
 //
@@ -18,8 +19,6 @@ import { guardarSenales, mercadoDelDia } from "@/lib/senales/guardar";
 
 export const maxDuration = 300;
 
-const ZONA = "America/Caracas";
-const hoyEnCaracas = () => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(new Date());
 
 function autorizado(req: NextRequest): boolean {
   const clave = req.nextUrl.searchParams.get("clave");

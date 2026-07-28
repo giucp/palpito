@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { crearClienteServidor } from "@/lib/supabase/server";
 import { balanceSenales } from "@/lib/senales/guardar";
+import { hoyEnCaracas } from "@/lib/dias";
 
 // Las señales del motor, solo para el administrador.
 //
@@ -13,8 +14,6 @@ import { balanceSenales } from "@/lib/senales/guardar";
 // administrador, y la tabla no tiene política de lectura, así que solo se llega
 // con la clave de servicio.
 
-const ZONA = "America/Caracas";
-const hoyEnCaracas = () => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA }).format(new Date());
 
 async function esAdmin(): Promise<string | null> {
   const supabase = await crearClienteServidor();

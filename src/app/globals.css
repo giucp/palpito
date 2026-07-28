@@ -1602,6 +1602,16 @@ button {
    probable que es, porque el número lindo sin el número cierto miente. */
 .cb { display: flex; flex-direction: column; gap: 12px; }
 
+/* El selector de día. Mismo aire que el de Señales en el panel, para que se
+   lean como la misma cosa. `min-width: 0` en el select porque en 320 px el
+   nombre del día lo empujaba fuera del contenedor. */
+.cb-dias { display: flex; align-items: center; gap: 9px; }
+.cb-dias label { font-size: 12.5px; color: var(--mist); }
+.cb-dias select {
+  background: var(--panel2); border: 1px solid var(--line); border-radius: 9px;
+  padding: 7px 10px; color: var(--ink); font-size: 13px; min-width: 0; max-width: 100%;
+}
+
 /* El carrusel. Se sale del ancho del contenedor a propósito, con márgenes
    negativos, para que las tarjetas lleguen hasta el borde de la pantalla y se
    note que hay más de costado. */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { nombreDia } from "@/lib/dias";
 
 // El motor de señales, para mirarlo de cerca antes de enseñárselo a nadie.
 //
@@ -149,11 +150,15 @@ export function PanelSenales() {
 
       {/* ---- El día ---- */}
       <div className="sn-barra">
+        {/* Con el día escrito, no la fecha suelta: un selector lleno de
+            `2026-07-27` no se lee como un selector de días, y por eso pasó
+            desapercibido y la pantalla parecía atada a hoy. La fecha va al lado
+            para no perder el dato exacto. */}
         <select value={fecha} onChange={(e) => void cargar(e.target.value)}>
-          {fechas.length === 0 && <option value={fecha}>{fecha}</option>}
+          {fechas.length === 0 && <option value={fecha}>{nombreDia(fecha)}</option>}
           {fechas.map((f) => (
             <option key={f} value={f}>
-              {f}
+              {nombreDia(f)} · {f}
             </option>
           ))}
         </select>
