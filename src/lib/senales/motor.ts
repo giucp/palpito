@@ -1,5 +1,5 @@
 import { mediana } from "./normalizar.ts";
-import type { Modelo, Senal, Veredicto } from "./tipos.ts";
+import type { Modelo, Veredicto } from "./tipos.ts";
 
 // Juntar lo que dijeron los modelos y decidir si el partido entra.
 //

@@ -4,11 +4,15 @@
 // las filas guardadas llevan el `entra` de la regla vieja, y curar o validar
 // contra eso mide un motor que ya no existe.
 //
-// **Se niega a tocar un día que tenga curado o resultados.** Regenerar eso sería
-// reescribir historia: el pick guardado antes del partido es lo único que hace
-// válida la validación, y el curado es trabajo que no se recupera.
+// **Nunca toca un día con resultados.** Eso sería reescribir historia: el pick
+// guardado antes del partido es lo único que hace válida la validación.
 //
-// Uso: node scripts/regenerar-dia.ts <fecha> [--escribir]
+// Con curado sí deja, pero pidiéndolo aparte con `--rehacer-curado`, porque el
+// curado **es recuperable**: las decisiones viven en `scripts/curados/indice.ts`.
+// Aun así hay que **rehacerlo a mano y no solo reaplicarlo**: si cambió el motor,
+// los verdes son otros y las decisiones viejas se tomaron mirando otra lista.
+//
+// Uso: node scripts/regenerar-dia.ts <fecha> [--escribir] [--rehacer-curado]
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -29,6 +33,7 @@ if (!fecha?.match(/^\d{4}-\d{2}-\d{2}$/)) {
   process.exit(1);
 }
 const escribir = process.argv.includes("--escribir");
+const rehacerCurado = process.argv.includes("--rehacer-curado");
 const sb = crearClienteAdmin();
 
 const { data: viejas } = await sb
@@ -40,11 +45,23 @@ const conCurado = (viejas ?? []).filter((f) => f.curado !== null).length;
 const conResultado = (viejas ?? []).filter((f) => f.gano !== null || f.resuelto_at).length;
 console.log(`El ${fecha} tiene ${viejas?.length ?? 0} filas: ${conCurado} curadas, ${conResultado} con resultado`);
 
-if (conCurado || conResultado) {
-  console.log("\n✗ NO se regenera: hay curado o resultados. Reescribirlo invalidaría la serie.");
+// Los resultados no se tocan nunca: son la historia contra la que se valida.
+if (conResultado) {
+  console.log("\n✗ NO se regenera: el día ya tiene resultados. Reescribirlo invalidaría la serie.");
+  process.exit(1);
+}
+// El curado sí, pero hay que pedirlo: se borra con las filas y hay que rehacerlo
+// mirando los verdes nuevos, no reaplicando las decisiones viejas.
+if (conCurado && !rehacerCurado) {
+  console.log(
+    `\n✗ NO se regenera: hay ${conCurado} filas curadas y se borrarían.\n` +
+      "  Si el motor cambió, esas decisiones se tomaron mirando otra lista de verdes\n" +
+      "  y hay que REHACERLAS, no reaplicarlas. Si estás de acuerdo, agregá --rehacer-curado."
+  );
   process.exit(1);
 }
 console.log(`  verdes con la regla vieja: ${(viejas ?? []).filter((f) => f.entra).length}`);
+if (conCurado) console.log(`  ⚠ se van a borrar ${conCurado} decisiones curadas: hay que rehacerlas`);
 
 if (!escribir) {
   console.log("\nNada escrito. Corré con --escribir para borrar y regenerar.");

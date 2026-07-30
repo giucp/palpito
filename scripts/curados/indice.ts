@@ -74,6 +74,10 @@ const D_2026_07_29: Decision[] = [
   },
 ];
 
+// El 30 se curó dos veces. **La primera no cuenta**: se hizo por la mañana, sobre
+// la escala vieja, y por la tarde se corrigió el motor con la proyección espejo.
+// Los scores cambiaron —el bullpen de Pittsburgh pasó de 31 a 44— y una decisión
+// tomada mirando otra lista no se reaplica: se rehace. Esto es lo rehecho.
 const D_2026_07_30: Decision[] = [
   {
     mercado: "ganador",
@@ -81,24 +85,17 @@ const D_2026_07_30: Decision[] = [
     tomo: false,
     nota:
       "Paso, y es el único verde del día. **Abre Yohan Ramírez, que no tiene NI UNA apertura " +
-      "previa en la temporada: es un relevista abriendo.** El motor le pone 59 al modelo de " +
-      "abridores usando su FIP de temporada, pero ese número es de lanzar una entrada cada tres " +
-      "días, no seis seguidas — y a un relevista el FIP le sale mejor justamente porque lanza " +
-      "poco cada vez. Encima el bullpen de Pittsburgh está en 31 (4.30 de efectividad) y va a " +
-      "tener que cubrir cinco o seis entradas. Ofensiva 92 y contra esa mano 96 son buenos, pero " +
-      "no alcanzan para eso.\n\n" +
-      "HIPÓTESIS NUEVA, para comprobar: el FIP de un relevista no sirve para juzgarlo como " +
-      "abridor, y el motor no distingue los dos casos. Si Pittsburgh gana, es falsa.",
-  },
-  {
-    mercado: "linea",
-    equipo: "Pittsburgh Pirates por 2+",
-    tomo: false,
-    nota:
-      "Paso, coincido con el motor. Ventaja al batear 93 y ambiente 75 son fuertes, pero el " +
-      "bullpen en 32 es lo que hunde esto: para ganar por dos hay que sostener la ventaja hasta " +
-      "el final, y es el mismo bullpen flojo del que hablo en el ganador. Además abre el " +
-      "relevista sin aperturas.",
+      "previa en la temporada: es un relevista abriendo.** El motor le pone 65 al modelo de " +
+      "abridores usando su FIP de temporada, pero ese número sale de lanzar una entrada cada " +
+      "tres días, no seis seguidas — y a un relevista el FIP le queda mejor justamente porque " +
+      "lanza poco cada vez.\n\n" +
+      "AVISO DE HONESTIDAD: esta decisión la tomé por la mañana con el bullpen en 31, y con la " +
+      "escala corregida está en 44. O sea que la mitad de mi argumento —'el bullpen flojo va a " +
+      "tener que cubrir seis entradas'— se debilitó: 44 es algo peor que el rival, no una " +
+      "alarma. Lo que no cambia es que nadie sabe cómo rinde Ramírez abriendo, y eso es lo que " +
+      "sostiene el paso.\n\n" +
+      "HIPÓTESIS, para comprobar: el FIP de un relevista no sirve para juzgarlo como abridor, y " +
+      "el motor no distingue los dos casos. Si Pittsburgh gana, es falsa.",
   },
   {
     mercado: "ganador",
@@ -107,20 +104,21 @@ const D_2026_07_30: Decision[] = [
     nota:
       "Paso, coincido con el motor, y lo digo porque estuve tentado. A favor: Texas llega " +
       "destrozado (bajas en 99) y abre Cole Winn, otro sin ninguna apertura previa. En contra: " +
-      "el descanso en 17, que es el bullpen de Tampa exigido, y McClanahan viene peor que su año " +
-      "(4.40 contra 3.39). Rescatarla contradiría el ajuste que acabo de hacerle al motor hoy " +
-      "—un modelo solo, treinta puntos por debajo del resto, suele tener razón— y no tiene " +
-      "sentido cambiar la regla por la mañana y saltármela por la tarde.",
+      "el descanso en 17, que es el bullpen de Tampa exigido. Rescatarla contradiría el ajuste " +
+      "que le hice al motor hoy mismo —un modelo solo, treinta puntos por debajo del resto, " +
+      "suele tener razón— y no tiene sentido cambiar la regla por la mañana y saltármela por la " +
+      "tarde.",
   },
   {
-    mercado: "linea",
-    equipo: "Boston Red Sox por 2+",
+    mercado: "ganador",
+    equipo: "Boston Red Sox",
     tomo: false,
     nota:
       "Paso, coincido. Sonny Gray llega mejor que su año (3.45 contra 3.74) y enfrente Mason " +
-      "Barnett tampoco tiene aperturas previas, así que la ventaja al abrir es real. Pero la " +
-      "ventaja al batear está en 37: con los bates parejos, ganar por dos depende de que se " +
-      "rompa el bullpen rival, y eso no lo sé medir.",
+      "Barnett no tiene aperturas previas, así que la ventaja al abrir es real. Pero contra esa " +
+      "mano está en 20, que con la escala corregida quiere decir que Boston batea claramente " +
+      "peor que los Athletics contra la mano que les toca. Es el mismo patrón de ofensiva floja " +
+      "que ya me hizo fallar dos veces con este equipo.",
   },
 ];
 
