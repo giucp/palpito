@@ -126,7 +126,9 @@ for (const m2 of MODELOS_TOTALES) {
 // ---- Ganar por dos o más ----
 const lineas = juzgarFamilia(partidos.flatMap(candidatoLineaDe), MODELOS_LINEA);
 
-console.log(`\n${"═".repeat(72)}\nGANAR POR DOS O MÁS (run line)\n`);
+// Tampoco se guarda: fuera el 2026-07-30, y con dato — era la única familia con
+// diferencia negativa (elegidos 25%, descartados 39%).
+console.log(`\n${"═".repeat(72)}\nGANAR POR DOS O MÁS (run line)  —  NO SE GUARDA, solo para mirar\n`);
 for (const { c, v } of lineas) {
   if (!v.entra && !todos) continue;
   console.log(
@@ -141,7 +143,8 @@ for (const { c, v } of lineas) {
   console.log();
 }
 console.log(
-  `Entran ${lineas.filter((x) => x.v.entra).length} de ${lineas.length} candidatos de run line.`
+  `Entran ${lineas.filter((x) => x.v.entra).length} de ${lineas.length} candidatos de run line ` +
+    `(que no se guardan).`
 );
 
 console.log("\n" + "─".repeat(72));

@@ -33,28 +33,32 @@ import { juzgar, puertaDeScore } from "./motor.ts";
 // tabla.
 
 /**
- * Las familias que se guardan cada día.
+ * Las familias que se guardan cada día. **Solo una: quién gana.**
  *
- * **Los totales (más o menos carreras) se sacaron el 2026-07-28**, por decisión
- * del dueño y con razón:
+ * Se llegó acá en dos pasos y por el mismo razonamiento del dueño, que es el
+ * correcto: **cada familia necesita su propia muestra**. Con tres, los resultados
+ * de cada día se reparten en tres y ninguna llega nunca a decir algo. Y afinar
+ * tres cosas a la vez sin haber afinado ninguna es trabajo perdido.
  *
- *  · Son los más frágiles de los tres. Dependen de la línea que publica
- *    Polymarket, que es justo la parte que más problemas dio: totales de
- *    primeras cinco entradas colándose como del juego completo, líneas
- *    alternativas absurdas, mercados sin operar con precio de 0.5.
- *  · No tienen modelo de mercado —la casa mueve la línea para que los dos lados
- *    paguen igual, así que ese precio no informa nada— y eso les deja una
- *    medida menos que a las otras dos familias.
- *  · **Y sobre todo: cada familia necesita su propia muestra.** Con tres, los
- *    resultados de cada día se reparten en tres y todas tardan el triple en
- *    decir algo. Sacando la más ruidosa, las otras dos acumulan al doble de
- *    velocidad.
+ * **Totales, fuera el 2026-07-28.** Eran los más frágiles: dependen de la línea
+ * de Polymarket, que es la parte que más problemas dio (totales de primeras cinco
+ * entradas colándose como del juego completo, líneas alternativas absurdas,
+ * mercados sin operar con precio de 0.5 clavado). Y no tienen modelo de mercado,
+ * porque la casa mueve la línea para que los dos lados paguen igual: ese precio
+ * no informa nada.
  *
- * **No se borró nada**: ni el código de `modelos-totales.ts`, ni las filas ya
- * guardadas del 27 y el 28. **Volver es agregar `"total"` a esta lista y nada
- * más** — el resto sigue en su sitio y se enciende solo.
+ * **Run line, fuera el 2026-07-30.** Acá hubo dato, no solo criterio: medida
+ * sobre tres días, es **la única familia con diferencia negativa** —los elegidos
+ * acertaron 25% y los descartados 39%—, o sea que el motor elegía peor que el
+ * azar dentro de esa familia. Y ganar por dos o más exige una precisión que este
+ * motor no tiene: se probó que el "ambiente de carreras" no lo predice
+ * (ganadores con 19 de ambiente, perdedores con 89).
+ *
+ * **No se borró nada de nada**: `modelos-totales.ts` y `modelos-linea.ts` siguen
+ * enteros, y las filas guardadas del 27 al 30 se siguen viendo en el panel.
+ * **Volver es agregar el nombre a esta lista y nada más.**
  */
-const FAMILIAS: string[] = ["ganador", "linea"];
+const FAMILIAS: string[] = ["ganador"];
 
 /**
  * Con menos abridores anunciados que esto no se calcula la jornada.
