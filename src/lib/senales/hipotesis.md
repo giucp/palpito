@@ -44,6 +44,52 @@ la falta de datos se trata como motivo de descarte.
 
 ---
 
+## Abierta y con la mejor pinta de todas: el motor no mira "hembras"
+
+**Lo trajo el dueño el 30/07**, desde el oficio y no desde los datos: hay equipos
+que pagan más sin ser realmente peores, y buscar una o dos de esas por día es
+justamente lo que hace un apostador. Se midió y **el sesgo existe y es
+estructural**:
+
+| Tramo de precio | candidatos | verdes | ganaron |
+|---|---:|---:|---:|
+| No favorito (35-50%) | 49 | **0** | 49% |
+| Favorito leve (50-60%) | 46 | 10 | 58% |
+| Favorito claro (>60%) | 11 | 0 | 22% |
+
+**Cero verdes en 49 no favoritos.** No es casualidad: los scores comparan a los
+dos equipos del partido, así que **el equipo peor tiene modelos bajos por
+construcción**, y ahí lo tumba el piso o la puerta de contradice. 37 de los 49 se
+caen por eso.
+
+Ojo con la causa: **no es el modelo de mercado.** Se comprobó — solo 6 de los 49
+se caen por falta de acuerdo, y quitar el mercado del cómputo salvaría 1.
+
+La pregunta de fondo es que **el motor mide "quién es mejor", no "está bien
+pagado"**, y son dos preguntas distintas.
+
+### Lo que sugieren los datos, sin estar probado
+
+Entre los no favoritos, partiendo por si la medida los ve mejor que el precio:
+
+| | casos | ganaron |
+|---|---:|---:|
+| La medida también los ve peor | 23 | 39% |
+| **La medida los ve mejor que el precio** | 14 | **64%** |
+
+25 puntos de diferencia, pero con n=14 el margen es ±25 y toca al otro grupo.
+**No concluyente.** Y el patrón global no es monótono (los de brecha +10 a +20
+van 36% con n=11), así que no es tan simple como "más brecha, mejor".
+
+### Y esto NO es el enfoque de "valor / EV" que se descartó
+
+La diferencia importa:
+
+- **Descartado:** "calculamos que gana 55% y paga 40%, hay +15% de valor" — eso
+  exige inventar una probabilidad, y con datos públicos no se puede.
+- **Esto:** "el precio lo pone en 40 y nuestras medidas lo ven parejo" — es una
+  discrepancia entre dos cosas que ya se miden, sin inventar ninguna probabilidad.
+
 ## En pie, sin muestra suficiente
 
 ### `abridores` puede estar aportando poco
