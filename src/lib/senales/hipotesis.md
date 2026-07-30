@@ -55,14 +55,44 @@ candidatos en contra.**
 4. Que **`abridores` acierte 40% con 55 casos**: su score puede estar diciendo "es
    bueno en la liga" o "es mejor que el rival", y no se sabe cuál.
 
-### Estado
+### ARREGLADO el 30/07 con `proyectarPar` — y el resultado no fue el esperado
 
-Consultado. **Nada aplicado: la corrección de escala va antes que cualquier
-familia nueva.** El detalle y los tres caminos posibles están en
-`renda/palpito_familia_hembras.md` §10.
+Se aplicó la proyección espejo, `50 + (a − b) / 2`. **El invariante quedó
+arreglado**: el desvío máximo respecto de 100 pasó de ±18 a 1 (redondeo).
 
-**Ojo con el costo:** corregir la escala **invalida los 4 días guardados** para
-comparación, porque los scores viejos y los nuevos no serían la misma medida.
+Y la muestra se salvó: la proyección se calcula desde el `detalle` guardado
+emparejando por `gamePk`, así que los 4 días siguen siendo comparables. No hizo
+falta pedirle nada a la MLB (hacerlo habría sido el backtest contaminado).
+
+**Pero el sesgo que motivó todo NO se resolvió:**
+
+| | antes | después |
+|---|---:|---:|
+| Verdes totales | 10 | 10 (7 se mantienen, 3 se caen, 3 nuevos) |
+| Verdes en no favoritos (35-50) | **0 de 49** | **0 de 49** |
+| Partidos "buenos" que dan verde | 50% | 50% |
+| Correlación score ~ precio | 0.75 | **0.79** |
+
+**La correlación con el precio SUBIÓ.** Al quitar el ruido de la escala
+mezclada, lo que queda es señal — y esa señal es la misma información pública que
+el mercado ya digirió. El motor arreglado se parece **más** al mercado, no menos.
+
+### Lo que eso significa, dicho sin adornos
+
+La lectura ya no es "hay un bug que tapa a los no favoritos". Es la que estaba
+anticipada desde el principio:
+
+> **Las medidas del motor casi nunca discrepan del precio lo suficiente.** Cuando
+> el motor dice "parejo" y el precio dice 40, lo más frecuente es que al motor le
+> falte un dato — no que el mercado se equivoque.
+
+Hay 27 candidatos (de 106) donde el motor ve mejor que el precio, pero no llegan
+a verdes por las otras puertas. Eso es lo que queda por mirar, y **solo con picks
+hacia adelante**: los 106 están quemados.
+
+El arreglo se conserva igual, porque el bug era real y demostrable, el 50 ahora
+significa lo que dice, y es la base correcta para cualquier cosa futura. Pero
+no era la causa del sesgo.
 
 ---
 
