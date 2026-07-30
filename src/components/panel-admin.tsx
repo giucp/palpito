@@ -32,8 +32,10 @@ type Resumen = {
   esperando_jugada: number;
   eventos_abiertos: number;
   eventos_finalizados: number;
-  combos_resueltos: number;
-  combos_acertados: number;
+  // `admin_resumen` sigue devolviendo `combos_resueltos` y `combos_acertados`:
+  // la función SQL no se tocó, pero los combos se quitaron el 2026-07-29 y esos
+  // campos ya no se leen. No se declaran acá para que nadie los vuelva a pintar
+  // por inercia.
 };
 
 type Usuario = {
@@ -301,19 +303,6 @@ export function PanelAdmin({ correo }: { correo: string }) {
             titulo="Cartelera"
             valor={String(resumen?.eventos_abiertos ?? 0)}
             detalle={`${resumen?.eventos_finalizados ?? 0} partidos ya cerrados`}
-          />
-          <Kpi
-            titulo="Combos del día"
-            valor={
-              resumen && resumen.combos_resueltos > 0
-                ? `${resumen.combos_acertados}/${resumen.combos_resueltos}`
-                : "—"
-            }
-            detalle={
-              resumen && resumen.combos_resueltos > 0
-                ? "pegados de los resueltos"
-                : "todavía sin resolver ninguno"
-            }
           />
         </section>
 

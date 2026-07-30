@@ -1,4 +1,4 @@
-import { clavePartido } from "../combos.ts";
+import { clavePartido } from "../mercado-mlb.ts";
 
 // De dónde salen los números que miran los modelos.
 //

@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { cerrarResultados } from "@/lib/sincronizacion";
-import { resolverCombosPendientes } from "@/lib/combos-resultado";
 import { resolverSenales } from "@/lib/senales/guardar";
 
 export const maxDuration = 300;
@@ -20,17 +19,7 @@ export async function GET(req: NextRequest) {
   if (!autorizado(req)) {
     return NextResponse.json({ error: "Clave incorrecta" }, { status: 401 });
   }
-  // Los combos del día viajan pegados acá en vez de tener su propio cron: usan
-  // la misma fuente (statsapi.mlb.com) y el mismo ritmo de 10 minutos. Van
-  // aparte en un try porque no mueven dinero: si la MLB falla, que no arrastre
-  // a la liquidación de las apuestas, que sí lo mueve.
   const resultados = await cerrarResultados();
-  let combos = null;
-  try {
-    combos = await resolverCombosPendientes();
-  } catch (e) {
-    console.error("[combos] resolver:", e instanceof Error ? e.message : e);
-  }
 
   // Marcar qué señales acertaron. Es barato —una consulta y los marcadores del
   // día— así que va en cada vuelta.
@@ -45,5 +34,5 @@ export async function GET(req: NextRequest) {
     console.error("[senales] resolver:", e instanceof Error ? e.message : e);
   }
 
-  return NextResponse.json({ ...resultados, combos, senales });
+  return NextResponse.json({ ...resultados, senales });
 }

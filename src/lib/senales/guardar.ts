@@ -1,6 +1,6 @@
 import { crearClienteAdmin } from "../supabase/admin.ts";
-import { traerResultados } from "../combos-resultado.ts";
-import { traerPartidosDelDia, clavePartido } from "../combos.ts";
+import { traerResultados } from "../resultados-mlb.ts";
+import { traerPartidosDelDia, clavePartido } from "../mercado-mlb.ts";
 import { traerJornada, type TotalMercado } from "./datos.ts";
 import { MODELOS, candidatosDe, nombreDe } from "./modelos.ts";
 import {

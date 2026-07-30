@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Cabecera } from "./cabecera";
-import { Combos } from "./combos";
 import { Juegos } from "./juegos";
 import { Icono, IconosDefs } from "./iconos";
 import { PanelCuenta } from "./panel-cuenta";
@@ -40,7 +39,6 @@ export function AppApuestas({ usuario, saldo }: Props) {
       ? (paramVista as Vista)
       : "lobby";
   });
-  const [analisis, setAnalisis] = useState<"combos" | "polymarket">("combos");
   const [toast, setToast] = useState<{ msg: string; n: number } | null>(null);
 
   // El contador hace que dos avisos iguales seguidos reinicien el temporizador.
@@ -87,37 +85,23 @@ export function AppApuestas({ usuario, saldo }: Props) {
             </div>
           )}
 
-          {/* Análisis: lo que dicen los números de los partidos de hoy. Los
-              combos y Polymarket son la misma clase de cosa —información de
-              afuera sobre la jornada, que no se juega adentro— así que viven
-              juntos y Apuestas queda solo para lo que jugás con otros. */}
+          {/* Análisis: información de afuera sobre la jornada, que no se juega
+              adentro. Así Apuestas queda solo para lo que jugás con otros.
+
+              **Los combos se quitaron el 2026-07-29.** Eran ocho parlays diarios
+              con su regla escrita, y la razón de sacarlos fue del dueño: hacían
+              más ruido que ayuda. Un parlay de cinco patas falla casi siempre por
+              construcción, así que la estadística honesta de cada regla era una
+              fila de ceros que no informaba nada. Y el motor de señales cubre la
+              misma necesidad mejor: de a un pick, con el desglose de por qué.
+              Como quedó una sola sección, ya no hacen falta las pestañas. */}
           {vista === "vivo" && (
             <div className="view">
               <div className="vhead">
                 <h2>Análisis</h2>
-                <span className="sub">
-                  {analisis === "combos"
-                    ? "Los combos del día, con la regla de cada uno"
-                    : "Lo que paga la gente, no lo que dice una casa"}
-                </span>
+                <span className="sub">Lo que paga la gente, no lo que dice una casa</span>
               </div>
-
-              <nav className="secciones">
-                <button
-                  className={analisis === "combos" ? "on" : ""}
-                  onClick={() => setAnalisis("combos")}
-                >
-                  Combos
-                </button>
-                <button
-                  className={analisis === "polymarket" ? "on" : ""}
-                  onClick={() => setAnalisis("polymarket")}
-                >
-                  Polymarket
-                </button>
-              </nav>
-
-              {analisis === "combos" ? <Combos /> : <Polymarket />}
+              <Polymarket />
             </div>
           )}
 

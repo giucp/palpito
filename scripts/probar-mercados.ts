@@ -16,7 +16,7 @@
 //      "Sox": la clave de un Boston–Chicago daba `sox|sox`.
 //
 // Uso: node scripts/probar-mercados.ts [fecha]
-import { traerPartidosDelDia, clavePartido } from "../src/lib/combos.ts";
+import { traerPartidosDelDia, clavePartido } from "../src/lib/mercado-mlb.ts";
 
 const fecha = process.argv[2]?.match(/^\d{4}-\d{2}-\d{2}$/)
   ? process.argv[2]
