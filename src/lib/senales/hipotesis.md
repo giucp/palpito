@@ -1,5 +1,71 @@
 # Hipótesis probadas sobre el motor
 
+---
+
+## ⚠ ABIERTO Y GRAVE: los scores mezclan dos escalas (30/07)
+
+**Lo pidió revisar el dueño y tenía razón.** Es probablemente la causa raíz del
+sesgo hacia favoritos y de varias cosas que estaban sueltas.
+
+### El invariante que falla
+
+Si los scores comparan a los dos equipos del partido —lo que el motor declara y
+lo que asumen **todas** sus puertas— los dos candidatos de un partido tendrían
+que **sumar 100**. Sobre 54 partidos **suman entre 82 y 118**.
+
+Desvío promedio de |x + y − 100| por modelo:
+
+| Modelo | desvío | máx | |
+|---|---:|---:|---|
+| `forma` | 20.0 | 44 | **NO espejo** |
+| `abridores` | 16.4 | 34 | **NO espejo** |
+| `bullpen` | 14.8 | 48 | **NO espejo** |
+| `ofensiva` | 12.4 | 45 | **NO espejo** |
+| `desgaste`, `splits`, `bajas`, `forma-abridor` | 0.0 | 0 | espejo |
+| `mercado` | 0.8 | 1 | espejo |
+
+**Los cuatro que fallan son los que mezclan las dos normalizaciones al 50/50:**
+
+```ts
+const enLaJornada  = posicion(mio.fip, jornada.fipsAbridores, false); // ABSOLUTO
+const contraElOtro = ventaja(mio.fip, suyo.fip, 0.8, false);          // RELATIVO
+const score = Math.round(enLaJornada * 0.5 + contraElOtro * 0.5);
+```
+
+### La consecuencia
+
+| Suma de los dos scores | partidos | con algún verde |
+|---|---:|---:|
+| 82–90 (dos equipos flojos) | 5 | **0%** |
+| 90–110 | 40 | 13% |
+| 110–118 (dos equipos buenos) | 9 | **56%** |
+
+**El motor recomienda según la calidad absoluta del partido, no según quién gana.**
+Dos abridores idénticos y los dos malos: `contraElOtro` da 50 a ambos (empate
+real), `enLaJornada` da 20 a ambos, score 35 y 35. **Un empate aparece como dos
+candidatos en contra.**
+
+### Qué explica
+
+1. El **sesgo hacia favoritos**: la parte absoluta premia al equipo bueno dos veces.
+2. El **hueco 45–50** en la distribución de scores: es la firma de sumar una
+   distribución uniforme (`posicion`) con una concentrada (`ventaja`).
+3. Que **todas las puertas usen el 50 como ancla** cuando para 4 de 9 modelos ese
+   ancla no existe — incluido el criterio de la familia "hembra".
+4. Que **`abridores` acierte 40% con 55 casos**: su score puede estar diciendo "es
+   bueno en la liga" o "es mejor que el rival", y no se sabe cuál.
+
+### Estado
+
+Consultado. **Nada aplicado: la corrección de escala va antes que cualquier
+familia nueva.** El detalle y los tres caminos posibles están en
+`renda/palpito_familia_hembras.md` §10.
+
+**Ojo con el costo:** corregir la escala **invalida los 4 días guardados** para
+comparación, porque los scores viejos y los nuevos no serían la misma medida.
+
+---
+
 Lo que se propuso, se midió y **se cayó**. Está escrito para no volver a
 proponerlo, que es la mitad de lo que se aprende.
 
