@@ -74,6 +74,57 @@ const D_2026_07_29: Decision[] = [
   },
 ];
 
+const D_2026_07_30: Decision[] = [
+  {
+    mercado: "ganador",
+    equipo: "Pittsburgh Pirates",
+    tomo: false,
+    nota:
+      "Paso, y es el único verde del día. **Abre Yohan Ramírez, que no tiene NI UNA apertura " +
+      "previa en la temporada: es un relevista abriendo.** El motor le pone 59 al modelo de " +
+      "abridores usando su FIP de temporada, pero ese número es de lanzar una entrada cada tres " +
+      "días, no seis seguidas — y a un relevista el FIP le sale mejor justamente porque lanza " +
+      "poco cada vez. Encima el bullpen de Pittsburgh está en 31 (4.30 de efectividad) y va a " +
+      "tener que cubrir cinco o seis entradas. Ofensiva 92 y contra esa mano 96 son buenos, pero " +
+      "no alcanzan para eso.\n\n" +
+      "HIPÓTESIS NUEVA, para comprobar: el FIP de un relevista no sirve para juzgarlo como " +
+      "abridor, y el motor no distingue los dos casos. Si Pittsburgh gana, es falsa.",
+  },
+  {
+    mercado: "linea",
+    equipo: "Pittsburgh Pirates por 2+",
+    tomo: false,
+    nota:
+      "Paso, coincido con el motor. Ventaja al batear 93 y ambiente 75 son fuertes, pero el " +
+      "bullpen en 32 es lo que hunde esto: para ganar por dos hay que sostener la ventaja hasta " +
+      "el final, y es el mismo bullpen flojo del que hablo en el ganador. Además abre el " +
+      "relevista sin aperturas.",
+  },
+  {
+    mercado: "ganador",
+    equipo: "Tampa Bay Rays",
+    tomo: false,
+    nota:
+      "Paso, coincido con el motor, y lo digo porque estuve tentado. A favor: Texas llega " +
+      "destrozado (bajas en 99) y abre Cole Winn, otro sin ninguna apertura previa. En contra: " +
+      "el descanso en 17, que es el bullpen de Tampa exigido, y McClanahan viene peor que su año " +
+      "(4.40 contra 3.39). Rescatarla contradiría el ajuste que acabo de hacerle al motor hoy " +
+      "—un modelo solo, treinta puntos por debajo del resto, suele tener razón— y no tiene " +
+      "sentido cambiar la regla por la mañana y saltármela por la tarde.",
+  },
+  {
+    mercado: "linea",
+    equipo: "Boston Red Sox por 2+",
+    tomo: false,
+    nota:
+      "Paso, coincido. Sonny Gray llega mejor que su año (3.45 contra 3.74) y enfrente Mason " +
+      "Barnett tampoco tiene aperturas previas, así que la ventaja al abrir es real. Pero la " +
+      "ventaja al batear está en 37: con los bates parejos, ganar por dos depende de que se " +
+      "rompa el bullpen rival, y eso no lo sé medir.",
+  },
+];
+
 export const DECISIONES_POR_FECHA: Record<string, Decision[]> = {
   "2026-07-29": D_2026_07_29,
+  "2026-07-30": D_2026_07_30,
 };
