@@ -63,17 +63,42 @@ export const REGLAS = {
    * descartaba a dos de cada tres candidatos por una propiedad de la escala, no
    * por nada que pasara en el partido.
    *
-   * Dos modelos independientes en el fondo sí es una señal.
+   * **Se queda en 2, y ahora hay con qué defenderlo.** Medido sobre cuatro días:
+   * de los verdes que la regla vieja habría tumbado, **el piso no tumba a
+   * ninguno por su cuenta** —cero casos en 17 verdes—. Subirlo fue inocuo, así
+   * que volverlo a 1 sería revertir por simetría con la regla de abajo, sin
+   * ningún motivo medido.
    */
   bajosParaDescartar: 2,
   /**
    * Cuánto puede alejarse un modelo por debajo de la mediana antes de que se
    * considere que contradice al resto. 30 puntos es mucho: es la diferencia
    * entre "bueno" y "malo", no un matiz.
+   *
+   * Se probaron 35, 40, 45 y 50 sobre los cuatro días: **la distancia no
+   * discrimina**. En todos los umbrales la proporción de acierto es la misma
+   * (4-1, 3-1, 2-1, 1-0), solo cambia a cuántos atrapa. Subirla no mejora nada.
    */
   distanciaContradice: 30,
-  /** Cuántos modelos tienen que estar lejos. Misma razón que `bajosParaDescartar`. */
-  lejosParaDescartar: 2,
+  /**
+   * Cuántos modelos tienen que contradecir al resto. **Uno alcanza.**
+   *
+   * Estuvo en 2 del 27 al 30 de julio, subido junto con `bajosParaDescartar` y
+   * con el mismo argumento aritmético. **El argumento solo era bueno para el
+   * otro**, y estos cuatro días lo dejaron a la vista: es esta puerta la que
+   * hace todo el trabajo —deja entrar 6 de los 17 verdes— y de esos, la mayoría
+   * perdió. Contando las tres familias, la regla vieja habría acertado en 4 y
+   * fallado en 1.
+   *
+   * Lo que dice el dato, en una frase: **un modelo solo, treinta puntos por
+   * debajo de todos los demás, suele tener razón.** El bullpen en 28 cuando el
+   * resto anda por 78 no es ruido de escala, es un aviso.
+   *
+   * La muestra es chica (5 casos) y el criterio para volver a subirlo está
+   * escrito: que aparezcan tres candidatos tumbados por esta puerta que
+   * hubieran ganado.
+   */
+  lejosParaDescartar: 1,
 };
 
 /**

@@ -86,13 +86,19 @@ console.log("─".repeat(72));
 console.log(`Entran ${entran.length} de ${veredictos.length} candidatos de ganador.`);
 
 // ---- Más o menos carreras ----
+//
+// **Esta familia ya NO se guarda** (se quitó el 2026-07-29, ver `FAMILIAS` en
+// `guardar.ts`). Se sigue calculando acá porque el código está vivo y para poder
+// mirarla si algún día se vuelve a encender, pero el aviso de abajo hace falta:
+// sin él, este script muestra candidatos que en la base no van a existir, y eso
+// es justo la clase de cosa que hace perder una hora.
 const totales = juzgarFamilia(
   partidos.flatMap(candidatosTotalDe),
   MODELOS_TOTALES,
   OPCIONES_TOTALES
 );
 
-console.log(`\n${"═".repeat(72)}\nMÁS O MENOS CARRERAS\n`);
+console.log(`\n${"═".repeat(72)}\nMÁS O MENOS CARRERAS  —  NO SE GUARDA, solo para mirar\n`);
 for (const { c, v } of totales) {
   if (!v.entra && !todos) continue;
   console.log(
@@ -106,7 +112,10 @@ for (const { c, v } of totales) {
   if (!v.entra) console.log(`   ✗ ${v.motivoDescarte}`);
   console.log();
 }
-console.log(`Entran ${totales.filter((x) => x.v.entra).length} de ${totales.length} candidatos de total.`);
+console.log(
+  `Entran ${totales.filter((x) => x.v.entra).length} de ${totales.length} candidatos de total ` +
+    `(que no se guardan).`
+);
 
 console.log("\nCobertura de los modelos de total:");
 for (const m2 of MODELOS_TOTALES) {
