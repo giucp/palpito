@@ -119,7 +119,6 @@ for (const f of filas) {
     if (f.gano) x.a++;
   }
 }
-const base = gan(filas) / filas.length;
 for (const [id, v] of Object.entries(pm).sort((a, b) => b[1].n - a[1].n)) {
   console.log(linea(id, v.a, v.n) + (v.n < 100 ? "  muestra chica" : ""));
 }
