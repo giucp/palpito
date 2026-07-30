@@ -10,7 +10,7 @@ import {
   OPCIONES_TOTALES,
 } from "./modelos-totales.ts";
 import { MODELOS_LINEA, candidatoLineaDe, nombreLineaDe } from "./modelos-linea.ts";
-import { juzgar, puertaDeScore } from "./motor.ts";
+import { juzgar, medir, proyectarPar, puertaDeScore } from "./motor.ts";
 
 // Guardar lo que dijo el motor cada día, y comprobarlo después.
 //
@@ -168,17 +168,58 @@ export async function guardarSenales(
     hora: p.hora || null,
   });
 
-  // Las tres familias se arman igual, en **dos pasadas**: primero se juzga cada
-  // candidato por su cuenta, y después `puertaDeScore` mira la jornada completa
-  // y decide cuáles están entre los mejores del día. Esa última puerta no se
-  // puede contestar de a un partido.
+  // Las familias se arman en **tres pasadas**, y el orden importa:
+  //
+  //   1. MEDIR cada candidato con todos los modelos.
+  //   2. PROYECTAR los dos candidatos de un partido a escala espejo, para que el
+  //      50 signifique "empate entre estos dos" en los nueve modelos y no solo en
+  //      cinco. Sin este paso las puertas leen calidad del partido creyendo que
+  //      leen ventaja — ver `proyectarPar`.
+  //   3. JUZGAR sobre lo proyectado, y al final `puertaDeScore`, que mira la
+  //      jornada entera y no se puede contestar de a un partido.
   const juzgarFamilia = <C>(
     pares: Array<{ p: (typeof partidos)[number]; c: C }>,
     modelos: Parameters<typeof juzgar<C>>[1],
     opciones?: Parameters<typeof juzgar<C>>[2]
   ) => {
-    const veredictos = puertaDeScore(pares.map(({ c }) => juzgar(c, modelos, opciones)));
-    return pares.map(({ p, c }, i) => ({ p, c, v: veredictos[i] }));
+    const medidos = pares.map(({ p, c }) => ({ p, c, med: medir(c, modelos) }));
+
+    // Los candidatos de un mismo partido son los que forman par.
+    const porJuego = new Map<string, typeof medidos>();
+    for (const x of medidos) {
+      porJuego.set(x.p.juego, [...(porJuego.get(x.p.juego) ?? []), x]);
+    }
+    const proyectado = new Map<(typeof medidos)[number], ReturnType<typeof medir>>();
+    const calidades = new Map<string, number>();
+    for (const [juego, grupo] of porJuego) {
+      // Con un solo candidato no hay par que proyectar (la run line publica uno
+      // por partido): se deja el crudo, que es lo que había antes.
+      if (grupo.length !== 2) {
+        for (const x of grupo) proyectado.set(x, x.med);
+        continue;
+      }
+      const r = proyectarPar(grupo[0].med, grupo[1].med);
+      proyectado.set(grupo[0], r.a);
+      proyectado.set(grupo[1], r.b);
+      // Cuánta calidad de partido se descartó, promediada entre los modelos.
+      // Se registra, no se usa para decidir: es hipótesis, no puerta.
+      if (r.calidad.length) {
+        calidades.set(
+          juego,
+          Math.round(r.calidad.reduce((a, x) => a + x.sobre, 0) / r.calidad.length)
+        );
+      }
+    }
+
+    const veredictos = puertaDeScore(
+      medidos.map((x) => juzgar(x.c, modelos, opciones, proyectado.get(x)))
+    );
+    return medidos.map((x, i) => ({
+      p: x.p,
+      c: x.c,
+      v: veredictos[i],
+      calidad: calidades.get(x.p.juego) ?? null,
+    }));
   };
 
   // Quién gana

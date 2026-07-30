@@ -9,7 +9,7 @@
 
 import { traerJornada } from "../src/lib/senales/datos.ts";
 import { MODELOS, candidatosDe, nombreDe } from "../src/lib/senales/modelos.ts";
-import { juzgar, puertaDeScore, REGLAS } from "../src/lib/senales/motor.ts";
+import { juzgar, medir, proyectarPar, puertaDeScore, REGLAS } from "../src/lib/senales/motor.ts";
 import { mercadoDelDia, balanceSenales } from "../src/lib/senales/guardar.ts";
 import {
   MODELOS_TOTALES,
@@ -36,22 +36,38 @@ console.log(
 );
 
 /**
- * Juzga una familia entera, en las mismas dos pasadas que `guardar.ts`.
+ * Juzga una familia entera, en **las mismas tres pasadas que `guardar.ts`**:
+ * medir, proyectar a escala espejo, y recién ahí juzgar.
  *
- * La segunda pasada (`puertaDeScore`) hace falta acá también: si el script
- * juzgara candidato por candidato mostraría más señales de las que el motor
- * guarda de verdad, y este script existe justamente para ver lo que el motor va
- * a hacer.
+ * Las tres tienen que estar o el script miente. La proyección cambia qué entra
+ * (un empate real pasa de 35/35 a 50/50) y `puertaDeScore` mira la jornada
+ * entera, así que sin ellas este script mostraría candidatos que el motor no va
+ * a guardar — y existe justamente para ver lo que el motor va a hacer.
  */
-function juzgarFamilia<C>(
+function juzgarFamilia<C extends { partido: { juego: string } }>(
   candidatos: C[],
   modelos: Parameters<typeof juzgar<C>>[1],
   opciones?: Parameters<typeof juzgar<C>>[2]
 ) {
-  const vs = puertaDeScore(candidatos.map((c) => juzgar(c, modelos, opciones)));
-  return candidatos
-    .map((c, i) => ({ c, v: vs[i] }))
-    .sort((a, b) => b.v.score - a.v.score);
+  const medidos = candidatos.map((c) => ({ c, med: medir(c, modelos) }));
+
+  const porJuego = new Map<string, typeof medidos>();
+  for (const x of medidos) {
+    porJuego.set(x.c.partido.juego, [...(porJuego.get(x.c.partido.juego) ?? []), x]);
+  }
+  const proyectado = new Map<(typeof medidos)[number], ReturnType<typeof medir>>();
+  for (const grupo of porJuego.values()) {
+    if (grupo.length !== 2) {
+      for (const x of grupo) proyectado.set(x, x.med);
+      continue;
+    }
+    const r = proyectarPar(grupo[0].med, grupo[1].med);
+    proyectado.set(grupo[0], r.a);
+    proyectado.set(grupo[1], r.b);
+  }
+
+  const vs = puertaDeScore(medidos.map((x) => juzgar(x.c, modelos, opciones, proyectado.get(x))));
+  return medidos.map((x, i) => ({ c: x.c, v: vs[i] })).sort((a, b) => b.v.score - a.v.score);
 }
 
 const m = await mercadoDelDia(fecha);

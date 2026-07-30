@@ -117,27 +117,131 @@ export const REGLAS = {
  */
 export type Opciones = { neutral?: number };
 
+/** Lo que dijo cada modelo, antes de juzgar nada. */
+export type Medicion = {
+  id: string;
+  nombre: string;
+  peso: number;
+  score: number | null;
+  motivos: string[];
+};
+
+/** Pasa un candidato por los modelos y anota lo que dice cada uno. No juzga. */
+export function medir<T>(partido: T, modelos: Modelo<T>[]): Medicion[] {
+  return modelos.map((m) => {
+    const s = m.mirar(partido);
+    return {
+      id: m.id,
+      nombre: m.nombre,
+      peso: m.peso,
+      score: s ? s.score : null,
+      motivos: s ? s.motivos : ["Sin datos suficientes"],
+    };
+  });
+}
+
+/**
+ * Deja los scores de un par en escala espejo: `50 + (a − b) / 2`.
+ *
+ * ## El problema que arregla, que estaba en el suelo de todo el motor
+ *
+ * Cualquier par de scores de un partido se descompone en dos números:
+ *
+ * ```
+ *   d = (a − b) / 2   →  quién es mejor            (la parte espejo)
+ *   m = (a + b) / 2   →  qué tan bueno es el partido (la parte común)
+ * ```
+ *
+ * **Un modelo es espejo si y solo si su `m` vale 50.** Cuatro de los nueve
+ * mezclaban `posicion()` (dónde cae en la jornada, absoluto) con `ventaja()`
+ * (cuánto le saca al rival, relativo) al 50/50, así que metían calidad del
+ * partido dentro de `m` — y **todas las puertas leían `m + d` creyendo que leían
+ * `d`**.
+ *
+ * Lo que se veía: dos abridores idénticos y los dos malos daban 35 y 35. Un
+ * empate real aparecía como dos candidatos en contra. Y al revés, entre dos
+ * equipos de élite los dos subían a 65, así que el favorito cobraba la calidad
+ * del partido como si fuera ventaja propia. Medido sobre 54 partidos: los de
+ * "suma alta" producían un verde el 56% de las veces y los de suma baja, nunca.
+ *
+ * ## Por qué proyectar y no borrar la mitad absoluta de cada modelo
+ *
+ * Porque `(p_A − p_B)`, la **diferencia** de posiciones en la jornada, es
+ * información legítimamente relativa aunque venga de la mitad "absoluta".
+ * Borrar `enLaJornada` la tiraría; proyectar la conserva y solo elimina `m`.
+ *
+ * Y porque así el invariante lo garantiza el motor a la salida, no la buena
+ * conducta de cada modelo: **ningún modelo futuro puede volver a romperlo**.
+ *
+ * ## Lo que se descarta no se pierde: se anota
+ *
+ * `m − 50` es exactamente "cuánto mejor es este partido que el promedio del
+ * día". Se devuelve aparte, para registrarlo junto a cada candidato. La intuición
+ * del comentario viejo —"una ventaja grande entre dos malos no es una
+ * recomendación"— tiene un núcleo válido, pero es sobre **confianza, no sobre
+ * dirección**, y meterla dentro de la dirección fue el error. Queda como
+ * hipótesis registrada: si a los 30 picks los verdes de partidos flojos rinden
+ * peor, se promueve a puerta con evidencia propia.
+ */
+export function proyectarPar(a: Medicion[], b: Medicion[]): {
+  a: Medicion[];
+  b: Medicion[];
+  /** `m − 50` por modelo: cuánta calidad de partido se descartó. */
+  calidad: Array<{ id: string; sobre: number }>;
+} {
+  const calidad: Array<{ id: string; sobre: number }> = [];
+  const porId = new Map(b.map((x) => [x.id, x]));
+
+  const proyectar = (uno: Medicion[], otro: Map<string, Medicion>, signo: 1 | -1) =>
+    uno.map((x) => {
+      const y = otro.get(x.id);
+      // Un modelo pareado que solo pudo medir un lado no midió: sin el otro no
+      // hay diferencia que calcular, y publicar el crudo sería volver a mezclar.
+      if (x.score === null || !y || y.score === null) return { ...x, score: null };
+      const d = (x.score - y.score) / 2;
+      return { ...x, score: Math.max(0, Math.min(100, Math.round(50 + signo * d))) };
+    });
+
+  for (const x of a) {
+    const y = porId.get(x.id);
+    if (x.score !== null && y && y.score !== null) {
+      calidad.push({ id: x.id, sobre: Math.round((x.score + y.score) / 2 - 50) });
+    }
+  }
+
+  return {
+    a: proyectar(a, porId, 1),
+    b: proyectar(b, new Map(a.map((x) => [x.id, x])), 1),
+    calidad,
+  };
+}
+
 /**
  * Pasa un partido por todos los modelos y decide.
  *
  * Los pesos se **renormalizan** entre los modelos que sí tuvieron datos: si el
  * de clima no pudo medir, su 10% se reparte entre los demás en vez de contarse
  * como un cero, que sería castigar al partido por una falta nuestra.
+ *
+ * `medicion` permite pasarle scores ya proyectados (ver `proyectarPar`); si no
+ * se pasa, mide y juzga sobre el crudo.
  */
-export function juzgar<T>(partido: T, modelos: Modelo<T>[], opciones: Opciones = {}): Veredicto {
-  const medidos: Array<{ m: Modelo<T>; s: Senal }> = [];
-  const detalle: Veredicto["detalle"] = [];
-
-  for (const m of modelos) {
-    const s = m.mirar(partido);
-    if (s) medidos.push({ m, s });
-    detalle.push({
-      id: m.id,
-      nombre: m.nombre,
-      score: s ? s.score : null,
-      motivos: s ? s.motivos : ["Sin datos suficientes"],
-    });
-  }
+export function juzgar<T>(
+  partido: T,
+  modelos: Modelo<T>[],
+  opciones: Opciones = {},
+  medicion?: Medicion[]
+): Veredicto {
+  const anotado = medicion ?? medir(partido, modelos);
+  const medidos = anotado
+    .filter((x) => x.score !== null)
+    .map((x) => ({ m: { id: x.id, nombre: x.nombre, peso: x.peso }, s: { score: x.score as number } }));
+  const detalle: Veredicto["detalle"] = anotado.map((x) => ({
+    id: x.id,
+    nombre: x.nombre,
+    score: x.score,
+    motivos: x.motivos,
+  }));
 
   if (medidos.length === 0) {
     return {
